@@ -1048,23 +1048,24 @@ class songdb(service.service):
         """return given artist"""
         return self.artists.get(artist)
 
-    def _filteritems(self, items, filters):
-        """return items matching filters"""
-        for filter in filters:
-            indexname = filter.indexname
-            indexid = filter.indexid
-            items = [item for item in items if getattr(item, indexname) == indexid]
-        return items
 
     def _getartists(self, filters=None):
         """return all stored artists"""
         if not filters:
             return map(self.artists.get, self.artists.keys())
         else:
-            index = getattr(self, filters[0].indexname+"s")
-            # indexid always has to be a string
-            artists = map(self.artists.get, index[str(filters[0].indexid)].artists)
-            return self._filteritems(artists, filters[1:])
+            index = getattr(self, filter[0].indexname+"s")
+            artisthash = {}
+            for artist in index[str(filter[0].indexid)].artists:
+                artisthash[artist] = True
+            for filter in filters[1:]:
+                index = getattr(self, filter.indexname+"s")
+                newartisthash = {}
+                for artist in index[str(filter.indexid)].artists:
+                    newartisthash[artist] = True
+                # XXX to be finished
+            artists = map(self.artists.get, artisthash.keys())
+
 
     def _getalbums(self, artist=None, filters=None):
         """return albums of a given artist and genre
@@ -1089,11 +1090,20 @@ class songdb(service.service):
                 albums = self._filteritems(albums, filters[1:])
             return albums
 
+
     def _getsongs(self, artist=None, album=None, filters=None):
         """ returns song of given artist, album and with song.indexname==indexid
 
         All values either have to be strings or None, in which case they are ignored.
         """
+
+        def _filteritems(items, filters):
+            """return items matching filters"""
+            for filter in filters:
+                indexname = filter.indexname
+                indexid = filter.indexid
+                items = [item for item in items if getattr(item, indexname) == indexid]
+            return items
 
         if artist is None and album is None and not filters:
             # return all songs in songdb
@@ -1126,10 +1136,10 @@ class songdb(service.service):
             if artist is None and album is None:
                 # the indexid in the index always has to be a string!
                 songs = map(self.songs.get, index[str(filters[0].indexid)].songs)
-                return self._filteritems(songs, filters[1:])
+                return _filteritems(songs, filters[1:])
             else:
                 songs = self._getsongs(artist=artist, album=album)
-                return self._filteritems(songs, filters)
+                return _filteritems(songs, filters)
 
     def _getgenres(self):
         """return all stored genres"""
