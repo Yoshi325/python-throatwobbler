@@ -921,17 +921,20 @@ class decades(totaldiritem):
 
     """ all decades in the corresponding database """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, songdbids, filters):
         self.songdbid = songdbid
+        self.songdbids = songdbids
+        self.filters = filters
         self.name = _("Decades")
         self.nrdecades = None
 
     def getname(self):
         if self.nrdecades is None:
-            self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid))
+            self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Decades"), self.nrdecades)
 
     def _decadewrapper(self, adecade, songdbid):
+        return basedir(self.songdbids, "%s:" % _("Decade"), adecade.decade, self.filters.filtered(decadefilter(adecade.decade)))
         return decade(songdbid, adecade)
 
     def getcontents(self):
@@ -949,34 +952,42 @@ class ratings(totaldiritem):
 
     """ all ratings in the corresponding database """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, songdbids, filters):
         self.songdbid = songdbid
+        self.songdbids = songdbids
+        self.filters = filters
         self.name = _("Ratings")
         self.nrratings = None
 
     def getname(self):
         if self.nrratings is None:
-            self.nrratings = hub.request(requests.getnumberofratings(self.songdbid))
+            self.nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Ratings"), self.nrratings)
 
-    def cmpitem(x, y):
-        if x.rating is None:
-            return 1
-        elif y.rating is None:
-            return -1
-        else:
-            return cmp(y.rating, x.rating)
-    cmpitem = staticmethod(cmpitem)
+    #def cmpitem(x, y):
+    #    if x.rating is None:
+    #        return 1
+    #    elif y.rating is None:
+    #        return -1
+    #    else:
+    #        return cmp(y.rating, x.rating)
+    #cmpitem = staticmethod(cmpitem)
 
     def _ratingwrapper(self, arating, songdbid):
-        return rating(songdbid, arating.rating)
+        if arating.rating is not None:
+            description =  "*" * arating.rating
+        else:
+            description =  _("Not rated")
+        return basedir(self.songdbids, "%s:" % _("Rating"), description, self.filters.filtered(ratingfilter(arating.rating)))
 
     def getcontents(self):
-        return hub.request(requests.getratings(self.songdbid, wrapperfunc=self._ratingwrapper, sort=self.cmpitem))
+        return hub.request(requests.getratings(self.songdbid, wrapperfunc=self._ratingwrapper, sort=self.cmpitem,
+                                               filters=self.filters))
 
     def getheader(self, item):
-        nrratings = hub.request(requests.getnumberofratings(self.songdbid))
-        return "%s (%d)" % (_("Ratings"), nrratings)
+        if self.nrratings is None:
+            nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
+        return "%s (%d)" % (_("Ratings"), self.nrratings)
 
     def getinfo(self):
         return [[_("Ratings"), "", "", ""]]
@@ -1152,7 +1163,11 @@ class basedir(totaldiritem):
                 break
         else:
             self.virtdirs.append(genres(self.songdbid, self.songdbids, filters=self.filters))
-        #self.virtdirs.append(ratings(self.songdbid, filters=self.filters))
+        for filter in self.filters:
+            if isinstance(filter, ratingfilter):
+                break
+        else:
+            self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
         #self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
         #self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         #self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
