@@ -384,7 +384,7 @@ class songdbmanager(service.service):
 
     def _requestnumbers(self, request, listrequest, requestkwargs={}):
         """ helper method for a request which queries for the number of items.
-        
+
         If a database is specified, the corresponding database request is
         executed directly. Otherwise, the length of the result of listrequest
         is returned. """
@@ -399,13 +399,12 @@ class songdbmanager(service.service):
             return self.songdbhub.request(request)
 
     def getnumberofsongs(self, request):
-        if request.artist is request.album is request.indexname is request.indexid is None:
+        if request.artist is request.album is None and not request.filters:
             requestkwargs = {}
         else:
             requestkwargs = { "artist": request.artist,
                               "album": request.album,
-                              "indexname": request.indexname,
-                              "indexid": request.indexid }
+                              "filters": request.filters }
         return self._requestnumbers(request, requests.getsongs, requestkwargs)
     getnumberofsongs = cacheresult(getnumberofsongs)
 
@@ -418,7 +417,6 @@ class songdbmanager(service.service):
     getnumberofdecades = cacheresult(getnumberofdecades)
 
     def getnumberofartists(self, request):
-        log.debug("++++++++++")
         return self._requestnumbers(request, requests.getartists)
     getnumberofartists = cacheresult(getnumberofartists)
 

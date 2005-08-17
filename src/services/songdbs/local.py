@@ -659,7 +659,7 @@ class songdb(service.service):
         else:
             self.artists.delete(song.artist, txn=self.txn)
             hub.notify(events.artistaddedordeleted(self.id, artist))
-            
+
     # other indices: genre, year, rating, ...
 
     def _indexsong_index(self, song, indexname):
@@ -787,7 +787,7 @@ class songdb(service.service):
                     break
             else:
                 topplayed.append(song.id)
-                
+
         self.stats.put("topplayed", topplayed[:self.playingstatslength], txn=self.txn)
 
     def _unindexsong_stats(self, song):
@@ -835,7 +835,7 @@ class songdb(service.service):
             self._unindexsong_artist(oldsong)
             for index in self.indices:
                 self._unindexsong_index(oldsong, index)
-                
+
             self._indexsong_album(newsong)
             self._indexsong_artist(newsong)
             for index in self.indices:
@@ -857,7 +857,7 @@ class songdb(service.service):
         """get song info from database or insert new one"""
 
         path = os.path.normpath(path)
-        
+
         # check if we are allowed to store this song in this database
         if not path.startswith(self.basedir):
             return None
@@ -887,14 +887,14 @@ class songdb(service.service):
             else:
                 self._txn_commit()
                 log.debug("new song %s" % path)
-                
+
         return song
 
     def _delsong(self, song):
         """delete song from database"""
         if not self.songs.has_key(song.id):
             raise KeyError
-        
+
         log.debug("delete song: %s" % str(song))
         self._txn_begin()
         try:
@@ -989,7 +989,7 @@ class songdb(service.service):
         """delete playlist from database"""
         if not self.playlists.has_key(playlist.id):
             raise KeyError
-        
+
         log.debug("delete playlist: %s" % str(playlist))
         self._txn_begin()
         try:
@@ -1036,62 +1036,71 @@ class songdb(service.service):
     ##########################################################################################
 
     def _getsong(self, id):
-        """returns song entry with given id"""
+        """return song entry with given id"""
         song = self.songs.get(id)
         return song
 
     def _getalbum(self, album):
-        """returns given album"""
+        """return given album"""
         return self.albums[album]
 
     def _getartist(self, artist):
-        """returns given artist"""
+        """return given artist"""
         return self.artists.get(artist)
 
-    def _getartists(self, indexname=None, indexid=None):
+    def _filteritems(self, items, filters):
+        """return items matching filters"""
+        for filter in filters:
+            indexname = filter.indexname
+            indexid = filter.indexid
+            items = [item for item in items if getattr(item, indexname) == indexid]
+        return items
+
+    def _getartists(self, filters=None):
         """return all stored artists"""
-        # use cached value if existent
-        if indexname is None:
+        if not filters:
             return map(self.artists.get, self.artists.keys())
         else:
-            index = getattr(self, indexname+"s")
+            index = getattr(self, filters[0].indexname+"s")
             # indexid always has to be a string
-            return map(self.artists.get, index[str(indexid)].artists)
+            artists = map(self.artists.get, index[str(filters[0].indexid)].artists)
+            return self._filteritems(artists, filters[1:])
 
-    def _getalbums(self, artist=None, indexname=None, indexid=None):
+    def _getalbums(self, artist=None, filters=None):
         """return albums of a given artist and genre
 
         artist has to be a string. If it is none, all stored
         albums are returned
         """
         if artist is None:
-            if indexname is None:
+            if not filters:
                 return map(self.albums.get, self.albums.keys())
             else:
-                index = getattr(self, indexname+"s")
+                index = getattr(self, filters[0].indexname+"s")
                 # indexid always has to be a string
-                return map(self.albums.get, index[str(indexid)].albums)
+                return map(self.albums.get, index[str(filters[0].indexid)].albums)
         else:
             albums = map(self.albums.get, self.artists[artist].albums)
-            if indexname is not None:
-                index = getattr(self, indexname+"s")
+            if filters:
+                index = getattr(self, filters[0].indexname+"s")
                 # indexid always has to be a string
-                albumsindexentry = index[str(indexid)].albums
+                albumsindexentry = index[str(filters[0].indexid)].albums
                 albums = [album for album in albums if album.id in albumsindexentry]
+                albums = self._filteritems(albums, filters[1:])
             return albums
 
-    def _getsongs(self, artist=None, album=None, indexname=None, indexid=None):
+    def _getsongs(self, artist=None, album=None, filters=None):
         """ returns song of given artist, album and with song.indexname==indexid
 
         All values either have to be strings or None, in which case they are ignored.
         """
 
-        if artist is None and album is None and indexname is None:
+        if artist is None and album is None and not filters:
             # return all songs in songdb
             # songs = map(self.songs.get, self.songs.keys())
             return self.songs.values()
 
-        if indexname is None:
+        if not filters:
             if album is None:
                 # return all songs of a given artist
                 keys = self._getartist(artist).songs
@@ -1110,16 +1119,17 @@ class songdb(service.service):
                 songs = map(self.songs.get, keys)
                 return [song for song in songs if song.album==album]
         else:
-            # indexname and indexid specified
-            index = getattr(self, indexname+"s")
-            
+            # filters specified
+
+            index = getattr(self, filters[0].indexname+"s")
+
             if artist is None and album is None:
                 # the indexid in the index always has to be a string!
-                songs = map(self.songs.get, index[str(indexid)].songs)
-                return songs
+                songs = map(self.songs.get, index[str(filters[0].indexid)].songs)
+                return self._filteritems(songs, filters[1:])
             else:
                 songs = self._getsongs(artist=artist, album=album)
-                return [song for song in songs if getattr(song, indexname)==indexid]
+                return self._filteritems(songs, filters)
 
     def _getgenres(self):
         """return all stored genres"""
@@ -1255,7 +1265,7 @@ class songdb(service.service):
     def clearstats(self, event):
         if event.songdbid == self.id:
             self._clearstats()
-            
+
     # request handlers
 
     def getdatabasestats(self, request):
@@ -1309,7 +1319,7 @@ class songdb(service.service):
         return len(self.artists.keys())
 
     def queryregistersong(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._queryregistersong(request.path)
 
@@ -1324,7 +1334,11 @@ class songdb(service.service):
     def getsongs(self, request):
         if self.id!=request.songdbid:
             raise hub.DenyRequest
-        if request.indexname!="decade":
+        try:
+            return self._getsongs(request.artist, request.album, request.filters)
+        except (KeyError, AttributeError, TypeError):
+            return []
+        if request.indexname != "decade":
             try:
                 return self._getsongs(request.artist, request.album, request.indexname, request.indexid)
             except (KeyError, AttributeError, TypeError):
@@ -1343,6 +1357,10 @@ class songdb(service.service):
     def getartists(self, request):
         if self.id!=request.songdbid:
             raise hub.DenyRequest
+        try:
+            return self._getartists(request.filters)
+        except KeyError:
+            return []
         if request.indexname != "decade":
             try:
                 return self._getartists(request.indexname, request.indexid)
@@ -1351,7 +1369,7 @@ class songdb(service.service):
         else:
             if request.indexid is None:
                 return self._getartists(indexname="year", indexid=None)
-            artists = []              
+            artists = []
             for year in range(request.indexid, request.indexid+10):
                 try:
                     newartists = self._getartists(indexname="year", indexid=year)
@@ -1364,7 +1382,7 @@ class songdb(service.service):
             return artists
 
     def getartist(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
             return self._getartist(request.artist)
@@ -1374,6 +1392,10 @@ class songdb(service.service):
     def getalbums(self, request):
         if self.id!=request.songdbid:
             raise hub.DenyRequest
+        try:
+            return self._getalbums(request.artist, request.filters)
+        except KeyError:
+            return []
         if request.indexname!="decade":
             try:
                 return self._getalbums(request.artist, request.indexname, request.indexid)
@@ -1395,7 +1417,7 @@ class songdb(service.service):
             return albums
 
     def getalbum(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
             return self._getalbum(request.album)
@@ -1403,17 +1425,17 @@ class songdb(service.service):
             return None
 
     def getgenres(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getgenres()
 
     def getyears(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getyears()
 
     def getdecades(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         years = [year.year for year in self._getyears()]
         decades = []
@@ -1427,42 +1449,42 @@ class songdb(service.service):
         return decades
 
     def getratings(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getratings()
 
     def getlastplayedsongs(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getlastplayedsongs()
 
     def gettopplayedsongs(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._gettopplayedsongs()
 
     def getlastaddedsongs(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getlastaddedsongs()
 
     def getplaylist(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getplaylist(request.path)
 
     def getplaylists(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getplaylists()
 
     def getsongsinplaylist(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getsongsinplaylist(request.path)
 
     def getsongsinplaylists(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getsongsinplaylists()
 
