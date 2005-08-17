@@ -1355,7 +1355,7 @@ class songdb(service.service):
             return songs
 
     def getartists(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
             return self._getartists(request.filters)

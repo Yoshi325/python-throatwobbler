@@ -342,6 +342,7 @@ class songdbmanager(service.service):
     dbrequestsongs = selectrandom(cacheresult(sortresult(dbrequestsongs)))
 
     def dbrequestlist(self, request):
+        log.info(str(request.filters))
         # make a copy of the original request, because we will subsequently modify it
         nrequest = copy.copy(request)
         # we do not want to wrap and sort the intermediate results

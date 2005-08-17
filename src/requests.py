@@ -83,13 +83,14 @@ class dbrequestlist(dbrequest):
 
     Note that the resulting list must not be changed by the caller!
     """
-    def __init__(self, songdbid, wrapperfunc=None, sort=False):
+    def __init__(self, songdbid, wrapperfunc=None, sort=False, filters=None):
         self.songdbid = songdbid
         self.wrapperfunc = wrapperfunc
         self.sort = sort
+        self.filters = filters
 
     def __str__(self):
-        return "%s(%s, %s)->%s" % (self.__class__.__name__, self.wrapperfunc, self.sort, self.songdbid)
+        return "%s(%s, %s, %s)->%s" % (self.__class__.__name__, self.wrapperfunc, self.sort, self.filters, self.songdbid)
 
 
 #
@@ -164,7 +165,7 @@ class getsongsinplaylist(dbrequestsingle):
 
 class getsongs(dbrequestsongs):
     
-    def __init__(self, songdbid, artist=None, album=None, sort=False, filters=[], random=False):
+    def __init__(self, songdbid, artist=None, album=None, sort=False, filters=None, random=False):
         dbrequestsongs.__init__(self, songdbid, random, sort)
         self.songdbid = songdbid
         self.artist = artist
@@ -202,11 +203,11 @@ class getsongsinplaylists(dbrequestsongs):
 
 
 class getartists(dbrequestlist):
-    def __init__(self, songdbid, wrapperfunc=None, sort=False, filters=[]):
+    def __init__(self, songdbid, wrapperfunc=None, sort=False, filters=None):
         self.songdbid = songdbid
         self.wrapperfunc = wrapperfunc
         self.sort = sort
-        self.filters = []
+        self.filters = filters
 
     def __str__(self):
         return "%s(%s, %s, %s)->%s" % (self.__class__.__name__,
@@ -214,7 +215,7 @@ class getartists(dbrequestlist):
 
 
 class getalbums(dbrequestlist):
-    def __init__(self, songdbid, artist=None, wrapperfunc=None, sort=False, filters=[]):
+    def __init__(self, songdbid, artist=None, wrapperfunc=None, sort=False, filters=None):
         self.songdbid = songdbid
         self.artist = artist
         self.wrapperfunc = wrapperfunc
@@ -251,7 +252,7 @@ class getplaylists(dbrequestlist):
 #
 
 class getnumberofsongs(dbrequest):
-    def __init__(self, songdbid, artist=None, album=None, filters=[]):
+    def __init__(self, songdbid, artist=None, album=None, filters=None):
         self.songdbid = songdbid
         self.artist = artist
         self.album = album
@@ -263,19 +264,29 @@ class getnumberofsongs(dbrequest):
                   self.artist, self.album, self.filters,
                   self.songdbid))
 
-class getnumberofalbums(dbrequest):
+
+class dbrequestnumber(dbrequest):
+    def __init__(self, songdbid, filters=None):
+        self.songdbid = songdbid
+        self.filters = filters
+
+    def __str__(self):
+        return ( "%s(%s))->%s" % (self.__class__.__name__, self.filters, self.songdbid))
+
+
+class getnumberofalbums(dbrequestnumber):
     pass
 
-class getnumberofartists(dbrequest):
+class getnumberofartists(dbrequestnumber):
     pass
 
-class getnumberofdecades(dbrequest):
+class getnumberofdecades(dbrequestnumber):
     pass
 
-class getnumberofgenres(dbrequest):
+class getnumberofgenres(dbrequestnumber):
     pass
 
-class getnumberofratings(dbrequest):
+class getnumberofratings(dbrequestnumber):
     pass
 
 # songdbmanager
