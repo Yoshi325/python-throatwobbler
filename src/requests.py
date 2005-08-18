@@ -62,7 +62,7 @@ class dbrequestsongs(dbrequest):
     # standard song wrapper function, wrapping a dbitem.song instance in a item.song instance
     def _songwrapper(song, songdbid):
         return item.song(songdbid, song)
-    
+
     def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper):
         self.songdbid = songdbid
         self.sort = sort
@@ -92,7 +92,6 @@ class dbrequestlist(dbrequest):
     def __str__(self):
         return "%s(%s, %s, %s)->%s" % (self.__class__.__name__, self.wrapperfunc, self.sort, self.filters, self.songdbid)
 
-
 #
 # database requests which yield a single result
 #
@@ -100,13 +99,13 @@ class dbrequestlist(dbrequest):
 class getdatabasestats(dbrequest):
     """ return songdbstats instance for database """
     pass
-        
+
 
 class queryregistersong(dbrequestsingle):
     def __init__(self, songdbid, path):
         self.songdbid = songdbid
         self.path = path
-        
+
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.path, self.songdbid)
 
@@ -115,7 +114,7 @@ class getsong(dbrequestsingle):
     def __init__(self, songdbid, id):
         self.songdbid = songdbid
         self.id = id
-        
+
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.id, self.songdbid)
 
@@ -124,7 +123,7 @@ class getalbum(dbrequestsingle):
     def __init__(self, songdbid, album):
         self.songdbid = songdbid
         self.album = album
-        
+
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.album, self.songdbid)
 
@@ -133,7 +132,7 @@ class getartist(dbrequestsingle):
     def __init__(self, songdbid, artist):
         self.songdbid = songdbid
         self.artist = artist
-        
+
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.artist, self.songdbid)
 
@@ -142,7 +141,7 @@ class getplaylist(dbrequestsingle):
     def __init__(self, songdbid, path):
         self.songdbid = songdbid
         self.path = path
-        
+
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.path, self.songdbid)
 
@@ -158,13 +157,12 @@ class getsongsinplaylist(dbrequestsingle):
         return "%s(%s,random=%s)->%s" % (self.__class__.__name__,
                                          self.path, self.random, self.songdbid)
 
-
 #
 # database requests which yield a list of songs
 #
 
 class getsongs(dbrequestsongs):
-    
+
     def __init__(self, songdbid, artist=None, album=None, sort=False, filters=None, random=False):
         dbrequestsongs.__init__(self, songdbid, random, sort)
         self.songdbid = songdbid

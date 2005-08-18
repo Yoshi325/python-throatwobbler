@@ -401,7 +401,7 @@ class songdbmanager(service.service):
         is returned. """
         if request.songdbid is not None and request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
-        elif request.songdbid is None or requestkwargs:
+        elif request.songdbid is None or request.filters:
             return len(self.dbrequestlist(listrequest(songdbid=request.songdbid, filters=request.filters)))
         else:
             return self.songdbhub.request(request)

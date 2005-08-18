@@ -1153,7 +1153,7 @@ class basedir(totaldiritem):
         self.nrsongs = None
 
         self.virtdirs = []
-        if self.type == "local":
+        if self.type == "local" and not self.filters:
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
