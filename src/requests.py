@@ -63,12 +63,17 @@ class dbrequestsongs(dbrequest):
     def _songwrapper(song, songdbid):
         return item.song(songdbid, song)
 
-    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper):
+    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper, filters=None):
         self.songdbid = songdbid
         self.sort = sort
         self.random = random
         self.wrapperfunc = wrapperfunc
+        self.filters = filters
 
+    def __str__(self):
+        return "%s(%s, %s, %s, random=%s)->%s" % (self.__class__.__name__, self.wrapperfunc, self.sort, self.filters,
+                                                  self.random, self.songdbid)
+        
 
 class dbrequestlist(dbrequest):
     """ db request yielding a result list (not containing songs),

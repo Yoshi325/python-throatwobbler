@@ -629,8 +629,9 @@ class topplayedsongs(diritem):
 
     """ songs most often played of the corresponding databases """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.filters = filters
         self.name = "[%s]" % _("Top played songs")
 
     def cmpitem(x, y):
@@ -638,13 +639,13 @@ class topplayedsongs(diritem):
     cmpitem = staticmethod(cmpitem)
 
     def getcontents(self):
-        songs = hub.request(requests.gettopplayedsongs(self.songdbid, sort=self.cmpitem))
+        songs = hub.request(requests.gettopplayedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
         return songs
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.gettopplayedsongs(self.songdbid, random=True))
+        return hub.request(requests.gettopplayedsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item:
@@ -653,7 +654,7 @@ class topplayedsongs(diritem):
             return _("Top played songs")
 
     def getinfo(self):
-        return [[_("Top played songs"), "", "", ""]]
+        return _mergefilters([[_("Top played songs"), "", "", ""]], self.filters)
 
 
 class lastaddedsongs(diritem):
@@ -958,19 +959,26 @@ class filesystemdir(diritem):
         """ return whether the filesystemdir is the basedir of a song database """
         return self.dir == self.basedir
 
+_dbstats = None
 
 class basedir(totaldiritem):
 
     """ base dir of database view"""
 
     def __init__(self, songdbids, filters=filters(())):
+        # XXX: as a really dirty hack, we cache the result of getdatabasestats for
+        # all databases because we cannot call this request safely later on
+        global _dbstats
+        if _dbstats is None:
+            _dbstats = {}
+            for songdbid in songdbids:
+                _dbstats[songdbid] = hub.request(requests.getdatabasestats(songdbid))
         self.name =  _("Song Database")
         self.songdbids = songdbids
         if len(songdbids) == 1:
             self.songdbid = songdbids[0]
-            stats = hub.request(requests.getdatabasestats(self.songdbid))
-            self.type = stats.type
-            self.basedir = stats.basedir
+            self.type = _dbstats[self.songdbid].type
+            self.basedir = _dbstats[self.songdbid].basedir
         else:
             self.songdbid = None
             self.type = "virtual"
@@ -997,7 +1005,7 @@ class basedir(totaldiritem):
                 break
         else:
             self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
-        #self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
+        self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
         #self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         #self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))

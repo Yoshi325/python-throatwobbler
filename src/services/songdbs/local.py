@@ -1048,19 +1048,19 @@ class songdb(service.service):
         """return given artist"""
         return self.artists.get(artist)
 
+    def _filtersongs(self, songs, filters):
+        """return items matching filters"""
+        for filter in filters:
+            indexname = filter.indexname
+            indexid = filter.indexid
+            songs = [song for song in songs if getattr(song, indexname) == indexid]
+        return songs
+
     def _getsongs(self, artist=None, album=None, filters=None):
         """ returns song of given artist, album and with song.indexname==indexid
 
         All values either have to be strings or None, in which case they are ignored.
         """
-
-        def _filtersongs(songs, filters):
-            """return items matching filters"""
-            for filter in filters:
-                indexname = filter.indexname
-                indexid = filter.indexid
-                songs = [song for song in songs if getattr(song, indexname) == indexid]
-            return songs
 
         if artist is None and album is None and not filters:
             # return all songs in songdb
@@ -1093,10 +1093,10 @@ class songdb(service.service):
             if artist is None and album is None:
                 # the indexid in the index always has to be a string!
                 songs = map(self.songs.get, index[str(filters[0].indexid)].songs)
-                return _filtersongs(songs, filters[1:])
+                return self._filtersongs(songs, filters[1:])
             else:
                 songs = self._getsongs(artist=artist, album=album)
-                return _filtersongs(songs, filters)
+                return self._filtersongs(songs, filters)
 
     def _filteritems(self, itemname, filters, itemids=None):
         itemgetter = getattr(self, itemname).get
@@ -1170,10 +1170,11 @@ class songdb(service.service):
         """return the last played songs"""
         return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]]
 
-    def _gettopplayedsongs(self):
+    def _gettopplayedsongs(self, filters):
         """return the top played songs"""
         keys = self.stats["topplayed"]
-        return map(self.songs.get, keys)
+        songs = map(self.songs.get, keys)
+        return self._filtersongs(songs, filters)
 
     def _getlastaddedsongs(self):
         """return the last played songs"""
@@ -1478,7 +1479,7 @@ class songdb(service.service):
     def gettopplayedsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return self._gettopplayedsongs()
+        return self._gettopplayedsongs(request.filters)
 
     def getlastaddedsongs(self, request):
         if self.id != request.songdbid:
