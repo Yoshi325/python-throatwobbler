@@ -1087,11 +1087,8 @@ class songdb(service.service):
                 return [song for song in songs if song.album==album]
         else:
             # filters specified
-
-            index = getattr(self, filters[0].indexname+"s")
-
             if artist is None and album is None:
-                # the indexid in the index always has to be a string!
+                index = getattr(self, filters[0].indexname+"s")
                 songs = map(self.songs.get, index[str(filters[0].indexid)].songs)
                 return self._filtersongs(songs, filters[1:])
             else:
@@ -1355,7 +1352,7 @@ class songdb(service.service):
             return None
 
     def getsongs(self, request):
-        if self.id!=request.songdbid:
+        if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
             return self._getsongs(request.artist, request.album, request.filters)

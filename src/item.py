@@ -439,16 +439,19 @@ class album(diritem):
         return self.id
 
     def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name, sort=self.cmpitem))
+        songs = hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name, sort=self.cmpitem,
+                                              filters=self.filters))
         return songs
 
     def getcontentsrecursive(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name))
+        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name,
+                                             filters=self.filters))
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid,
                                              artist=self.artist,
                                              album=self.name,
+                                             filters=self.filters,
                                              random=True))
 
     def getheader(self, item):

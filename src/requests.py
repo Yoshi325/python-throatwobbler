@@ -177,7 +177,7 @@ class getsongs(dbrequestsongs):
 
     def __str__(self):
         return "%s(%s, %s, sort=%s, filters=%s, random=%s)->%s" % (self.__class__.__name__,
-                  self.artist, self.album, self.sort, self.random, self.filters, self.songdbid)
+                  self.artist, self.album, self.sort,  self.filters, self.random, self.songdbid)
 
 
 class getlastplayedsongs(dbrequestsongs):
