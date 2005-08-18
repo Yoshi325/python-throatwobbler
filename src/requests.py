@@ -188,8 +188,8 @@ class getlastplayedsongs(dbrequestsongs):
         song, playingtime = playingtimesongtuple
         return item.song(songdbid, song, playingtime)
 
-    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper):
-        dbrequestsongs.__init__(self, songdbid, random, sort, wrapperfunc)
+    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper, filters=None):
+        dbrequestsongs.__init__(self, songdbid, random, sort, wrapperfunc, filters)
 
 
 class gettopplayedsongs(dbrequestsongs):

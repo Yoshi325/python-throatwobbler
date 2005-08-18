@@ -572,8 +572,9 @@ class lastplayedsongs(diritem):
 
     """ songs last played out of the corresponding databases """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.filters = filters
         self.name = "[%s]" % _("Last played songs")
 
     def cmpitem(x, y):
@@ -581,13 +582,13 @@ class lastplayedsongs(diritem):
     cmpitem = staticmethod(cmpitem)
 
     def getcontents(self):
-        songs = hub.request(requests.getlastplayedsongs(self.songdbid, sort=self.cmpitem))
+        songs = hub.request(requests.getlastplayedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
         return songs
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getlastplayedsongs(self.songdbid, random=True))
+        return hub.request(requests.getlastplayedsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item:
@@ -596,7 +597,7 @@ class lastplayedsongs(diritem):
             return _("Last played songs")
 
     def getinfo(self):
-        return [[_("Last played songs"), "", "", ""]]
+        return _mergefilters([[_("Last played songs"), "", "", ""]], self.filters)
 
 
 class topplayedsongs(diritem):
@@ -635,8 +636,9 @@ class lastaddedsongs(diritem):
 
     """ songs last added to the corresponding database """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.filters = filters
         self.name = "[%s]" % _("Last added songs")
 
     def cmpitem(x, y):
@@ -644,12 +646,12 @@ class lastaddedsongs(diritem):
     cmpitem = staticmethod(cmpitem)
 
     def getcontents(self):
-        return hub.request(requests.getlastaddedsongs(self.songdbid, sort=self.cmpitem))
+        return hub.request(requests.getlastaddedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getlastaddedsongs(self.songdbid, random=True))
+        return hub.request(requests.getlastaddedsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item:
@@ -658,7 +660,7 @@ class lastaddedsongs(diritem):
             return _("Last added songs")
 
     def getinfo(self):
-        return [[_("Last added songs"), "", "", ""]]
+        return _mergefilters([[_("Last added songs"), "", "", ""]], self.filters)
 
 
 class albums(totaldiritem):
@@ -983,8 +985,8 @@ class basedir(totaldiritem):
         else:
             self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
-        #self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
-        #self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
+        self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
+        self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
         #self.virtdirs.append(playlists(self.songdbid))
         if len(self.songdbids) > 1:

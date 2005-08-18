@@ -1152,7 +1152,7 @@ class songdb(service.service):
                 items = newitems
         return items
 
-    def _getgenres(self, filters=None):
+    def _getgenres(self, filters):
         """return all stored genres"""
         return self._filteritems2("genres", filters)
 
@@ -1162,24 +1162,29 @@ class songdb(service.service):
         years = map(self.years.get, keys)
         return years
 
-    def _getratings(self, filters=None):
+    def _getratings(self, filters):
         """return all stored ratings"""
         return self._filteritems2("ratings", filters)
 
-    def _getlastplayedsongs(self):
+    def _getlastplayedsongs(self, filters):
         """return the last played songs"""
-        return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]]
+        if not filters:
+            return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]]
+        else:
+            songs = [self.songs[songid] for songid, playingtime in self.stats["lastplayed"]]
+            filteredsongids = [song.id for song in self._filtersongs(songs, filters)]
+            return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]
+                    if songid in filteredsongids]
 
     def _gettopplayedsongs(self, filters):
         """return the top played songs"""
         keys = self.stats["topplayed"]
-        songs = map(self.songs.get, keys)
-        return self._filtersongs(songs, filters)
+        return self._filtersongs(map(self.songs.get, keys), filters)
 
-    def _getlastaddedsongs(self):
+    def _getlastaddedsongs(self, filters):
         """return the last played songs"""
         keys = self.stats["lastadded"]
-        return map(self.songs.get, keys)
+        return self._filtersongs(map(self.songs.get, keys), filters)
 
     def _getplaylist(self, path):
         """returns playlist entry with given path"""
@@ -1474,7 +1479,7 @@ class songdb(service.service):
     def getlastplayedsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return self._getlastplayedsongs()
+        return self._getlastplayedsongs(request.filters)
 
     def gettopplayedsongs(self, request):
         if self.id != request.songdbid:
@@ -1484,7 +1489,7 @@ class songdb(service.service):
     def getlastaddedsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return self._getlastaddedsongs()
+        return self._getlastaddedsongs(request.filters)
 
     def getplaylist(self, request):
         if self.id != request.songdbid:
