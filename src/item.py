@@ -527,32 +527,6 @@ class playlist(diritem):
 #     def getinfo(self):
 #         return [["%s:" % _("Decade"), self.name, "", ""]]
 
-# class rating(index):
-
-#     """ artists, albums + songs with a specific rating in the corresponding database """
-
-#     def __init__(self, songdbid, rating):
-#         index.__init__(self, songdbid, indexname="rating", indexid=rating, indexclass=filteredrating)
-#         self.rating = rating
-
-#     def getname(self):
-#         if self.rating is not None:
-#             return "%s/" % ("*" * self.rating)
-#         else:
-#             return ("%s/" % _("Not rated"))
-
-#     def getheader(self, item):
-#         if self.rating is not None:
-#             return "*" * self.rating
-#         else:
-#             return _("Not rated")
-
-#     def getinfo(self):
-#         if self.rating is not None:
-#             return [["%s:" % _("Rating"), "*" * self.rating, "", ""]]
-#         else:
-#             return [["%s:" % _("Rating"), _("Not rated"), "", ""]]
-
 class totaldiritem(diritem):
 
     """ diritem which contains the total database(s) as its contents """
