@@ -91,12 +91,13 @@ class iteminfowin(window.window):
             info = []
         l = info + empty*(4-len(info))
 
-        colsep = self.iw>45
+        colsep = self.iw > 45
 
         # calculate width of columns
         wc1 = max( len(l[0][0]), len(l[1][0]), len(l[2][0]), len(l[3][0])) + colsep
         wc3 = max( len(l[0][2]), len(l[1][2]), len(l[2][2])) + colsep
         wc4 = 5
+        wc4 = max( len(l[0][3]), len(l[1][3]), len(l[2][3]))
         wc2 = self.iw-wc1-wc3-wc4-1
 
         for lno in range(4):
@@ -193,7 +194,7 @@ class iteminfowinlong(messagewin.messagewin):
             info = []
         l = info + empty*(4-len(info))
 
-        colsep = self.iw>45
+        colsep = self.iw > 45
 
         # calculate width of columns
         wc1 = 0
