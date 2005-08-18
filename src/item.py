@@ -704,6 +704,10 @@ class genres(totaldiritem):
         self.name = _("Genres")
         self.nrgenres = None
 
+    def cmpitem(x, y):
+        return cmp(x.description, y.description)
+    cmpitem = staticmethod(cmpitem)
+
     def getname(self):
         if self.nrgenres is None:
             self.nrgenres = hub.request(requests.getnumberofgenres(self.songdbid, filters=self.filters))
@@ -734,6 +738,10 @@ class decades(totaldiritem):
         self.filters = filters
         self.name = _("Decades")
         self.nrdecades = None
+
+    def cmpitem(x, y):
+        return cmp(x.description, y.description)
+    cmpitem = staticmethod(cmpitem)
 
     def getname(self):
         if self.nrdecades is None:
@@ -771,14 +779,9 @@ class ratings(totaldiritem):
             self.nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Ratings"), self.nrratings)
 
-    #def cmpitem(x, y):
-    #    if x.rating is None:
-    #        return 1
-    #    elif y.rating is None:
-    #        return -1
-    #    else:
-    #        return cmp(y.rating, x.rating)
-    #cmpitem = staticmethod(cmpitem)
+    def cmpitem(x, y):
+        return cmp(x.description, y.description)
+    cmpitem = staticmethod(cmpitem)
 
     def _ratingwrapper(self, arating, songdbid):
         if arating.rating is not None:
