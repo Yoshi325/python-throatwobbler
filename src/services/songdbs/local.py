@@ -158,7 +158,7 @@ class songdb(service.service):
         service.service.__init__(self, "%s songdb" % id, hub=songdbhub)
         self.id = id
         self.songdbbase = config.basename
-        self.dbfile = config.dbfile
+        self.dbfile = "db"
         self.basedir = config.musicbasedir
         self.playingstatslength = config.playingstatslength
         self.tracknrandtitlere = config.tracknrandtitlere
@@ -174,6 +174,13 @@ class songdb(service.service):
         if not os.access(self.basedir, os.X_OK | os.R_OK):
             raise errors.configurationerror("you are not allowed to access and read config.general.musicbasedir.")
 
+        if config.dbfile:
+            if config.dbfile == "db":
+                log.warning(_('using dbfile="db" by default, please remove dbfile entry in [database.%s] section of your config file') % self.id)
+            else:
+                raise errors.configurationerror("setting dbfile not possible anymore, please rename your database %s" % self.id)
+
+
         self.dbenv = dbenv(self.dbenvdir, self.cachesize)
 
         self.indices = ["genre", "year", "rating"]
@@ -184,6 +191,7 @@ class songdb(service.service):
         try:
             self._initdb()
         except:
+            raise
             raise errors.databaseerror("cannot initialise/open song database files.")
 
         # we need to be informed about database changes
@@ -240,25 +248,21 @@ class songdb(service.service):
 
         openflags = bsddb.db.DB_CREATE 
 
-        # setup databases (either in one single or several extra files)
-        if self.dbfile:
-            self.songs = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="songs")
-            self.artists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="artists")
-            self.albums = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="albums")
-            self.playlists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="playlists")
-            for index in self.indices:
-                setattr(self, index+"s", self.dbenv.openshelve(self.dbfile, flags=openflags, dbname=index+"s"))
-            self.stats = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="stats")
-        else:
-            # songdbprefix = os.path.basename(self.songdbbase)
+
+        self.songs = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="songs")
+        self.artists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="artists")
+        self.albums = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="albums")
+        self.playlists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="playlists")
+        for index in self.indices:
+            setattr(self, index+"s", self.dbenv.openshelve(self.dbfile, flags=openflags, dbname=index+"s"))
+        self.stats = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="stats")
+        if self.songdbbase:
             songdbprefix = self.songdbbase
-            self.songs = self.dbenv.openshelve(songdbprefix + "_songs.db", flags=openflags)
-            self.artists = self.dbenv.openshelve(songdbprefix + "_artists.db", flags=openflags)
-            self.albums = self.dbenv.openshelve(songdbprefix + "_albums.db", flags=openflags)
-            self.playlists = self.dbenv.openshelve(songdbprefix + "_playlists.db", flags=openflags)
-            for index in self.indices:
-                setattr(self, index+"s", self.dbenv.openshelve(songdbprefix + "_"+index+"s.db", flags=openflags))
-            self.stats = self.dbenv.openshelve(songdbprefix + "_stats.db", flags=openflags)
+            if os.path.exists(songdbprefix + "_CONVERTED"):
+                log.warning(_('using new database, please set "basename=" in [database.%s] section of your config file') % self.id)
+            else:
+                self._convertfromoldfilelayout()
+
 
         log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
                  (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
@@ -278,7 +282,7 @@ class songdb(service.service):
 
                 # set version number for new, empty database
                 self.stats.put("db_version", 4, txn=self.txn)
-                
+
                 # set database version for older databases
                 if not self.stats.has_key("db_version", txn=self.txn):
                     self.stats.put("db_version", 1, txn=self.txn)
@@ -301,7 +305,7 @@ class songdb(service.service):
 
         if self.stats["db_version"] < 4:
             self._updatefromversion3to4()
-            
+
         if self.stats["db_version"] > 4:
             raise RuntimeError("database version %d not supported" % self.stats["db_version"])
  
@@ -366,7 +370,6 @@ class songdb(service.service):
             self._checkpoint()
             print "Done"
 
-
     def _updatefromversion2to3(self):
         """ update from database version 2 to version 3 """
 
@@ -386,7 +389,7 @@ class songdb(service.service):
                     self.songs.put(song.id, song, txn=self.txn)
                 else:
                     raise RuntimeError("insconsistency in database: wrong basedir of song '%s'" % songid)
-                
+
             print "%d artists..." % len(self.artists),
             for artistid, artist in self.artists.items(txn=self.txn):
                 newsongs = []
@@ -515,6 +518,60 @@ class songdb(service.service):
             self._checkpoint()
             print "Done"
 
+    def _convertfromoldfilelayout(self):
+        """ convert databases from old multifile layout """
+
+        log.info(_("converting song database %s from old multifile layout") % self.id)
+        print _("converting song database %s from old multifile layout:") % self.id,
+
+        assert(len(self.songs) == len(self.artists) == len(self.albums) == len(self.playlists) == 0), "new db has to be empty"
+
+        songdbprefix = self.songdbbase
+
+        try:
+            self._txn_begin()
+            songs = bsddb.dbshelve.open(songdbprefix + "_songs.db")
+            print "%d songs..." % len(songs),
+            for songid, song in songs.items():
+                self.songs.put(songid, song, txn=self.txn)
+
+            artists = bsddb.dbshelve.open(songdbprefix + "_artists.db")
+            print "%d artists..." % len(artists),
+            for artistid, artist in artists.items():
+                self.artists.put(artistid, artist, txn=self.txn)
+
+            albums = bsddb.dbshelve.open(songdbprefix + "_albums.db")
+            print "%d albums..." % len(albums),
+            for albumid, album in albums.items():
+                self.albums.put(albumid, album, txn=self.txn)
+
+            playlists = bsddb.dbshelve.open(songdbprefix + "_playlists.db")
+            print "%d playlists..." % len(albums),
+            for playlistid, playlist in playlists.items():
+                self.playlists.put(playlistid, playlist, txn=self.txn)
+
+            print "%d indices..." % len(self.indices),
+            for indexname in self.indices:
+                newindex = getattr(self, indexname+"s")
+                oldindex = bsddb.dbshelve.open(songdbprefix + "_"+indexname+"s.db")
+                for id, item in oldindex.items():
+                    newindex.put(id, item, txn=self.txn)
+
+            print "stats...",
+            stats = bsddb.dbshelve.open(songdbprefix + "_stats.db")
+            for id, item in stats.items():
+                self.stats.put(id, item, txn=self.txn)
+
+            print "marking old db as converted...",
+            marker = open(songdbprefix+"_CONVERTED", "w")
+            marker.close()
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
+            self._checkpoint()
+            print "Done"
 
     def run(self):
         service.service.run(self)
