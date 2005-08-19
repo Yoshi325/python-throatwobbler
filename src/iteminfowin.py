@@ -105,11 +105,11 @@ class iteminfowin(window.window):
             self.addstr(l[lno][0].ljust(wc1)[:wc1], self.colors.description)
             self.addstr(l[lno][1].ljust(wc2)[:wc2], self.colors.content)
             self.addch(" ")
-            if lno!=3:
+            if lno != 3 or isinstance(aitem, item.diritem):
                 self.addstr(l[lno][2].ljust(wc3)[:wc3], self.colors.description)
                 self.addstr(l[lno][3].ljust(wc4)[:wc4], self.colors.content)
             else:
-                # special handling of last line
+                # special handling of last line for songs
                 wc3 = max(len(l[3][-2]), 5) + colsep
                 wc4 = max(len(l[3][-1]), 5)
                 
