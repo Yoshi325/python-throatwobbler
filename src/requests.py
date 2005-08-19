@@ -235,10 +235,6 @@ class getgenres(dbrequestlist):
     pass
 
 
-class getyears(dbrequestlist):
-    pass
-
-
 class getdecades(dbrequestlist):
     pass
 

@@ -754,16 +754,16 @@ class decades(totaldiritem):
         return "[%s (%d)]/" % (_("Decades"), self.nrdecades)
 
     def _decadewrapper(self, adecade, songdbid):
-        return index(self.songdbids, "%s:" % _("Decade"), adecade.decade, self.filters.filtered(decadefilter(adecade.decade)))
-        return decade(songdbid, adecade)
+        description = adecade.decade and "%ds" % adecade.decade or _("Unknown")
+        return index(self.songdbids, "%s:" % _("Decade"), description, self.filters.filtered(decadefilter(adecade.decade)))
 
     def getcontents(self):
-        decades = hub.request(requests.getdecades(self.songdbid, self._decadewrapper, sort=self.cmpitem))
-        return decades
+        return hub.request(requests.getdecades(self.songdbid, self._decadewrapper, sort=self.cmpitem))
 
     def getheader(self, item):
-        nrdecades = hub.request(requests.getnumberofdecades(self.songdbid))
-        return "%s (%d)" % (_("Decades"), nrdecades) + self.filters.getname()
+        if self.nrdecades is None:
+            self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid))
+        return "%s (%d)" % (_("Decades"), self.nrdecades) + self.filters.getname()
 
     def getinfo(self):
         return _mergefilters([[_("Decades"), "", "", ""]], self.filters)
@@ -976,7 +976,11 @@ class basedir(totaldiritem):
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
-        #self.virtdirs.append(decades(self.songdbid, filters=self.filters))
+        for filter in self.filters:
+            if isinstance(filter, decadefilter):
+                break
+        else:
+            self.virtdirs.append(decades(self.songdbid, self.songdbids, filters=self.filters))
         for filter in self.filters:
             if isinstance(filter, genrefilter):
                 break
@@ -1073,4 +1077,3 @@ class index(basedir):
     def getinfo(self):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])
 
-        

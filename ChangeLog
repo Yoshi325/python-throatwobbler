@@ -9,6 +9,9 @@
 	     converted)
 	   - finally as a final step, we remove the switches and require
 	     that the users change their config files
+	* Database version 5: do not longer index by years but by decades
+	which removes many special code paths at various places in the db
+	code.
 
 
 2005-08-11 Jörg Lehmann  <joerg@luga.de>
