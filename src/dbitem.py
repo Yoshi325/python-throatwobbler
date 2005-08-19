@@ -47,7 +47,7 @@ class dbitem:
 
     """ base class for various items stored in database:
 
-    songs, albums, artists, genres, years, playlists"""
+    songs, albums, artists, genres, decades, playlists"""
 
     def __cmp__(self, other):
         try:
