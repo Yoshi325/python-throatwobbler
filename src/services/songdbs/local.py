@@ -1200,7 +1200,7 @@ class songdb(service.service):
                 songs = self._getsongs(artist=artist, album=album)
                 return self._filtersongs(songs, filters)
 
-    def _filteritems(self, itemname, filters, itemids=None):
+    def _filteralbumartists(self, itemname, filters, itemids=None):
         itemgetter = getattr(self, itemname).get
         # consider case without filters separately
         if not filters:
@@ -1228,7 +1228,7 @@ class songdb(service.service):
 
     def _getartists(self, filters=None):
         """return all stored artists"""
-        return self._filteritems("artists", filters)
+        return self._filteralbumartists("artists", filters)
 
     def _getalbums(self, artist=None, filters=None):
         """return albums of a given artist and genre
@@ -1237,12 +1237,13 @@ class songdb(service.service):
         albums are returned
         """
         if artist is None:
-            return self._filteritems("albums", filters)
+            return self._filteralbumartists("albums", filters)
         else:
-            return self._filteritems("albums", filters, self.artists[artist].albums)
+            return self._filteralbumartists("albums", filters, self.artists[artist].albums)
 
-    def _filteritems2(self, itemname, filters):
-        items = getattr(self, itemname).values()
+    def _filterindex(self, index, filters):
+        """ return all keys in index filtered by filters """
+        items = getattr(self, index).values()
         if filters:
             for filter in filters:
                 newitems = []
@@ -1256,15 +1257,15 @@ class songdb(service.service):
 
     def _getgenres(self, filters):
         """return all stored genres"""
-        return self._filteritems2("genres", filters)
+        return self._filterindex("genres", filters)
 
     def _getdecades(self, filters):
         """return all stored decades"""
-        return self._filteritems2("decades", filters)
+        return self._filterindex("decades", filters)
 
     def _getratings(self, filters):
         """return all stored ratings"""
-        return self._filteritems2("ratings", filters)
+        return self._filterindex("ratings", filters)
 
     def _getlastplayedsongs(self, filters):
         """return the last played songs"""
