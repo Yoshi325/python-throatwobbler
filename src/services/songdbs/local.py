@@ -194,7 +194,6 @@ class songdb(service.service):
         try:
             self._initdb()
         except:
-            raise
             raise errors.databaseerror("cannot initialise/open song database files.")
 
         # we need to be informed about database changes
@@ -551,12 +550,13 @@ class songdb(service.service):
             years = self.dbenv.openshelve(self.dbfile, flags=bsddb.db.DB_CREATE, dbname="years")
             print "%d years..." % len(years.keys())
             for year in years.keys():
-                del years[year]
+                years.delete(year, txn=self.txn)
             years.close()
 
             self.stats.put("db_version", 5, txn=self.txn)
         except:
             self._txn_abort()
+            print "Conversion failed - changes have not been comitted"
             raise
         else:
             self._txn_commit()

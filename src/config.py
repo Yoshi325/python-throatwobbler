@@ -21,7 +21,7 @@ import ConfigParser, copy, curses, sys, getopt, exceptions, os.path, types, re, 
 import log, version
 
 
-class ConfigError(exceptions.Exception):
+class ConfigError(Exception):
     pass
 
 
