@@ -511,24 +511,6 @@ class playlist(diritem):
     def getinfo(self):
         return [["%s:" % _("Playlist"), self.name, "", ""]]
 
-# class decade(index):
-
-#     """ artists, albums + songs from a specific decade in the corresponding database """
-
-#     def __init__(self, songdbid, decade):
-#         # decade = None, ..., 1960, 1970, ...
-#         assert decade is None or decade%10 == 0, \
-#                "decade has to be an integer multiple of 10 or None"
-
-#         index.__init__(self, songdbid, indexname="decade", indexid=decade, indexclass=filtereddecade)
-#         self.decade = decade
-#         self.name = decade and "%ds" % decade or _("Unknown")
-
-#     def getheader(self, item):
-#         return self.name
-
-#     def getinfo(self):
-#         return [["%s:" % _("Decade"), self.name, "", ""]]
 
 class totaldiritem(diritem):
 
