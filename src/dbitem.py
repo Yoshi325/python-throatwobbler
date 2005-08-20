@@ -82,7 +82,7 @@ class song(dbitem):
         self.album = ""
         self.artist = ""
         self.year = None
-        seld.decade = None
+        self.decade = None
         self.genre = ""
         self.tracknr = ""
         self.length = 0

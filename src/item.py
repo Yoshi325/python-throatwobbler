@@ -750,6 +750,7 @@ class decades(totaldiritem):
     def getinfo(self):
         return _mergefilters([[_("Decades"), "", "", ""]], self.filters)
 
+
 class ratings(totaldiritem):
 
     """ all ratings in the corresponding database """
@@ -932,6 +933,7 @@ class basedir(totaldiritem):
     def __init__(self, songdbids, filters=filters(())):
         # XXX: as a really dirty hack, we cache the result of getdatabasestats for
         # all databases because we cannot call this request safely later on
+        # (we might be handling another request which calls the basedir constructor)
         global _dbstats
         if _dbstats is None:
             _dbstats = {}
