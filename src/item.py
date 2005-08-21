@@ -740,7 +740,7 @@ class decades(totaldiritem):
         return index(self.songdbids, "%s:" % _("Decade"), description, self.filters.filtered(decadefilter(adecade.decade)))
 
     def getcontents(self):
-        return hub.request(requests.getdecades(self.songdbid, self._decadewrapper, sort=self.cmpitem))
+        return hub.request(requests.getdecades(self.songdbid, self._decadewrapper, sort=self.cmpitem, filters=self.filters))
 
     def getheader(self, item):
         if self.nrdecades is None:
@@ -979,7 +979,8 @@ class basedir(totaldiritem):
         self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
-        #self.virtdirs.append(playlists(self.songdbid))
+        if not self.filters:
+            self.virtdirs.append(playlists(self.songdbid))
         if len(self.songdbids) > 1:
             self.virtdirs.extend([basedir([songdbid], self.filters) for songdbid in self.songdbids])
 
