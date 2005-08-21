@@ -927,11 +927,16 @@ class songdb(service.service):
         self._indexsong_stats(song)
 
     def _reindexsong(self, oldsong, newsong):
-        if (oldsong.album != newsong.album or
-            oldsong.artist != newsong.artist or
-            oldsong.genre != newsong.genre or
-            oldsong.decade != newsong.decade or
-            oldsong.rating != newsong.rating):
+        reindex = False
+        # check whether we have to update the indices
+        if oldsong.album != newsong.album or oldsong.artist != newsong.artist:
+            reindex = True
+        else:
+            for index in self.indices:
+                if getattr(oldsong, index) != getattr(newsong, index):
+                    reindex = True
+                    break
+        if reindex:
             # The update process of the album and artist information
             # is split into three parts to prevent an intermediate
             # deletion of artist and/or album (together with its rating
@@ -945,6 +950,7 @@ class songdb(service.service):
             self._indexsong_artist(newsong)
             for index in self.indices:
                 self._indexsong_index(newsong, index)
+        # update playing statistics if necessary
         if (oldsong.lastplayed != newsong.lastplayed or
             oldsong.nrplayed != newsong.nrplayed):
             self._indexsong_stats(newsong)
@@ -1292,8 +1298,7 @@ class songdb(service.service):
         return self.playlists.get(path)
 
     def _getplaylists(self):
-        keys = self.playlists.keys()
-        return map(self._getplaylist, keys)
+        return self.playlists.values()
 
     def _getsongsinplaylist(self, path):
         playlist = self._getplaylist(path)
