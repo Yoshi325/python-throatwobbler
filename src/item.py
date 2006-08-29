@@ -195,23 +195,18 @@ class filters(tuple):
 def _formatnumbertotal(number, total):
     """ return string for number and total number """
     if number and total:
-	return "%d/%d" % (number, total)
+        return "%d/%d" % (number, total)
     elif number:
-	return "%d" % number
+        return "%d" % number
     else:
-	return ""
+        return ""
 
 class song(item):
-    def __init__(self, songdbid,  song, playingtime=None):
-        """ song together with its database.
-
-        If playingtime is not None, it specifies the time at which this specific song instance
-        has been played (currently only used for songs appearing the in lastplayedsongs list).
-        """
-        assert isinstance(song, dbitem.song), "song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__)
+    def __init__(self, songdbid, id):
+        """ create song with given id together with its database."""
         self.songdbid = songdbid
-        self.song = song
-        self.playingtime = playingtime
+        self.id = id
+        self.song = None
 
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
@@ -222,6 +217,8 @@ class song(item):
         # Python tries to call __setstate__ upon unpickling -- prevent this
         if attr=="__setstate__":
             raise AttributeError
+        if not self.song:
+            # XXX fetch song info from database
         return getattr(self.song, attr)
 
     def _updatesong(self):
@@ -229,16 +226,16 @@ class song(item):
         hub.notify(events.updatesong(self.songdbid, self.song))
 
     def getid(self):
-        return self.song.id
+        return self.id
 
     def getname(self):
         return self.song.title
 
     def getinfo(self):
         l = [["", "", "", ""]]*4
-        l[0] = [_("Title:"), self.song.title]
+        l[0] = [_("Title:"), self.title]
         if self.song.tracknumber:
-            l[0] += [_("Nr:"), _formatnumbertotal(self.song.tracknumber, self.song.trackcount)]
+            l[0] += [_("Nr:"), _formatnumbertotal(self.tracknumber, self.trackcount)]
         else:
             l[0] += ["", ""]
         l[1] = [_("Album:"),  self.song.album]
@@ -276,28 +273,28 @@ class song(item):
 
     def getinfolong(self):
         l = []
-	directory, filename = os.path.split(self.song.path)
-	l.append([_("Path:"), directory, "", ""])
-	l.append([_("File name:"), filename, "", ""])
-	if self.song.size:
-	    if self.song.size > 1024*1024:
-		sizestring = "%.1f MB" % (self.song.size / 1024.0 / 1024)
-	    elif self.song.size > 1024:
-		sizestring = "%.1f kB" % (self.song.size / 1024.0)
-	    else:
-		sizestring = "%d B" % self.song.size
-	else:
-	    sizestring = ""
-	l.append([_("Size:"), sizestring, "", ""])
-	typestring = self.song.type.upper()
-	if self.song.bitrate is not None:
-	    typestring = "%s %dkbps" % (typestring, self.song.bitrate/1000)
-	    if self.song.vbr:
-		typestring = typestring + "VBR"
-	    if self.song.samplerate:
-		typestring = "%s (%.1f kHz)" % (typestring, self.song.samplerate/1000.)
+        directory, filename = os.path.split(self.song.url)
+        l.append([_("Path:"), directory, "", ""])
+        l.append([_("File name:"), filename, "", ""])
+        if self.song.size:
+            if self.song.size > 1024*1024:
+                sizestring = "%.1f MB" % (self.song.size / 1024.0 / 1024)
+            elif self.song.size > 1024:
+                sizestring = "%.1f kB" % (self.song.size / 1024.0)
+            else:
+                sizestring = "%d B" % self.song.size
+        else:
+            sizestring = ""
+        l.append([_("Size:"), sizestring, "", ""])
+        typestring = self.song.type.upper()
+        if self.song.bitrate is not None:
+            typestring = "%s %dkbps" % (typestring, self.song.bitrate/1000)
+            if self.song.vbr:
+                typestring = typestring + "VBR"
+            if self.song.samplerate:
+                typestring = "%s (%.1f kHz)" % (typestring, self.song.samplerate/1000.)
 
-	l.append([_("File type:"), typestring, "", ""])
+        l.append([_("File type:"), typestring, "", ""])
         l.append([_("Title:"), self.song.title, "", ""])
         l.append([_("Album:"),  self.song.album, "", ""])
         l.append([_("Artist:"), self.song.artist, "", ""])
@@ -306,10 +303,10 @@ class song(item):
         else:
             l.append([_("Year:"), "", "", ""])
 
-	l.append([_("Track No:"), _formatnumbertotal(self.song.tracknumber, self.song.trackcount), 
-		  "", ""])
-	l.append([_("Disk No:"), _formatnumbertotal(self.song.disknumber, self.song.diskcount), 
-		  "", ""])
+        l.append([_("Track No:"), _formatnumbertotal(self.song.tracknumber, self.song.trackcount), 
+                  "", ""])
+        l.append([_("Disk No:"), _formatnumbertotal(self.song.disknumber, self.song.diskcount), 
+                  "", ""])
         l.append([_("Genre:"), self.song.genre, "", ""])
         l.append([_("Time:"), "%d:%02d" % divmod(self.song.length, 60), "", ""])
         replaygain = ""
@@ -471,7 +468,7 @@ class album(diritem):
 
     def cmpitem(x, y):
         return ( x.disknumber and y.disknumber and cmp(x.disknumber, y.disknumber) or
-		 x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
+                 x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
                  cmp(x.name, y.name) or
                  cmp(x.path, y.path) )
     cmpitem = staticmethod(cmpitem)

@@ -43,215 +43,207 @@ class dbitem:
     def __hash__(self):
         return hash(self.id)
 
+# factory function for songs
+
+def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingarticle, removeaccents):
+    id = os.path.normpath(relpath)
+
+    path = os.path.normpath(os.path.join(basedir, relpath))
+    if not os.access(path, os.R_OK):
+        raise IOError("cannot read song")
+
+    # determine type of file from its extension
+    self.type = metadata.gettype(os.path.splitext(relpath)[1])
+    if self.type is None:
+        raise RuntimeError("Fileformat of song '%s' not supported" % (id))
+
+    # song metadata
+    title = ""
+    album = ""
+    artist = ""
+    year = None
+    decade = None
+    genre = ""
+    tracknumber = None
+    trackcount = None
+    disknumber = None
+    diskcount = None
+    length = 0
+    bitrate = None
+    samplerate = None
+    vbr = None
+    size = None
+    replaygain_track_gain = None
+    replaygain_track_peak = None
+    replaygain_album_gain = None
+    replaygain_album_peak = None
+
+    # statistical information
+    playcount = 0
+    date_lastplayed = None
+    date_changed = date_added = time.time()
+    rating = None
+    tags = []
+
+    # guesses for title and tracknumber using the filename
+    match = re.match(tracknrandtitlere, os.path.basename(path))
+    if match:
+        fntracknumber = int(match.group(1))
+        fntitle = match.group(2)
+    else:
+        fntracknumber = None
+        fntitle = os.path.basename(path)
+        if fntitle.lower().endswith(".mp3") or fntitle.lower().endswith(".ogg"):
+            fntitle = fntitle[:-4]
+
+    first, second = os.path.split(os.path.dirname(id))
+    if first and second and not os.path.split(first)[0]:
+        fnartist = first
+        fnalbum = second
+    else:
+        fnartist = fnalbum = ""
+
+    fntitle = fntitle.replace("_", " ")
+    fnalbum = fnalbum.replace("_", " ")
+    fnartist = fnartist.replace("_", " ")
+
+    try:
+        metadatadecoder = metadata.getmetadatadecoder(type)
+    except:
+        raise RuntimeError("Support for %s songs not enabled" % (type))
+
+    try:
+        log.debug("reading metadata for %s" % self.path)
+        md = metadatadecoder(path)
+        title = md.title
+        album = md.album
+        artist = md.artist
+        year = md.year
+        genre = md.genre
+        tracknumber = md.tracknumber
+        trackcount = md.trackcount
+        disknumber = md.disknumber
+        diskcount = md.diskcount
+        length = md.length
+        bitrate = md.bitrate
+        samplerate = md.samplerate
+        vbr = md.vbr
+        size = md.size
+        replaygain_track_gain = md.replaygain_track_gain
+        replaygain_track_peak = md.replaygain_track_peak
+        replaygain_album_gain = md.replaygain_album_gain
+        replaygain_album_peak = md.replaygain_album_peak
+        log.debug("metadata for %s read successfully" % path)
+    except:
+        log.warning("could not read metadata for %s" % path)
+        log.debug_traceback()
+
+    # do some further treatment of the song info
+
+    # use title from filename, if it is a longer version of
+    # the id3 tag title
+    if not title or fntitle.startswith(title):
+        title = fntitle
+
+    # also try to use tracknumber from filename, if not present as id3 tag
+    if not tracknumber or tracknumber == 0:
+        tracknumber = fntracknumber
+
+    # we don't want empty album names
+    if not album:
+        if fnalbum:
+            album = fnalbum
+        else:
+            album = UNKNOWN
+
+    # nor empty artist names
+    if not artist:
+        if fnartist:
+            artist = fnartist
+        else:
+            artist = UNKNOWN
+
+    # nor empty genres
+    if not genre:
+        genre = UNKNOWN
+
+    if not year or year == "0":
+        year = None
+    else:
+        try:
+            year = int(year)
+        except:
+            year = None
+
+    if capitalize:
+        # normalize artist, album and title
+        artist = string.capwords(artist)
+        album = string.capwords(album)
+        title = string.capwords(title)
+
+    if stripleadingarticle:
+        # strip leading "The " in artist names, often used inconsistently
+        if artist.startswith("The ") and len(artist)>4:
+            artist = artist[4:]
+
+    if removeaccents:
+        translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
+                                            'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
+        artist = string.translate(artist, translationtable)
+        album = string.translate(album, translationtable)
+        title = string.translate(title, translationtable)
+
+   return song(id, url, type, title, artist, year, genre, comment, tags,
+               tracknumber, trackcount, disknumber, diskcount, length, bitrate,
+               samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
+               replaygain_album_gain, replaygain_album_peak,
+               date_added, date_changed, date_lastplayed, playcount, rating)
+
 
 class song(dbitem):
 
-    def __init__(self, relpath, basedir, tracknrandtitlere, capitalize, stripleadingarticle, removeaccents):
-        # use relative path of song as its id
-        self.id = os.path.normpath(relpath)
-        self.name = os.path.basename(self.id)
+    def __init__(self, id, url, type, title, artist, year, genre, comment, tags,
+                 tracknumber, trackcount, disknumber, diskcount, length, bitrate,
+                 samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
+                 replaygain_album_gain, replaygain_album_peak,
+                 date_added, date_changed, date_lastplayed, playcount, rating):
+        self.id = id
+        self.url = url
+        self.type = type
+        self.title = title
+        self.album = album
+        self.artist = artist
+        self.year = year
+        self.genre = genre
+        self.comment = comment
+        self.tracknumber = tracknumber
+        self.trackcount = trackcount
+        self.disknumber = disknumber
+        self.diskcount = diskcount
+        self.length = length
 
-        # we set the path later in readid3info
-        self.path = None
+        # encoding information
+        self.bitrate = bitrate
+        self.samplerate = samplerate
+        self.vbr = vbr
+        self.size = size
 
-        # determine type of file from its extension
-        self.type = metadata.gettype(os.path.splitext(relpath)[1])
-        if self.type is None:
-            raise RuntimeError("Fileformat of song '%s' not supported" % (self.id))
-
-        # song metadata
-        self.title = ""
-        self.album = ""
-        self.artist = ""
-        self.year = None
-        self.decade = None
-        self.genre = ""
-        self.tracknumber = None
-	self.trackcount = None
-	self.disknumber = None
-	self.diskcount = None
-        self.length = 0
- 	self.bitrate = None
-	self.samplerate = None
-	self.vbr = None
-	self.size = None
-        self.replaygain_track_gain = None
-        self.replaygain_track_peak = None
-        self.replaygain_album_gain = None
-        self.replaygain_album_peak = None
+        # replaygain
+        self.replaygain_track_gain = replaygain_track_gain
+        self.replaygain_track_peak = replaygain_track_peak
+        self.replaygain_album_gain = replaygain_album_gain
+        self.replaygain_album_peak = replaygain_album_peak
 
         # statistical information
-        self.nrplayed = 0
-        self.lastplayed = []
-        self.added = time.time()
-        self.rating = None
-        # where does rating come from: 0=song itself, 1=album, 2=artist
-        # This information is used when you rate an album or an artist to not
-        # overwrite the rating already given to a specific song or all songs
-        # on a given album of that artist, respectively.
-        self.ratingsource = None
-
-        self.scanfile(basedir, tracknrandtitlere, capitalize, stripleadingarticle, removeaccents)
-
-    def __getattr__(self, name):
-        if name=="albumid":
-            return self.album
-        elif name=="artistid":
-            return artist
-        elif name=="genreid":
-            return genre
-        else:
-            raise AttributeError
-
-    def scanfile(self, basedir, tracknrandtitlere, capitalize, stripleadingarticle, removeaccents):
-        """ update path info for song and scan id3 information """
-        self.path = os.path.normpath(os.path.join(basedir, self.id))
-        if not os.access(self.path, os.R_OK):
-            raise IOError("cannot read song")
-
-        # guesses for title and tracknumber using the filename
-        match = re.match(tracknrandtitlere, self.name)
-        if match:
-            fntracknumber = int(match.group(1))
-            fntitle = match.group(2)
-        else:
-            fntracknumber = None
-            fntitle = self.name
-            if fntitle.lower().endswith(".mp3") or fntitle.lower().endswith(".ogg"):
-                fntitle = fntitle[:-4]
-
-        first, second = os.path.split(os.path.dirname(self.id))
-        if first and second and not os.path.split(first)[0]:
-            fnartist = first
-            fnalbum = second
-        else:
-            fnartist = fnalbum = ""
-
-        fntitle = fntitle.replace("_", " ")
-        fnalbum = fnalbum.replace("_", " ")
-        fnartist = fnartist.replace("_", " ")
-
-        try:
-            metadatadecoder = metadata.getmetadatadecoder(self.type)
-        except:
-            raise RuntimeError("Support for %s songs not enabled" % (self.type))
-
-        try:
-            log.debug("reading metadata for %s" % self.path)
-            md = metadatadecoder(self.path)
-            self.title = md.title
-            self.album = md.album
-            self.artist = md.artist
-            self.year = md.year
-            self.genre = md.genre
-            self.tracknumber = md.tracknumber
-	    self.trackcount = md.trackcount
-	    self.disknumber = md.disknumber
-	    self.diskcount = md.diskcount
-            self.length = md.length
-	    self.bitrate = md.bitrate
-	    self.samplerate = md.samplerate
-	    self.vbr = md.vbr
-	    self.size = md.size
-            self.replaygain_track_gain = md.replaygain_track_gain
-            self.replaygain_track_peak = md.replaygain_track_peak
-            self.replaygain_album_gain = md.replaygain_album_gain
-            self.replaygain_album_peak = md.replaygain_album_peak
-            log.debug("metadata for %s read successfully" % self.path)
-        except:
-            log.warning("could not read metadata for %s" % self.path)
-            log.debug_traceback()
-
-        # do some further treatment of the song info
-
-        # use title from filename, if it is a longer version of
-        # the id3 tag title
-        if not self.title or fntitle.startswith(self.title):
-            self.title = fntitle
-
-        # also try to use tracknumber from filename, if not present as id3 tag
-        if not self.tracknumber or self.tracknumber == 0:
-            self.tracknumber = fntracknumber
-
-        # we don't want empty album names
-        if not self.album:
-            if fnalbum:
-                self.album = fnalbum
-            else:
-                self.album = UNKNOWN
-
-        # nor empty artist names
-        if not self.artist:
-            if fnartist:
-                self.artist = fnartist
-            else:
-                self.artist = UNKNOWN
-
-        # nor empty genres
-        if not self.genre:
-            self.genre = UNKNOWN
-
-        if not self.year or self.year == "0":
-            self.year = None
-        else:
-            try:
-                self.year = int(self.year)
-            except:
-                self.year = None
-
-        if self.year is not None:
-            self.decade = 10*(self.year//10)
-        else:
-            self.decade = None
-
-        if capitalize:
-            # normalize artist, album and title
-            self.artist = string.capwords(self.artist)
-            self.album = string.capwords(self.album)
-            self.title = string.capwords(self.title)
-
-        if stripleadingarticle:
-            # strip leading "The " in artist names, often used inconsistently
-            if self.artist.startswith("The ") and len(self.artist)>4:
-                self.artist = self.artist[4:]
-
-        if removeaccents:
-            translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
-                                                'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
-            self.artist = string.translate(self.artist, translationtable)
-            self.album = string.translate(self.album, translationtable)
-            self.title = string.translate(self.title, translationtable)
+        self.date_added = date_added
+        self.date_changed = date_changed
+        self.date_lastplayed = date_lastplayed
+        self.playcount = playcount
+        self.rating = rating
 
     def play(self):
-        self.nrplayed += 1
-        self.lastplayed.append(time.time())
-        # only store last 10 playing times
-        self.lastplayed = self.lastplayed[-10:]
-
-    def unplay(self):
-        if self.nrplayed or 1:
-            self.nrplayed -= 1
-            self.lastplayed.pop()
-
-    def update(self, newsong):
-        """ update song metadata using the information in newsong"""
-        self.title = newsong.title
-        self.album = newsong.album
-        self.artist = newsong.artist
-        self.year = newsong.year
-        self.genre = newsong.genre
-        self.tracknumber = newsong.tracknumber
-	self.trackcount = newsong.trackcount
-	self.disknumber = newsong.disknumber
-	self.diskcount = newsong.diskcount
-        self.length = newsong.length
- 	self.bitrate = newsong.bitrate
-	self.samplerate = newsong.samplerate
-	self.vbr = newsong.vbr
-        self.replaygain_track_gain = newsong.replaygain_track_gain
-        self.replaygain_track_peak = newsong.replaygain_track_peak
-        self.replaygain_album_gain = newsong.replaygain_album_gain
-        self.replaygain_album_peak = newsong.replaygain_album_peak
+        self.playcount += 1
+        self.date_lastplayed = time.time()
 
     def replaygain(self, profiles):
        # the following code is adapted from quodlibet
