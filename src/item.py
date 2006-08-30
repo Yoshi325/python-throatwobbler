@@ -218,6 +218,7 @@ class song(item):
         if attr=="__setstate__":
             raise AttributeError
         if not self.song:
+            pass
             # XXX fetch song info from database
         return getattr(self.song, attr)
 
@@ -1010,6 +1011,7 @@ class basedir(totaldiritem):
 
     def _initvirtdirs(self):
         self.virtdirs = []
+        return
         if self.type == "local" and not self.filters:
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))

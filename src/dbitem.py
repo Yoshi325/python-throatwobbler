@@ -193,11 +193,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         album = string.translate(album, translationtable)
         title = string.translate(title, translationtable)
 
-   return song(id, url, type, title, artist, year, genre, comment, tags,
-               tracknumber, trackcount, disknumber, diskcount, length, bitrate,
-               samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
-               replaygain_album_gain, replaygain_album_peak,
-               date_added, date_changed, date_lastplayed, playcount, rating)
+    return song(id, url, type, title, artist, year, genre, comment, tags,
+                tracknumber, trackcount, disknumber, diskcount, length, bitrate,
+                samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
+                replaygain_album_gain, replaygain_album_peak,
+                date_added, date_changed, date_lastplayed, playcount, rating)
 
 
 class song(dbitem):
