@@ -241,6 +241,26 @@ class song(dbitem):
         self.playcount = playcount
         self.rating = rating
 
+    def update_id3(self, othersong):
+        """ merge id3 information from othersong """
+        self.title = othersong.title
+        self.album = othersong.album
+        self.artist = othersong.artist
+        self.year = othersong.year
+        self.genre = othersong.genre
+        self.comment = othersong.comment
+        self.tracknumber = othersong.tracknumber
+        self.trackcount = othersong.trackcount
+        self.disknumber = othersong.disknumber
+        self.diskcount = othersong.diskcount
+        self.length = othersong.length
+        self.size = othersong.size
+        self.replaygain_track_gain = othersong.replaygain_track_gain
+        self.replaygain_track_peak = othersong.replaygain_track_peak
+        self.replaygain_album_gain = othersong.replaygain_album_gain
+        self.replaygain_album_peak = othersong.replaygain_album_peak
+        self.date_changed = time.time()
+
     def play(self):
         self.playcount += 1
         self.date_lastplayed = time.time()

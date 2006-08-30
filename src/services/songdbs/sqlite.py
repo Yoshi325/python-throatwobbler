@@ -31,6 +31,151 @@ import dbitem
 import service
 
 
+create_tables = """
+CREATE TABLE artists (
+  id             INTEGER CONSTRAINT pk_artist_id PRIMARY KEY AUTOINCREMENT,
+  name           TEXT UNIQUE
+);
+
+CREATE TABLE albums (
+  id             INTEGER CONSTRAINT pk_album_id PRIMARY KEY AUTOINCREMENT,
+  artist_id      INTEGER CONSTRAINT fk_albums_artist_id REFERENCES artists(id),
+  name           TEXT,
+  UNIQUE (artist_id, name)
+);
+
+CREATE TABLE genres (
+  id             INTEGER CONSTRAINT pk_genre_id PRIMARY KEY AUTOINCREMENT,
+  name           TEXT UNIQUE
+);
+
+CREATE TABLE covers (
+  id             INTEGER CONSTRAINT pk_cover_id PRIMARY KEY,
+  image          BLOB UNIQUE
+);
+
+CREATE TABLE tags (
+  id             INTEGER CONSTRAINT pk_tag_id PRIMARY KEY AUTOINCREMENT,
+  name           TEXT UNIQUE
+);
+
+CREATE TABLE songtags (
+  song_id        INTEGER CONSTRAINT fk_song_id REFERENCES songs(id),
+  tag_id         INTEGER CONSTRAINT fk_tag_id  REFERENCES tags(id)
+);
+
+CREATE TABLE playstats (
+  song_id        INTEGER CONSTRAINT fk_song_id REFERENCES songs(id),
+  playtime       TIMESTAMP
+);
+
+CREATE TABLE songs (
+  id                    TEXT CONSTRAINT pk_song_id PRIMARY KEY,
+  url                   TEXT,
+  type                  TEXT,
+  title                 TEXT,
+  album_id              INTEGER CONSTRAINT fk_song_album_id  REFERENCES albums(id),
+  artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
+  genre_id              INTEGER CONSTRAINT fk_song_genre_id  REFERENCES genres(id),
+  cover_id              INTEGER CONSTRAINT fk_song_cover_id  REFERENCES covers(id),
+  year                  INTEGER,
+  comment               TEXT,
+  lyrics                TEXT,
+  length                INTEGER,
+  tracknumber           INTEGER,
+  trackcount            INTEGER,
+  disknumber            INTEGER,
+  diskcount             INTEGER,
+  bitrate               INTEGER,
+  vbr                   BOOT,
+  samplerate            INTEGER,
+  replaygain_track_gain FLOAT,
+  replaygain_track_peak FLOAT,
+  replaygain_album_gain FLOAT,
+  replaygain_album_peak FLOAT,
+  size                  INTEGER,
+  collection            BOOL,
+  date_added            TIMESTAMP,
+  date_changed          TIMESTAMP,
+  date_lastplayed       TIMESTAMP,
+  playcount             INTEGER,
+  rating                FLOAT
+);
+
+CREATE INDEX album_id ON albums(name);
+CREATE INDEX artist_id ON artists(name);
+CREATE INDEX genre_id ON genres(name);
+CREATE INDEX tag_id ON tags(name);
+
+CREATE INDEX album_id_song ON songs(album_id);
+CREATE INDEX artist_id_song ON songs(artist_id);
+CREATE INDEX genre_id_song ON songs(genre_id);
+CREATE INDEX year_song ON songs(year);
+CREATE INDEX collection_song ON songs(collection);
+"""
+
+# con = sqlite.connect(":memory:")
+# con.row_factory = sqlite.Row
+# con.executescript(create_tables)
+# 
+# class song:
+#     def __init__(self, title, album, artist, genre):
+#         self.title = title
+#         self.album = album
+#         self.artist = artist
+#         self.genre = genre
+# 
+# cur = con.cursor()
+# 
+# br = song("Bohemian Rapsody", "Greatest Hits", "Queen", "Rock")
+# wywh = song("Wish You Were Here", "Wish You Were Here", "Pink Floyd", "PsychedelicPsychedelic  Rock")
+# 
+# def insertsong(song):
+#     cur.execute("SELECT * FROM artists WHERE name=?", (song.artist,))
+#     r = cur.fetchone()
+#     if r is None:
+#         con.execute("INSERT INTO artists (name) VALUES (?)", (song.artist,))
+#         cur.execute("SELECT * FROM artists WHERE name=?", (song.artist,))
+#         r = cur.fetchone()
+#     song.artist_id = r["id"]
+# 
+#     cur.execute("SELECT * FROM albums WHERE name=? AND artist_id=?", (song.album, song.artist_id))
+#     r = cur.fetchone()
+#     if r is None:
+#         con.execute("INSERT INTO albums (name, artist_id) VALUES (?, ?)", (song.album, song.artist_id))
+#         cur.execute("SELECT * FROM albums WHERE name=? AND artist_id=?", (song.album, song.artist_id))
+#         r = cur.fetchone()
+#     song.album_id = r["id"]
+# 
+#     cur.execute("SELECT * FROM genres WHERE name=?", (song.genre,))
+#     r = cur.fetchone()
+#     if r is None:
+#         con.execute("INSERT INTO genres (name) VALUES (?)", (song.genre,))
+#         cur.execute("SELECT * FROM genres WHERE name=?", (song.genre,))
+#         r = cur.fetchone()
+#     song.genre_id = r["id"]
+# 
+#     cur.execute("""INSERT INTO songs (title, artist_id, album_id, genre_id) 
+#                  VALUES (?, ?, ?, ?)""", (song.title, song.artist_id, song.album_id, song.genre_id))
+# 
+# insertsong(br)
+# insertsong(wywh)
+# con.commit()
+# 
+# r = con.execute("""SELECT songs.title, artists.name AS artist, albums.name AS album
+#                    FROM songs
+#                    JOIN artists ON (songs.artist_id = artists.id)
+#                    JOIN albums ON (songs.album_id = albums.id)
+#                    """)
+# for c in r.fetchall():
+#     print c["title"], "-", c["artist"], "-", c["album"]
+
+
+#INSERT into songs (id, url, name, artist_id, album_id, genre_id) values 
+#    ("a", "file://123", 
+
+
+
 #
 # statistical information about songdb
 #
@@ -62,14 +207,16 @@ class songdb(service.service):
         service.service.__init__(self, "%s songdb" % id, hub=songdbhub)
         self.id = id
         self.songdbbase = config.basename
-        self.dbfile = "db"
+        self.dbfile = "sqlite.db"
         self.basedir = config.musicbasedir
+
         self.playingstatslength = config.playingstatslength
         self.tracknrandtitlere = config.tracknrandtitlere
         self.tagcapitalize = config.tags_capitalize
         self.tagstripleadingarticle = config.tags_stripleadingarticle
         self.tagremoveaccents = config.tags_removeaccents
-        self.dbenvdir = config.dbenvdir
+        # unneeded
+        # self.dbenvdir = config.dbenvdir
         self.cachesize = config.cachesize
 
         if not os.path.isdir(self.basedir):
@@ -78,11 +225,6 @@ class songdb(service.service):
         if not os.access(self.basedir, os.X_OK | os.R_OK):
             raise errors.configurationerror("you are not allowed to access and read config.general.musicbasedir.")
 
-        self.dbenv = dbenv(self.dbenvdir, self.cachesize)
-
-        # We keep the year index still around although we do not use it anymore.
-        # otherwise we run into troubles when upgrading from the old mulit-file layout
-        self.indices = ["genre", "decade", "rating"]
 
         # currently active transaction - initially, none
         self.txn = None
@@ -141,25 +283,10 @@ class songdb(service.service):
         self.autoregisterer.start()
 
     def _initdb(self):
-        """ initialise database using modern bsddb interface of Python 2.3 and above """
-
-        openflags = bsddb.db.DB_CREATE
-
-        self.songs = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="songs")
-        self.artists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="artists")
-        self.albums = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="albums")
-        self.playlists = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="playlists")
-        for index in self.indices:
-            setattr(self, index+"s", self.dbenv.openshelve(self.dbfile, flags=openflags, dbname=index+"s"))
-        self.stats = self.dbenv.openshelve(self.dbfile, flags=openflags, dbname="stats")
-
-        # check whether we have to convert from an old multi-file database layout
-        if self.songdbbase:
-            songdbprefix = self.songdbbase
-            if os.path.exists(songdbprefix + "_CONVERTED"):
-                log.warning(_('using new database, please set "basename=" in [database.%s] section of your config file') % self.id)
-            else:
-                self._convertfromoldfilelayout()
+        """ initialise sqlite database """
+        self.con = sqlite.connect(":memory:")
+        self.con.row_factory = sqlite.Row
+        self.con.executescript(create_tables)
 
         log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
                  (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
@@ -170,7 +297,7 @@ class songdb(service.service):
         self.close()
 
     def close(self):
-        self.dbenv.close()
+        self.con.close()
 
     # transaction machinery
 
@@ -203,15 +330,17 @@ class songdb(service.service):
 
     def _queryregistersong(self, path):
         """get song info from database or insert new one"""
+        log.debug("querying song: %s" % path)
 
         path = os.path.normpath(path)
 
         # check if we are allowed to store this song in this database
         if not path.startswith(self.basedir):
+            log.error("_queryregistersong: song path has to be located in basedir")
             return None
 
         # we assume that the relative (with respect to the basedir)
-        # path of the song is the song id.  This allows to quickly
+        # path of the song is the song id.  This allows us to quickly
         # verify (without reading the song itself) whether we have
         # already registered the song. Otherwise, we would have to
         # create a song instance, which is quite costly.
@@ -220,79 +349,55 @@ class songdb(service.service):
         else:
            song_id = path[len(self.basedir)+1:]
         try:
-            song = self.songs[song_id]
+            return self._getsong(song_id)
         except KeyError:
-            song = dbitem.song(song_id, self.basedir, self.tracknrandtitlere, self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents)
+            song = dbitem.songfromfile(song_id, self.basedir,
+                                       self.tracknrandtitlere, self.tagcapitalize, self.tagstripleadingarticle,
+                                       self.tagremoveaccents)
 
-            self._txn_begin()
-            try:
-                self.songs.put(song.id, song, txn=self.txn)
-                # insert into indices
-                self._indexsong(song)
-            except:
-                self._txn_abort()
-                raise
-            else:
-                self._txn_commit()
-                log.debug("new song %s" % path)
-
-        return song
+            self._registersong(song)
+            return song
+        # XXX send event?
 
     def _delsong(self, song):
         """delete song from database"""
-        if not self.songs.has_key(song.id):
-            raise KeyError
-
         log.debug("delete song: %s" % str(song))
-        self._txn_begin()
-        try:
-            self._unindexsong(song)
-            self.songs.delete(song.id, txn=self.txn)
-        except:
-            self._txn_abort()
-            raise
-        else:
-            self._txn_commit()
+        if not isinstance(song, dbitem.song):
+            log.error("_delsong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            return
+        # XXX send event?
 
     def _updatesong(self, song):
         """updates entry of given song"""
-
+        log.debug("updating song: %s" % str(song))
         if not isinstance(song, dbitem.song):
-            log.error("updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            log.error("_updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
             return
-
-        self._txn_begin()
-        try:
-            oldsong = self.songs.get(song.id, txn=self.txn)
-            self.songs.put(song.id, song, txn=self.txn)
-            self._reindexsong(oldsong, song)
-        except:
-            self._txn_abort()
-            raise
-        else:
-            self._txn_commit()
+        pass
         hub.notify(events.songchanged(self.id, song))
 
     def _registersong(self, song):
         """register song into database or rescan existent one"""
 
-        # check if we are allowed to store this song in this database
+        if not isinstance(song, dbitem.song):
+            log.error("updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            return
         if not song.path.startswith(self.basedir):
+            log.error("registersong: song path has to be located in basedir")
             return
 
-        if song.id in self.songs:
+        try:
+            newsong = self._getsong(song.id)
             # if the song is already in the database, we just update
             # its id3 information (in case that it changed) and
             # write the new song in the database
-            newsong = self.songs[song.id]
-            newsong.update(song)
+            newsong.update_id3(song)
             self._updatesong(newsong)
         else:
             self._txn_begin()
             try:
+                con.
                 self.songs.put(song.id, song, txn=self.txn)
-                # insert into indices
-                self._indexsong(song)
             except:
                 self._txn_abort()
                 raise
