@@ -21,7 +21,11 @@ import os
 import errno
 import sys
 import time
-from pysqlite2 import dbapi2 as sqlite
+try:
+    from pysqlite2 import dbapi2 as sqlite
+except:
+    import sqlite
+    print dir(sqlite)
 
 import events, hub, requests
 import errors
@@ -44,11 +48,6 @@ CREATE TABLE albums (
   UNIQUE (artist_id, name)
 );
 
-CREATE TABLE genres (
-  id             INTEGER CONSTRAINT pk_genre_id PRIMARY KEY AUTOINCREMENT,
-  name           TEXT UNIQUE
-);
-
 CREATE TABLE covers (
   id             INTEGER CONSTRAINT pk_cover_id PRIMARY KEY,
   image          BLOB UNIQUE
@@ -59,7 +58,7 @@ CREATE TABLE tags (
   name           TEXT UNIQUE
 );
 
-CREATE TABLE songtags (
+CREATE TABLE taggings (
   song_id        INTEGER CONSTRAINT fk_song_id REFERENCES songs(id),
   tag_id         INTEGER CONSTRAINT fk_tag_id  REFERENCES tags(id)
 );
@@ -76,7 +75,6 @@ CREATE TABLE songs (
   title                 TEXT,
   album_id              INTEGER CONSTRAINT fk_song_album_id  REFERENCES albums(id),
   artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
-  genre_id              INTEGER CONSTRAINT fk_song_genre_id  REFERENCES genres(id),
   cover_id              INTEGER CONSTRAINT fk_song_cover_id  REFERENCES covers(id),
   year                  INTEGER,
   comment               TEXT,
@@ -87,7 +85,7 @@ CREATE TABLE songs (
   disknumber            INTEGER,
   diskcount             INTEGER,
   bitrate               INTEGER,
-  vbr                   BOOT,
+  is_vbr                BOOT,
   samplerate            INTEGER,
   replaygain_track_gain FLOAT,
   replaygain_track_peak FLOAT,
@@ -104,12 +102,11 @@ CREATE TABLE songs (
 
 CREATE INDEX album_id ON albums(name);
 CREATE INDEX artist_id ON artists(name);
-CREATE INDEX genre_id ON genres(name);
+CREATE INDEX cover_id ON covers(image);
 CREATE INDEX tag_id ON tags(name);
 
 CREATE INDEX album_id_song ON songs(album_id);
 CREATE INDEX artist_id_song ON songs(artist_id);
-CREATE INDEX genre_id_song ON songs(genre_id);
 CREATE INDEX year_song ON songs(year);
 CREATE INDEX collection_song ON songs(collection);
 """
@@ -288,9 +285,9 @@ class songdb(service.service):
         self.con.row_factory = sqlite.Row
         self.con.executescript(create_tables)
 
-        log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
-                 (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
-                  len(self.genres), len(self.playlists)))
+        #log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
+        #         (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
+        #          len(self.genres), len(self.playlists)))
 
     def run(self):
         service.service.run(self)
@@ -393,26 +390,50 @@ class songdb(service.service):
             # write the new song in the database
             newsong.update_id3(song)
             self._updatesong(newsong)
-        else:
+        except:
             self._txn_begin()
+            cur = con.cursor()
+            def queryregisterindex(indextable, name):
+                cur.execute("SELECT id FROM ? WHERE name=?", (indextable, name))
+                r = cur.fetchone()
+                if r is None:
+                    cur.execute("INSERT INTO ? (name) VALUES (?)", (indextable, name))
+                    cur.execute("SELECT id FROM ? WHERE name=?" % index, (indextable, name,))
+                    r = cur.fetchone()
+                return r["id"]
             try:
-                con.
-                self.songs.put(song.id, song, txn=self.txn)
+                song.artist_id = queryregisterindex("artists", song.artist)
+                song.album_id = queryregisterindex("albums", song.album)
+                for tag in song.tags:
+                    tag_id = queryregisterindex("tags", tag)
+                    # we should check whether this fails
+                    cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song.id, tag_id))
+
+                songcolums = ["id", "url", "type", "title", "album_id",
+                              "artist_id", "cover_id", "year", "comment", "lyrics",
+                              "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+                              "bitrate", "is_vbr", "samplerate", "replaygain_track_gain", "replaygain_track_peak",
+                              "replaygain_album_gain", "replaygain_album_peak", "size", "collection", "date_added",
+                              "date_changed", "date_lastplayed", "playcount", "rating"]
+                cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolums),
+                                                                    ",".join(["?"] * len(songcolums))),
+                            [getattr(song, columnname) for columnname in songcolumns])
+
             except:
                 self._txn_abort()
                 raise
             else:
                 self._txn_commit()
 
-    def _rescansong(self, song):
-        """reread id3 information of song (or delete it if it does not longer exist)"""
-        try:
-            song.scanfile(self.basedir,
-                          self.tracknrandtitlere,
-                          self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents)
-            self._updatesong(song)
-        except IOError:
-            self._delsong(song)
+#    def _rescansong(self, song):
+#        """reread id3 information of song (or delete it if it does not longer exist)"""
+#        try:
+#            song.scanfile(self.basedir,
+#                          self.tracknrandtitlere,
+#                          self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents)
+#            self._updatesong(song)
+#        except IOError:
+#            self._delsong(song)
 
     def _registerplaylist(self, playlist):
         # also try to register songs in playlist and delete song, if
@@ -510,6 +531,7 @@ class songdb(service.service):
         return songs
 
     def _getsongs(self, artist=None, album=None, filters=None):
+        return []
         """ returns song of given artist, album and with song.indexname==indexid
 
         All values either have to be strings or None, in which case they are ignored.
@@ -605,14 +627,6 @@ class songdb(service.service):
                 items = newitems
         return items
 
-    def _getgenres(self, filters):
-        """return all stored genres"""
-        return self._filterindex("genres", filters)
-
-    def _getdecades(self, filters):
-        """return all stored decades"""
-        return self._filterindex("decades", filters)
-
     def _getratings(self, filters):
         """return all stored ratings"""
         return self._filterindex("ratings", filters)
@@ -642,6 +656,7 @@ class songdb(service.service):
         return self.playlists.get(path)
 
     def _getplaylists(self):
+        return []
         return self.playlists.values()
 
     def _getsongsinplaylist(self, path):
@@ -682,6 +697,8 @@ class songdb(service.service):
                 pass
 
     def rescansong(self, event):
+        log.error("rescansong obsolete")
+        return
         if event.songdbid == self.id:
             try:
                 self._rescansong(event.song)
@@ -958,9 +975,9 @@ class songautoregisterer(service.service):
                songid = path[len(self.basedir):]
             else:
                songid = path[len(self.basedir)+1:]
-            songs.append(dbitem.song(songid, self.basedir,
-                                     self.tracknrandtitlere,
-                                     self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents))
+            songs.append(dbitem.songfromfile(songid, self.basedir,
+                                             self.tracknrandtitlere,
+                                             self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents))
         if songs:
             for i in xrange(0, len(songs), dividesongsby):
                 self._notify(events.registersongs(self.songdbid, songs[i:i+dividesongsby]))
