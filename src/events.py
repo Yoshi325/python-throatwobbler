@@ -60,7 +60,7 @@ class selectionchanged(event):
         self.item = item
 
     def __str__(self):
-        return "%s(%s)" % (self.__class__.__name__, self.item)
+        return "%s(%s)" % (self.__class__.__name__, repr(self.item))
 
 
 class focuschanged(event):

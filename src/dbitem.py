@@ -52,9 +52,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     if not os.access(path, os.R_OK):
         raise IOError("cannot read song")
 
+    url = "file://%s" % path
+
     # determine type of file from its extension
-    self.type = metadata.gettype(os.path.splitext(relpath)[1])
-    if self.type is None:
+    type = metadata.gettype(os.path.splitext(relpath)[1])
+    if type is None:
         raise RuntimeError("Fileformat of song '%s' not supported" % (id))
 
     # song metadata
@@ -62,16 +64,18 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     album = ""
     artist = ""
     year = None
-    decade = None
     genre = ""
+    comment = ""
+    lyrics = ""
     tracknumber = None
     trackcount = None
     disknumber = None
     diskcount = None
+    collection = False
     length = 0
     bitrate = None
     samplerate = None
-    vbr = None
+    is_vbr = None
     size = None
     replaygain_track_gain = None
     replaygain_track_peak = None
@@ -113,21 +117,24 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         raise RuntimeError("Support for %s songs not enabled" % (type))
 
     try:
-        log.debug("reading metadata for %s" % self.path)
+        log.debug("reading metadata for %s" % path)
         md = metadatadecoder(path)
         title = md.title
         album = md.album
         artist = md.artist
         year = md.year
         genre = md.genre
+        # comment = md.comment
+        # lyrics = md.lyrics
         tracknumber = md.tracknumber
         trackcount = md.trackcount
         disknumber = md.disknumber
         diskcount = md.diskcount
+        # collection = md.collection
         length = md.length
         bitrate = md.bitrate
         samplerate = md.samplerate
-        vbr = md.vbr
+        is_vbr = md.is_vbr
         size = md.size
         replaygain_track_gain = md.replaygain_track_gain
         replaygain_track_peak = md.replaygain_track_peak
@@ -142,7 +149,8 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
 
     # use title from filename, if it is a longer version of
     # the id3 tag title
-    if not title or fntitle.startswith(title):
+    # XXX: unicode problem with startswith
+    if not title: #  or fntitle.startswith(title): 
         title = fntitle
 
     # also try to use tracknumber from filename, if not present as id3 tag
@@ -186,25 +194,27 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         if artist.startswith("The ") and len(artist)>4:
             artist = artist[4:]
 
-    if removeaccents:
-        translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
-                                            'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
-        artist = string.translate(artist, translationtable)
-        album = string.translate(album, translationtable)
-        title = string.translate(title, translationtable)
+    #if removeaccents:
+    #    translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
+    #                                        'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
+    #    artist = string.translate(artist, translationtable)
+    #    album = string.translate(album, translationtable)
+    #    title = string.translate(title, translationtable)
 
-    return song(id, url, type, title, artist, year, genre, comment, tags,
-                tracknumber, trackcount, disknumber, diskcount, length, bitrate,
-                samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
+    tags = ["G:%s" % genre]
+
+    return song(id, url, type, title, album, artist, year, comment, lyrics, tags,
+                tracknumber, trackcount, disknumber, diskcount, collection, length, bitrate,
+                samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                 replaygain_album_gain, replaygain_album_peak,
                 date_added, date_changed, date_lastplayed, playcount, rating)
 
 
 class song(dbitem):
 
-    def __init__(self, id, url, type, title, artist, year, genre, comment, tags,
-                 tracknumber, trackcount, disknumber, diskcount, length, bitrate,
-                 samplerate, vbr, size, replaygain_track_gain, replaygain_track_peak,
+    def __init__(self, id, url, type, title, album, artist, year, comment, lyrics, tags,
+                 tracknumber, trackcount, disknumber, diskcount, collection, length, bitrate,
+                 samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                  replaygain_album_gain, replaygain_album_peak,
                  date_added, date_changed, date_lastplayed, playcount, rating):
         self.id = id
@@ -214,18 +224,20 @@ class song(dbitem):
         self.album = album
         self.artist = artist
         self.year = year
-        self.genre = genre
         self.comment = comment
+        self.lyrics = lyrics
+        self.tags = []
         self.tracknumber = tracknumber
         self.trackcount = trackcount
         self.disknumber = disknumber
         self.diskcount = diskcount
+        self.collection = collection
         self.length = length
 
         # encoding information
         self.bitrate = bitrate
         self.samplerate = samplerate
-        self.vbr = vbr
+        self.is_vbr = is_vbr
         self.size = size
 
         # replaygain
@@ -247,8 +259,8 @@ class song(dbitem):
         self.album = othersong.album
         self.artist = othersong.artist
         self.year = othersong.year
-        self.genre = othersong.genre
         self.comment = othersong.comment
+        self.tags = othersong.tags
         self.tracknumber = othersong.tracknumber
         self.trackcount = othersong.trackcount
         self.disknumber = othersong.disknumber
@@ -337,18 +349,6 @@ class dbindex(dbitem):
         self.artists = []
         self.albums = []
         self.songs = []
-
-
-class genre(dbindex):
-    def __init__(self, name):
-        dbindex.__init__(self, name)
-        self.name = name
-
-
-class decade(dbindex):
-    def __init__(self, decade):
-        dbindex.__init__(self, str(decade))
-        self.decade = decade
 
 
 class rating(dbindex):

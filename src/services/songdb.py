@@ -164,8 +164,8 @@ class songdbmanager(service.service):
             return None
 
         if type=="local":
-            import songdbs.local
-            songdb = songdbs.local.songdb(id, config, self.songdbhub)
+            import songdbs.localsqlite
+            songdb = songdbs.localsqlite.songdb(id, config, self.songdbhub)
         elif type=="remote":
             import songdbs.remote
             songdb = songdbs.remote.songdb(id, config.networklocation, self.songdbhub)

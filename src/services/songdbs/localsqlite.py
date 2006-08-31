@@ -21,17 +21,15 @@ import os
 import errno
 import sys
 import time
-try:
-    from pysqlite2 import dbapi2 as sqlite
-except:
-    import sqlite
-    print dir(sqlite)
+
+from pysqlite2 import dbapi2 as sqlite
 
 import events, hub, requests
 import errors
 import log
 import metadata
 import dbitem
+import item
 import service
 
 
@@ -46,11 +44,6 @@ CREATE TABLE albums (
   artist_id      INTEGER CONSTRAINT fk_albums_artist_id REFERENCES artists(id),
   name           TEXT,
   UNIQUE (artist_id, name)
-);
-
-CREATE TABLE covers (
-  id             INTEGER CONSTRAINT pk_cover_id PRIMARY KEY,
-  image          BLOB UNIQUE
 );
 
 CREATE TABLE tags (
@@ -75,7 +68,6 @@ CREATE TABLE songs (
   title                 TEXT,
   album_id              INTEGER CONSTRAINT fk_song_album_id  REFERENCES albums(id),
   artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
-  cover_id              INTEGER CONSTRAINT fk_song_cover_id  REFERENCES covers(id),
   year                  INTEGER,
   comment               TEXT,
   lyrics                TEXT,
@@ -102,7 +94,6 @@ CREATE TABLE songs (
 
 CREATE INDEX album_id ON albums(name);
 CREATE INDEX artist_id ON artists(name);
-CREATE INDEX cover_id ON covers(image);
 CREATE INDEX tag_id ON tags(name);
 
 CREATE INDEX album_id_song ON songs(album_id);
@@ -196,9 +187,6 @@ class songdbstats:
 # songdb class
 #
 
-# interval in seconds after which logs are flushed
-checkpointinterval = 60
-
 class songdb(service.service):
     def __init__(self, id, config, songdbhub):
         service.service.__init__(self, "%s songdb" % id, hub=songdbhub)
@@ -243,11 +231,6 @@ class songdb(service.service):
         self.channel.subscribe(events.registerplaylists, self.registerplaylists)
         self.channel.subscribe(events.clearstats, self.clearstats)
 
-        # regularly flush the database log
-        self.channel.subscribe(events.checkpointdb, self.checkpointdb)
-        # send this event to normal hub, since otherwise the timer service does not get it
-        hub.notify(events.sendeventin(events.checkpointdb(self.id), checkpointinterval, repeat=checkpointinterval))
-
         # we are a database service provider...
         self.channel.supply(requests.getdatabasestats, self.getdatabasestats)
         self.channel.supply(requests.queryregistersong, self.queryregistersong)
@@ -281,15 +264,15 @@ class songdb(service.service):
 
     def _initdb(self):
         """ initialise sqlite database """
-        self.con = sqlite.connect(":memory:")
-        self.con.row_factory = sqlite.Row
-        self.con.executescript(create_tables)
 
         #log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
         #         (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
         #          len(self.genres), len(self.playlists)))
 
     def run(self):
+        self.con = sqlite.connect(":memory:")
+        self.con.row_factory = sqlite.Row
+        self.con.executescript(create_tables)
         service.service.run(self)
         self.close()
 
@@ -313,10 +296,6 @@ class songdb(service.service):
         return
         self.txn.abort()
         self.txn = None
-
-    def _checkpoint(self):
-        """flush memory pool, write checkpoint record to log and flush flog"""
-        pass
 
     # resetting db stats
 
@@ -375,13 +354,14 @@ class songdb(service.service):
 
     def _registersong(self, song):
         """register song into database or rescan existent one"""
+        log.debug("registering song: %s" % str(song))
 
         if not isinstance(song, dbitem.song):
             log.error("updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
             return
-        if not song.path.startswith(self.basedir):
-            log.error("registersong: song path has to be located in basedir")
-            return
+        #if not song.path.startswith(self.basedir):
+        #    log.error("registersong: song path has to be located in basedir")
+        #    return
 
         try:
             newsong = self._getsong(song.id)
@@ -392,38 +372,45 @@ class songdb(service.service):
             self._updatesong(newsong)
         except:
             self._txn_begin()
-            cur = con.cursor()
+            cur = self.con.cursor()
             def queryregisterindex(indextable, name):
-                cur.execute("SELECT id FROM ? WHERE name=?", (indextable, name))
+                newindexentry = False
+                cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name, ))
                 r = cur.fetchone()
                 if r is None:
-                    cur.execute("INSERT INTO ? (name) VALUES (?)", (indextable, name))
-                    cur.execute("SELECT id FROM ? WHERE name=?" % index, (indextable, name,))
+                    cur.execute("INSERT INTO %s (name) VALUES (?)" % indextable, (name, ))
+                    cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name,))
                     r = cur.fetchone()
-                return r["id"]
+                    newindexentry = True
+                return r["id"], newindexentry
             try:
-                song.artist_id = queryregisterindex("artists", song.artist)
-                song.album_id = queryregisterindex("albums", song.album)
+                song.artist_id, newartist = queryregisterindex("artists", song.artist)
+                song.album_id, newalbum = queryregisterindex("albums", song.album)
                 for tag in song.tags:
                     tag_id = queryregisterindex("tags", tag)
                     # we should check whether this fails
                     cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song.id, tag_id))
 
-                songcolums = ["id", "url", "type", "title", "album_id",
-                              "artist_id", "cover_id", "year", "comment", "lyrics",
-                              "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-                              "bitrate", "is_vbr", "samplerate", "replaygain_track_gain", "replaygain_track_peak",
-                              "replaygain_album_gain", "replaygain_album_peak", "size", "collection", "date_added",
-                              "date_changed", "date_lastplayed", "playcount", "rating"]
-                cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolums),
-                                                                    ",".join(["?"] * len(songcolums))),
+                songcolumns = ["id", "url", "type", "title", "album_id",
+                               "artist_id", "year", "comment", "lyrics",
+                               "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+                               "bitrate", "is_vbr", "samplerate", "replaygain_track_gain", "replaygain_track_peak",
+                               "replaygain_album_gain", "replaygain_album_peak", "size", "collection", "date_added",
+                               "date_changed", "date_lastplayed", "playcount", "rating"]
+                cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
+                                                                    ",".join(["?"] * len(songcolumns))),
                             [getattr(song, columnname) for columnname in songcolumns])
-
+                if newartist:
+                    hub.notify(events.artistaddedordeleted(self.id, None))
+                if newalbum:
+                    hub.notify(events.albumaddedordeleted(self.id, None))
+                hub.notify(events.songchanged(self.id, song))
             except:
                 self._txn_abort()
                 raise
             else:
                 self._txn_commit()
+
 
 #    def _rescansong(self, song):
 #        """reread id3 information of song (or delete it if it does not longer exist)"""
@@ -598,18 +585,28 @@ class songdb(service.service):
 
     def _getartists(self, filters=None):
         """return all stored artists"""
-        return self._filteralbumartists("artists", filters)
+        return [item.artist(self.id, row["id"], row["name"], filters)
+                for row in self.con.execute("SELECT id, name FROM artists ORDER BY name")]
 
-    def _getalbums(self, artist=None, filters=None):
-        """return albums of a given artist and genre
+    def _getalbums(self, artist_name=None, filters=None):
+        """return albums of a given artist
 
-        artist has to be a string. If it is none, all stored
+        artist_name has to be a string. If it is None, all stored
         albums are returned
         """
-        if artist is None:
-            return self._filteralbumartists("albums", filters)
-        else:
-            return self._filteralbumartists("albums", filters, self.artists[artist].albums)
+        select =""" SELECT albums.id, artists.name AS artist_name, albums.name AS album_name
+                    FROM albums JOIN artists ON (artist_id = artists.id)
+                    """
+        args = []
+        if artist_name is not None:
+            select = select + " WHERE artists.name = ?"
+            args += [artist_name]
+
+        log.info(select)
+        log.info(str(args))
+
+        return [item.album(self.id, row["id"], row["artist_name"], row["album_name"], filters)
+                for row in self.con.execute(select, args)]
 
     def _filterindex(self, index, filters):
         """ return all keys in index filtered by filters """
@@ -684,11 +681,6 @@ class songdb(service.service):
 
     # event handlers
 
-    def checkpointdb(self, event):
-        """flush memory pool, write checkpoint record to log and flush flog"""
-        if event.songdbid == self.id:
-            self._checkpoint()
-
     def updatesong(self, event):
         if event.songdbid == self.id:
             try:
@@ -762,21 +754,22 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         numberofdecades = self.getnumberofdecades(requests.getnumberofdecades(self.id))
-        return songdbstats(self.id, "local", self.basedir, None, self.dbenvdir, self.cachesize,
-                           len(self.songs), len(self.albums), len(self.artists),
-                           len(self.genres), numberofdecades)
+        return songdbstats(self.id, "local", self.basedir, None, "", self.cachesize, 0, 0, 0, 0, 0)
 
     def getnumberofsongs(self, request):
+        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
         return len(self.songs)
 
     def getnumberofdecades(self, request):
+        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
         return len(self.decades.keys())
 
     def getnumberofgenres(self, request):
+        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
         # XXX why does len(self.genres) not work???
@@ -784,6 +777,7 @@ class songdb(service.service):
         return len(self.genres.keys())
 
     def getnumberofratings(self, request):
+        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
         # XXX why does len(self.genres) not work???
@@ -925,22 +919,14 @@ class songautoregisterer(service.service):
         # support file extensions
         self.supportedextensions = metadata.getextensions()
 
-        # checkpoint count used to determine the number of requests in between 
-        # checkpoint calls
-        self.checkpointcount = 0
-
         self.channel.subscribe(events.autoregistersongs, self.autoregistersongs)
         self.channel.subscribe(events.rescansongs, self.rescansongs)
 
     def _notify(self, event):
-        """ wait until db is not busy, send event and checkpoint db regularly """
+        """ wait until db is not busy and send event """
         while self.dbbusymethod():
             time.sleep(0.1)
         hub.notify(event, -100)
-        self.checkpointcount += 1
-        if self.checkpointcount == 100:
-            hub.notify(events.checkpointdb(self.songdbid), -100)
-            self.checkpointcount = 0
 
     def registerdirtree(self, dir):
         """ scan for songs and playlists in dir and its subdirectories, returning all items which have been scanned """
@@ -987,11 +973,6 @@ class songautoregisterer(service.service):
         playlists = [dbitem.playlist(path) for path in playlistpaths]
         if playlists:
             self._notify(events.registerplaylists(self.songdbid, playlists))
-
-        # checkpoint regularly to prevent overly large transaction logs and wait until the
-        # database is not busy any more
-        if songs or playlists:
-            self._notify(events.checkpointdb(self.songdbid))
 
         registereditems.extend(playlists)
         log.debug("registerer: leaving %s"% dir)

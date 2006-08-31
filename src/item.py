@@ -403,8 +403,9 @@ class artist(diritem):
 
     """ artist bound to specific songdb """
 
-    def __init__(self, songdbid, name, filters):
+    def __init__(self, songdbid, id, name, filters):
         self.songdbid = songdbid
+        self.id = id
         self.name = name
         self.filters = filters
 
@@ -1049,7 +1050,7 @@ class basedir(totaldiritem):
             return _("%d databases (%d)") % (len(self.songdbids), self.nrsongs)
 
     def _artistwrapper(self, aartist, songdbid):
-        return artist(self.songdbid, aartist.name, filters=self.filters)
+        return artist(self.songdbid, aartist.id, aartist.name, filters=self.filters)
 
     def getcontents(self):
         # reset cached value once in a while

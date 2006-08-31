@@ -59,7 +59,7 @@ class metadata:
         self.length = 0
 	self.version = None
 	self.layer = None
-	self.vbr = None
+	self.is_vbr = None
 	self.samplerate = None
 	self.bitrate = None
 	self.size = os.stat(path).st_size
@@ -158,7 +158,7 @@ class mp3mutagenmetadata(metadata):
 
         for frame in mp3.tags.values():
             if frame.FrameID == "TCON":
-                self.genre = " ".join(frame.genres).encode(localecharset, "replace")
+                self.genre = " ".join(frame.genres)
             elif frame.FrameID == "RVA2":
                 if frame.channel == 1:
                     if frame.desc == "album":
@@ -180,7 +180,7 @@ class mp3mutagenmetadata(metadata):
             else:
                 name = self.framemapping.get(frame.FrameID, None)
                 if name:
-                    text = " ".join(map(unicode, frame.text)).encode(localecharset, "replace")
+                    text = " ".join(map(unicode, frame.text))
                     setattr(self, name, text)
 
         # self.title = MP3Info._strip_zero(self.title)
@@ -201,7 +201,7 @@ class mp3eyeD3metadata(metadata):
         # so extract this info before anything goes wrong
         self.length = mp3file.getPlayTime()
 
-	self.vbr, bitrate = mp3file.getBitRate()
+	self.is_vbr, bitrate = mp3file.getBitRate()
 	self.bitrate = bitrate * 1000
 	self.samplerate = mp3file.getSampleFreq()
 
@@ -289,7 +289,7 @@ class mp3MP3Infometadata(metadata):
         self.tracknumber = _splitnumbertotal(mp3info.track)
 	self.version = mp3info.mpeg.version
 	self.layer = mp3info.mpeg.layer
-	self.vbr = mp3info.mpeg.is_vbr
+	self.is_vbr = mp3info.mpeg.is_vbr
 	self.bitrate = mp3info.mpeg.bitrate
 	self.samplerate = mp3info.mpeg.samplerate
         try:

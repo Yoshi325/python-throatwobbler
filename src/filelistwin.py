@@ -25,6 +25,8 @@ import item
 import filelist
 import statusbar
 import window
+import encoding
+
 
 class filelistwin(window.window):
     def __init__(self, screen, layout, channel, songdbids):
@@ -256,6 +258,7 @@ class filelistwin(window.window):
                         attr = self.colors.directory
             else:
                 name = ""
+            name = encoding.encode(name)
             self.addstr(i-self.items.top+self.iy, self.ix, name.ljust(self.iw)[:self.iw], attr)
 
         self.updatescrollbar()

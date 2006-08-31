@@ -23,6 +23,7 @@ import services.playlist
 import events, hub
 import window
 import messagewin
+import encoding
 
 # marker class
 class _selection:
@@ -102,21 +103,27 @@ class iteminfowin(window.window):
 
         for lno in range(4):
             self.move(1+lno, self.ix)
-            self.addstr(l[lno][0].ljust(wc1)[:wc1], self.colors.description)
-            self.addstr(l[lno][1].ljust(wc2)[:wc2], self.colors.content)
+            l0 = encoding.encode(l[lno][0])
+            l1 = encoding.encode(l[lno][1])
+            self.addstr(l0.ljust(wc1)[:wc1], self.colors.description)
+            self.addstr(l1.ljust(wc2)[:wc2], self.colors.content)
             self.addch(" ")
             if lno != 3 or isinstance(aitem, item.diritem):
-                self.addstr(l[lno][2].ljust(wc3)[:wc3], self.colors.description)
-                self.addstr(l[lno][3].ljust(wc4)[:wc4], self.colors.content)
+                l2 = encoding.encode(l[lno][2])
+                l3 = encoding.encode(l[lno][3])
+                self.addstr(l2.ljust(wc3)[:wc3], self.colors.description)
+                self.addstr(l3.ljust(wc4)[:wc4], self.colors.content)
             else:
+                l2 = encoding.encode(l[3][-2])
+                l3 = encoding.encode(l[3][-1])
                 # special handling of last line for songs
-                wc3 = max(len(l[3][-2]), 5) + colsep
-                wc4 = max(len(l[3][-1]), 5)
+                wc3 = max(len(l2), 5) + colsep
+                wc4 = max(len(l3), 5)
 
                 self.move(1+lno, self.iw-wc3-wc4-1-self.ix)
                 self.addch(" ")
-                self.addstr(l[3][-2].ljust(wc3)[:wc3], self.colors.description)
-                self.addstr(l[3][-1].ljust(wc4)[:wc4], self.colors.content)
+                self.addstr(l2.ljust(wc3)[:wc3], self.colors.description)
+                self.addstr(l3.ljust(wc4)[:wc4], self.colors.content)
 
     # event handler
 
