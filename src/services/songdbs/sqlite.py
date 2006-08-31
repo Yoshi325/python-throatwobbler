@@ -62,8 +62,8 @@ CREATE TABLE playstats (
 );
 
 CREATE TABLE songs (
-  id                    TEXT CONSTRAINT pk_song_id PRIMARY KEY,
-  url                   TEXT,
+  id                    INTEGER CONSTRAINT pk_song_id PRIMARY KEY AUTOINCREMENT,
+  url                   TEXT UNIQUE,
   type                  TEXT,
   title                 TEXT,
   album_id              INTEGER CONSTRAINT fk_song_album_id  REFERENCES albums(id),
@@ -76,6 +76,7 @@ CREATE TABLE songs (
   trackcount            INTEGER,
   disknumber            INTEGER,
   diskcount             INTEGER,
+  compilation           BOOL,
   bitrate               INTEGER,
   is_vbr                BOOT,
   samplerate            INTEGER,
@@ -84,7 +85,6 @@ CREATE TABLE songs (
   replaygain_album_gain FLOAT,
   replaygain_album_peak FLOAT,
   size                  INTEGER,
-  collection            BOOL,
   date_added            TIMESTAMP,
   date_changed          TIMESTAMP,
   date_lastplayed       TIMESTAMP,
@@ -96,11 +96,21 @@ CREATE INDEX album_id ON albums(name);
 CREATE INDEX artist_id ON artists(name);
 CREATE INDEX tag_id ON tags(name);
 
+CREATE INDEX url_song ON songs(url);
 CREATE INDEX album_id_song ON songs(album_id);
 CREATE INDEX artist_id_song ON songs(artist_id);
 CREATE INDEX year_song ON songs(year);
-CREATE INDEX collection_song ON songs(collection);
+CREATE INDEX compilation_song ON songs(compilation);
 """
+
+songcolumns = ["url", "type", "title", "album_id",
+	       "artist_id", "year", "comment", "lyrics",
+	       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+	       "compilation", "bitrate", "is_vbr", "samplerate", 
+	       "replaygain_track_gain", "replaygain_track_peak",
+	       "replaygain_album_gain", "replaygain_album_peak", 
+	       "size", "compilation", "date_added", "date_changed", "date_lastplayed", 
+	       "playcount", "rating"]
 
 # con = sqlite.connect(":memory:")
 # con.row_factory = sqlite.Row
@@ -157,10 +167,6 @@ CREATE INDEX collection_song ON songs(collection);
 #                    """)
 # for c in r.fetchall():
 #     print c["title"], "-", c["artist"], "-", c["album"]
-
-
-#INSERT into songs (id, url, name, artist_id, album_id, genre_id) values 
-#    ("a", "file://123", 
 
 
 
@@ -321,15 +327,16 @@ class songdb(service.service):
         # already registered the song. Otherwise, we would have to
         # create a song instance, which is quite costly.
         if self.basedir.endswith("/"):
-           song_id = path[len(self.basedir):]
+           relpath = path[len(self.basedir):]
         else:
-           song_id = path[len(self.basedir)+1:]
-        try:
-            return self._getsong(song_id)
-        except KeyError:
-            song = dbitem.songfromfile(song_id, self.basedir,
-                                       self.tracknrandtitlere, self.tagcapitalize, self.tagstripleadingarticle,
-                                       self.tagremoveaccents)
+           relpath = path[len(self.basedir)+1:]
+	self.con.execute("SELECT id FROM songs WHERE url = ?", ("file://" + relpath,)).fetchone()
+	if r:
+            return self._getsong(r["id"])
+	else:
+            song = dbitem.songfromfile(relpath, self.basedir,
+                                       self.tracknrandtitlere, self.tagcapitalize, 
+				       self.tagstripleadingarticle, self.tagremoveaccents)
 
             self._registersong(song)
             return song
@@ -353,7 +360,7 @@ class songdb(service.service):
         hub.notify(events.songchanged(self.id, song))
 
     def _registersong(self, song):
-        """register song into database or rescan existent one"""
+        """add song to database"""
         log.debug("registering song: %s" % str(song))
 
         if not isinstance(song, dbitem.song):
@@ -363,53 +370,73 @@ class songdb(service.service):
         #    log.error("registersong: song path has to be located in basedir")
         #    return
 
-        try:
-            newsong = self._getsong(song.id)
-            # if the song is already in the database, we just update
-            # its id3 information (in case that it changed) and
-            # write the new song in the database
-            newsong.update_id3(song)
-            self._updatesong(newsong)
-        except:
-            self._txn_begin()
-            cur = self.con.cursor()
-            def queryregisterindex(indextable, name):
-                newindexentry = False
-                cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name, ))
-                r = cur.fetchone()
-                if r is None:
-                    cur.execute("INSERT INTO %s (name) VALUES (?)" % indextable, (name, ))
-                    cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name,))
-                    r = cur.fetchone()
-                    newindexentry = True
-                return r["id"], newindexentry
-            try:
-                song.artist_id, newartist = queryregisterindex("artists", song.artist)
-                song.album_id, newalbum = queryregisterindex("albums", song.album)
-                for tag in song.tags:
-                    tag_id = queryregisterindex("tags", tag)
-                    # we should check whether this fails
-                    cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song.id, tag_id))
+        #try:
+        #    newsong = self._getsong(song.id)
+        #    # if the song is already in the database, we just update
+        #    # its id3 information (in case that it changed) and
+        #    # write the new song in the database
+        #    newsong.update_id3(song)
+	#     self._updatesong(newsong)
+        #except:
+	self._txn_begin()
+	cur = self.con.cursor()
+	def queryregisterindex(indextable, name):
+	    newindexentry = False
+	    cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name, ))
+	    r = cur.fetchone()
+	    if r is None:
+		cur.execute("INSERT INTO %s (name) VALUES (?)" % indextable, (name, ))
+		cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name,))
+		r = cur.fetchone()
+		newindexentry = True
+	    return r["id"], newindexentry
+	try:
+	    song.artist_id, newartist = queryregisterindex("artists", song.artist)
 
-                songcolumns = ["id", "url", "type", "title", "album_id",
-                               "artist_id", "year", "comment", "lyrics",
-                               "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-                               "bitrate", "is_vbr", "samplerate", "replaygain_track_gain", "replaygain_track_peak",
-                               "replaygain_album_gain", "replaygain_album_peak", "size", "collection", "date_added",
-                               "date_changed", "date_lastplayed", "playcount", "rating"]
-                cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
-                                                                    ",".join(["?"] * len(songcolumns))),
-                            [getattr(song, columnname) for columnname in songcolumns])
-                if newartist:
-                    hub.notify(events.artistaddedordeleted(self.id, None))
-                if newalbum:
-                    hub.notify(events.albumaddedordeleted(self.id, None))
-                hub.notify(events.songchanged(self.id, song))
-            except:
-                self._txn_abort()
-                raise
-            else:
-                self._txn_commit()
+	    newalbum = False
+	    cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
+			(song.artist_id, song.album))
+	    r = cur.fetchone()
+	    if r is None:
+		cur.execute("INSERT INTO albums (artist_id, name) VALUES (?, ?)", 
+			    (song.artist_id, song.album))
+		cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
+			    (song.artist_id, song.album))
+		r = cur.fetchone()
+		newalbum = True
+	    song.album_id = r["id"]
+
+	    cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
+								",".join(["?"] * len(songcolumns))),
+			[getattr(song, columnname) for columnname in songcolumns])
+
+	    cur.execute("SELECT id FROM songs WHERE url = ?", (song.url,))
+	    r = cur.fetchone()
+	    song_id = r["id"]
+
+	    for tag in song.tags:
+		tag_id = queryregisterindex("tags", tag)
+		# we should check whether this fails
+		cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song_id, tag_id))
+	    self.con.commit()
+
+	    #for r in cur.execute("SELECT id, name FROM artists").fetchall():
+	    #    log.info("AR: %s %s" % (r["id"], r["name"]))
+	    #for r in cur.execute("SELECT id, artist_id, name FROM albums").fetchall():
+	    #    log.info("AL: %s %s %s" % (r["id"], r["artist_id"], r["name"]))
+	    #for r in cur.execute("SELECT id, title FROM songs").fetchall():
+	    #    log.info("S: %s %s" % (r["id"], r["title"]))
+
+	    if newartist:
+		hub.notify(events.artistaddedordeleted(self.id, None))
+	    if newalbum:
+		hub.notify(events.albumaddedordeleted(self.id, None))
+	    # hub.notify(events.songchanged(self.id, song))
+	except:
+	    self._txn_abort()
+	    raise
+	else:
+	    self._txn_commit()
 
 
 #    def _rescansong(self, song):
@@ -496,10 +523,48 @@ class songdb(service.service):
     # !!! It is not save to call any of the following methods when a transaction is active !!!
     ##########################################################################################
 
-    def _getsong(self, id):
-        """return song entry with given id"""
-        song = self.songs.get(id)
-        return song
+    def _getsong(self, song_id):
+        """return song entry with given song_id"""
+	select = "SELECT %s FROM songs" #  WHERE id = ?" % ", ".join(songcolumns)
+	select = """SELECT %s, artists.name AS artist, albums.name AS album FROM songs 
+                    JOIN albums ON albums.id == album_id
+		    JOIN artists ON artists.id == songs.artist_id
+		    WHERE songs.id = ?
+		    """ % ", ".join([c for c in songcolumns if c!="artist_id"])
+	log.debug(str(song_id))
+	try:
+	    log.debug("-----")
+	    r = self.con.execute(select, (song_id,)).fetchone()
+	    # r = self.con.execute(select).fetchone()
+	    log.debug("+++++")
+	    if r:
+		# fetch tags
+		tags = []
+		select = """SELECT tags.name AS name FROM tags 
+          		    JOIN taggings ON taggings.tag_id = tags.id
+			    WHERE taggings.song_id = ?"""
+		for r in self.con.execute(select, (song_id,)):
+		    tags.append(r["name"])
+
+		return dbitem.song(
+		    r["url"], r["type"], r["title"], r["album"], r["artist"], r["year"], r["comment"], 
+		    r["lyrics"], tags,
+		    r["tracknumber"], r["trackcount"], r["disknumber"], r["diskcount"], 
+		    r["compilation"], r["length"], r["bitrate"],
+		    r["samplerate"], r["is_vbr"], r["size"], r["replaygain_track_gain"], 
+		    r["replaygain_track_peak"],
+		    r["replaygain_album_gain"], r["replaygain_album_peak"],
+		    r["date_added"], r["date_changed"], r["date_lastplayed"], 
+		    r["playcount"], r["rating"])
+	    else:
+		log.debug("Song '%s' not found in database" % song_id)
+		return None
+	except:
+	    log.debug("EEEE")
+	    log.debug_traceback()
+	    return None
+
+
 
     def _getalbum(self, album):
         """return given album"""
@@ -517,76 +582,39 @@ class songdb(service.service):
             songs = [song for song in songs if getattr(song, indexname) == indexid]
         return songs
 
-    def _getsongs(self, artist=None, album=None, filters=None):
-        return []
-        """ returns song of given artist, album and with song.indexname==indexid
+    def _getsongs(self, artist_name=None, album_name=None, filters=None):
+        """ returns song of given artist, album filtered according ot filters
 
         All values either have to be strings or None, in which case they are ignored.
         """
+        select = """SELECT songs.id as song_id
+                    FROM songs 
+		    JOIN artists ON (songs.artist_id = artists.id)
+		    JOIN albums  ON (songs.album_id = albums.id) """
+		    
+        args = []
+	wherelist = []
+        if artist_name is not None:
+	    wherelist.append("artists.name = ?")
+            args.append(artist_name)
+        if album_name is not None:
+	    wherelist.append("albums.name = ?")
+            args.append(album_name)
+	if wherelist:
+	    select = select + " WHERE " + " AND ".join(wherelist)
 
-        if artist is None and album is None and not filters:
-            # return all songs in songdb
-            # songs = map(self.songs.get, self.songs.keys())
-            return self.songs.values()
-
-        if not filters:
-            if album is None:
-                # return all songs of a given artist
-                keys = self._getartist(artist).songs
-                songs = map(self.songs.get, keys)
-                return songs
-            elif artist is None:
-                keys = self._getalbum(album).songs
-                return map(self.songs.get, keys)
-            else:
-                # return all songs on a given album of a given artist
-                # We first determine all songs of the artist and filter afterwards
-                # for the songs on the given album. Doing it the other way round,
-                # turns out to be really bad for the special case of an unknown
-                # album which contains songs of many artists.
-                keys = self._getartist(artist).songs
-                songs = map(self.songs.get, keys)
-                return [song for song in songs if song.album==album]
-        else:
-            # filters specified
-            if artist is None and album is None:
-                index = getattr(self, filters[0].indexname+"s")
-                songs = map(self.songs.get, index[str(filters[0].indexid)].songs)
-                return self._filtersongs(songs, filters[1:])
-            else:
-                songs = self._getsongs(artist=artist, album=album)
-                return self._filtersongs(songs, filters)
-
-    def _filteralbumartists(self, itemname, filters, itemids=None):
-        itemgetter = getattr(self, itemname).get
-        # consider case without filters separately
-        if not filters:
-           if itemids is None:
-               itemids = getattr(self, itemname).keys()
-           return map(itemgetter, itemids)
-
-        if itemids is None:
-            index = getattr(self, filters[0].indexname+"s")
-            itemids = getattr(index[str(filters[0].indexid)], itemname)
-            filters = filters[1:]
-        # we use a hash to construction of the intersection of the results of the various filters
-        items = {}
-        for itemid in itemids:
-            items[itemid] = itemgetter(itemid)
-
-        for filter in filters:
-            newitems = {}
-            index = getattr(self, filter.indexname+"s")
-            for itemid in getattr(index[str(filter.indexid)], itemname):
-                if itemid in items:
-                    newitems[itemid] = items[itemid]
-            items = newitems
-        return items.values()
+	return  [item.song(self.id, row["song_id"])
+		      for row in self.con.execute(select, args)]
 
     def _getartists(self, filters=None):
         """return all stored artists"""
-        return [item.artist(self.id, row["id"], row["name"], filters)
-                for row in self.con.execute("SELECT id, name FROM artists ORDER BY name")]
+	select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
+                    FROM artists JOIN songs ON (artist_id = artists.id)
+		    WHERE (NOT songs.compilation AND
+		    songs.title LIKE '%id%')
+                    ORDER BY artists.name"""
+        return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
+                for row in self.con.execute(select)]
 
     def _getalbums(self, artist_name=None, filters=None):
         """return albums of a given artist
@@ -601,10 +629,6 @@ class songdb(service.service):
         if artist_name is not None:
             select = select + " WHERE artists.name = ?"
             args += [artist_name]
-
-        log.info(select)
-        log.info(str(args))
-
         return [item.album(self.id, row["id"], row["artist_name"], row["album_name"], filters)
                 for row in self.con.execute(select, args)]
 

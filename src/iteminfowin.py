@@ -86,7 +86,7 @@ class iteminfowin(window.window):
 
         # get lines to display
         empty= [["", "", "", ""]]
-        if aitem:
+        if aitem is not None:
             info = aitem.getinfo()
         else:
             info = []

@@ -37,8 +37,6 @@ class dbitem:
         except:
             return 1
 
-    def __repr__(self):
-        return "%s(%s)" % (self.__class__, self.id)
 
     def __hash__(self):
         return hash(self.id)
@@ -46,18 +44,18 @@ class dbitem:
 # factory function for songs
 
 def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingarticle, removeaccents):
-    id = os.path.normpath(relpath)
+    relpath = os.path.normpath(relpath)
 
     path = os.path.normpath(os.path.join(basedir, relpath))
     if not os.access(path, os.R_OK):
         raise IOError("cannot read song")
 
-    url = "file://%s" % path
+    url = "file://%s" % relpath
 
     # determine type of file from its extension
     type = metadata.gettype(os.path.splitext(relpath)[1])
     if type is None:
-        raise RuntimeError("Fileformat of song '%s' not supported" % (id))
+        raise RuntimeError("Fileformat of song '%s' not supported" % (relpath))
 
     # song metadata
     title = ""
@@ -71,7 +69,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     trackcount = None
     disknumber = None
     diskcount = None
-    collection = False
+    compilation = False
     length = 0
     bitrate = None
     samplerate = None
@@ -100,7 +98,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         if fntitle.lower().endswith(".mp3") or fntitle.lower().endswith(".ogg"):
             fntitle = fntitle[:-4]
 
-    first, second = os.path.split(os.path.dirname(id))
+    first, second = os.path.split(os.path.dirname(relpath))
     if first and second and not os.path.split(first)[0]:
         fnartist = first
         fnalbum = second
@@ -124,13 +122,13 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         artist = md.artist
         year = md.year
         genre = md.genre
-        # comment = md.comment
-        # lyrics = md.lyrics
+        comment = md.comment
+        lyrics = md.lyrics
         tracknumber = md.tracknumber
         trackcount = md.trackcount
         disknumber = md.disknumber
         diskcount = md.diskcount
-        # collection = md.collection
+        compilation = md.compilation
         length = md.length
         bitrate = md.bitrate
         samplerate = md.samplerate
@@ -201,10 +199,13 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     #    album = string.translate(album, translationtable)
     #    title = string.translate(title, translationtable)
 
+    if "Compilations" in path:
+	compilation = True
+
     tags = ["G:%s" % genre]
 
-    return song(id, url, type, title, album, artist, year, comment, lyrics, tags,
-                tracknumber, trackcount, disknumber, diskcount, collection, length, bitrate,
+    return song(url, type, title, album, artist, year, comment, lyrics, tags,
+                tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                 samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                 replaygain_album_gain, replaygain_album_peak,
                 date_added, date_changed, date_lastplayed, playcount, rating)
@@ -212,12 +213,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
 
 class song(dbitem):
 
-    def __init__(self, id, url, type, title, album, artist, year, comment, lyrics, tags,
-                 tracknumber, trackcount, disknumber, diskcount, collection, length, bitrate,
+    def __init__(self, url, type, title, album, artist, year, comment, lyrics, tags,
+                 tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                  samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                  replaygain_album_gain, replaygain_album_peak,
                  date_added, date_changed, date_lastplayed, playcount, rating):
-        self.id = id
         self.url = url
         self.type = type
         self.title = title
@@ -231,7 +231,7 @@ class song(dbitem):
         self.trackcount = trackcount
         self.disknumber = disknumber
         self.diskcount = diskcount
-        self.collection = collection
+        self.compilation = compilation
         self.length = length
 
         # encoding information
@@ -252,6 +252,9 @@ class song(dbitem):
         self.date_lastplayed = date_lastplayed
         self.playcount = playcount
         self.rating = rating
+
+    def __repr__(self):
+        return "song(%s)" % (self.url)
 
     def update_id3(self, othersong):
         """ merge id3 information from othersong """
@@ -301,22 +304,6 @@ class song(dbitem):
                    return min(15, scale)
        else:
            return 1.0
-
-class artist(dbitem):
-    def __init__(self, name):
-        self.id = name
-        self.name = name
-        self.albums = []
-        self.songs = []
-
-
-class album(dbitem):
-    def __init__(self, name):
-        self.id = name
-        self.name = name
-        self.artists = []
-        self.songs = []
-
 
 class playlist(dbitem):
     def __init__(self, path):

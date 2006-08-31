@@ -52,10 +52,13 @@ class metadata:
         self.artist = ""
         self.year = ""
         self.genre = ""
+	self.comment = ""
+	self.lyrics = ""
         self.tracknumber = None
 	self.trackcount = None
 	self.disknumber = None
 	self.diskcount = None
+	self.compilation = False
         self.length = 0
 	self.version = None
 	self.layer = None
@@ -177,6 +180,8 @@ class mp3mutagenmetadata(metadata):
 		self.tracknumber, self.trackcount = _splitnumbertotal(frame.text[0])
 	    elif frame.FrameID == "TPOS":
 		self.disknumber, self.diskcount = _splitnumbertotal(frame.text[0])
+	    #elif frame.FrameID == "TCMP":
+	    #	self.compilation = True
             else:
                 name = self.framemapping.get(frame.FrameID, None)
                 if name:

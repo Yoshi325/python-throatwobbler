@@ -42,7 +42,7 @@ class dbrequest:
     def __hash__(self):
         # for the cashing system every dbrequest has to be hashable
         # by default we rely on self.__str__ for computing the hash value
-        return hash(str(self))
+        return hash(repr(self))
 
 class dbrequestsingle(dbrequest):
     """ db request yielding a single result (not a list) and requiring a
@@ -63,7 +63,7 @@ class dbrequestsongs(dbrequest):
     def _songwrapper(song, songdbid):
         return item.song(songdbid, song)
 
-    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=_songwrapper, filters=None):
+    def __init__(self, songdbid, random=False, sort=False, wrapperfunc=None, filters=None):
         self.songdbid = songdbid
         self.sort = sort
         self.random = random

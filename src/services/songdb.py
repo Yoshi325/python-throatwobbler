@@ -164,8 +164,8 @@ class songdbmanager(service.service):
             return None
 
         if type=="local":
-            import songdbs.localsqlite
-            songdb = songdbs.localsqlite.songdb(id, config, self.songdbhub)
+            import songdbs.sqlite
+            songdb = songdbs.sqlite.songdb(id, config, self.songdbhub)
         elif type=="remote":
             import songdbs.remote
             songdb = songdbs.remote.songdb(id, config.networklocation, self.songdbhub)
@@ -230,7 +230,8 @@ class songdbmanager(service.service):
         """ method decorator which sorts the result list if requested """
         def newrequesthandler(self, request):
             result = requesthandler(self, request)
-            if request.sort:
+	    # XXX turned off
+            if request.sort and 0:
                 result.sort(request.sort)
             return result
         return newrequesthandler
@@ -291,7 +292,7 @@ class songdbmanager(service.service):
         result = self.songdbhub.request(request)
         # wrap all dbitm.song instances in result in a item.song instance
         if isinstance(result, dbitem.song):
-            return item.song(request.songdbid, result)
+	    return result
         else:
             try:
                 newresult = []

@@ -206,6 +206,7 @@ class song(item):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
+	id + 1
         self.song = None
 
     def __repr__(self):
@@ -218,8 +219,10 @@ class song(item):
         if attr=="__setstate__":
             raise AttributeError
         if not self.song:
-            pass
-            # XXX fetch song info from database
+	    import log
+	    log.debug("Fetching song metadata from database")
+	    self.song = hub.request(requests.getsong(self.songdbid, self.id))
+	    log.debug("Got song metadata from database")
         return getattr(self.song, attr)
 
     def _updatesong(self):
@@ -230,25 +233,25 @@ class song(item):
         return self.id
 
     def getname(self):
-        return self.song.title
+	return self.title
 
     def getinfo(self):
         l = [["", "", "", ""]]*4
         l[0] = [_("Title:"), self.title]
-        if self.song.tracknumber:
+        if self.tracknumber:
             l[0] += [_("Nr:"), _formatnumbertotal(self.tracknumber, self.trackcount)]
         else:
             l[0] += ["", ""]
-        l[1] = [_("Album:"),  self.song.album]
-        if self.song.year:
-            l[1] += [_("Year:"), str(self.song.year)]
+        l[1] = [_("Album:"),  self.album]
+        if self.year:
+            l[1] += [_("Year:"), str(self.year)]
         else:
             l[1] += ["", ""]
-        l[2] = [_("Artist:"), self.song.artist,
-              _("Time:"), helper.formattime(self.song.length)]
-        l[3] = [_("Genre:"), self.song.genre]
+        l[2] = [_("Artist:"), self.artist,
+              _("Time:"), helper.formattime(self.length)]
+        # l[3] = [_("Genre:"), self.genre]
 
-        if self.getplayingtime() is not None:
+        if 0 and self.getplayingtime() is not None:
             seconds = int((time.time()-self.getplayingtime())/60)
             days, rest = divmod(seconds, 24*60)
             hours, minutes = divmod(rest, 60)
@@ -260,14 +263,14 @@ class song(item):
                 played = "%dh %dm" % (hours, minutes)
             else:
                 played = "%dm" % minutes
-            if self.song.rating:
-                played = played + " (%s)" % ("*"*self.song.rating)
+            if self.rating:
+                played = played + " (%s)" % ("*"*self.rating)
             l[3] += [_("Played:"),
-                   _("#%d, %s ago") % (self.song.nrplayed, played)]
+                   _("#%d, %s ago") % (self.nrplayed, played)]
 
         else:
-            if self.song.rating:
-                l[3] += [_("Rating:"), "*"*self.song.rating]
+            if self.rating:
+                l[3] += [_("Rating:"), "*"*self.rating]
             else:
                 l[3] += ["", ""]
         return l
@@ -277,59 +280,58 @@ class song(item):
         directory, filename = os.path.split(self.song.url)
         l.append([_("Path:"), directory, "", ""])
         l.append([_("File name:"), filename, "", ""])
-        if self.song.size:
-            if self.song.size > 1024*1024:
-                sizestring = "%.1f MB" % (self.song.size / 1024.0 / 1024)
+        if self.size:
+            if self.size > 1024*1024:
+                sizestring = "%.1f MB" % (self.size / 1024.0 / 1024)
             elif self.song.size > 1024:
-                sizestring = "%.1f kB" % (self.song.size / 1024.0)
+                sizestring = "%.1f kB" % (self.size / 1024.0)
             else:
-                sizestring = "%d B" % self.song.size
+                sizestring = "%d B" % self.size
         else:
             sizestring = ""
         l.append([_("Size:"), sizestring, "", ""])
-        typestring = self.song.type.upper()
+        typestring = self.type.upper()
         if self.song.bitrate is not None:
-            typestring = "%s %dkbps" % (typestring, self.song.bitrate/1000)
-            if self.song.vbr:
+            typestring = "%s %dkbps" % (typestring, self.bitrate/1000)
+            if self.is_vbr:
                 typestring = typestring + "VBR"
-            if self.song.samplerate:
-                typestring = "%s (%.1f kHz)" % (typestring, self.song.samplerate/1000.)
+            if self.samplerate:
+                typestring = "%s (%.1f kHz)" % (typestring, self.samplerate/1000.)
 
         l.append([_("File type:"), typestring, "", ""])
-        l.append([_("Title:"), self.song.title, "", ""])
-        l.append([_("Album:"),  self.song.album, "", ""])
-        l.append([_("Artist:"), self.song.artist, "", ""])
+        l.append([_("Title:"), self.title, "", ""])
+        l.append([_("Album:"),  self.album, "", ""])
+        l.append([_("Artist:"), self.artist, "", ""])
         if self.song.year:
-            l.append([_("Year:"), str(self.song.year), "", ""])
+            l.append([_("Year:"), str(self.year), "", ""])
         else:
             l.append([_("Year:"), "", "", ""])
 
-        l.append([_("Track No:"), _formatnumbertotal(self.song.tracknumber, self.song.trackcount), 
+        l.append([_("Track No:"), _formatnumbertotal(self.tracknumber, self.trackcount), 
                   "", ""])
-        l.append([_("Disk No:"), _formatnumbertotal(self.song.disknumber, self.song.diskcount), 
+        l.append([_("Disk No:"), _formatnumbertotal(self.disknumber, self.diskcount), 
                   "", ""])
-        l.append([_("Genre:"), self.song.genre, "", ""])
-        l.append([_("Time:"), "%d:%02d" % divmod(self.song.length, 60), "", ""])
+        l.append([_("Genre:"), self.genre, "", ""])
+        l.append([_("Time:"), "%d:%02d" % divmod(self.length, 60), "", ""])
         replaygain = ""
-        if self.song.replaygain_track_gain is not None and self.song.replaygain_track_peak is not None:
+        if self.replaygain_track_gain is not None and self.replaygain_track_peak is not None:
             replaygain = replaygain + "%s: %+f dB (peak: %f) " % (_("track"),
-                                                                  self.song.replaygain_track_gain,
-                                                                  self.song.replaygain_track_peak)
-        if self.song.replaygain_album_gain is not None and self.song.replaygain_album_peak is not None:
+                                                                  self.replaygain_track_gain,
+                                                                  self.replaygain_track_peak)
+        if self.replaygain_album_gain is not None and self.replaygain_album_peak is not None:
             replaygain = replaygain + "%s: %+f dB (peak: %f)" % (_("album"),
-                                                                 self.song.replaygain_album_gain,
-                                                                 self.song.replaygain_album_peak)
+                                                                 self.replaygain_album_gain,
+                                                                 self.replaygain_album_peak)
         l.append([_("Replaygain:"), replaygain, "", ""])
    
-
-        if self.song.rating:
-            l.append([_("Rating:"), "*"*self.song.rating, "", ""])
+        if self.rating:
+            l.append([_("Rating:"), "*"*self.rating, "", ""])
         else:
             l.append([_("Rating:"), "-", "", ""])
 
-        l.append([_("Times played:"), str(self.song.nrplayed), "", ""])
+        l.append([_("Times played:"), str(self.nrplayed), "", ""])
 
-        for played in self.song.lastplayed[-1:-6:-1]:
+        for played in self.lastplayed[-1:-6:-1]:
             last = int((time.time()-played)/60)
             days, rest = divmod(last, 24*60)
             hours, minutes = divmod(rest, 60)
@@ -412,12 +414,9 @@ class artist(diritem):
     def __repr__(self):
         return "artist(%s) in %s (filtered: %s)" % (self.name, self.songdbid, repr(self.filters))
 
-    def _albumwrapper(self, aalbum, songdbid):
-        return album(self.songdbid, aalbum.id, self.name, aalbum.name, self.filters)
-
     def getcontents(self):
         albums = hub.request(requests.getalbums(self.songdbid, self.name, 
-                                                wrapperfunc=self._albumwrapper, sort=self.cmpitem, filters=self.filters))
+                                                sort=self.cmpitem, filters=self.filters))
         return albums + [songs(self.songdbid, self.name)]
 
     def getcontentsrecursive(self):
@@ -425,7 +424,7 @@ class artist(diritem):
 
     def getcontentsrecursivesorted(self):
         albums = hub.request(requests.getalbums(self.songdbid, self.name, 
-                                                wrapperfunc=self._albumwrapper, sort=self.cmpitem, filters=self.filters))
+                                                sort=self.cmpitem, filters=self.filters))
         result = []
         for aalbum in albums:
             result.extend(aalbum.getcontentsrecursivesorted())
@@ -1049,13 +1048,10 @@ class basedir(totaldiritem):
         else:
             return _("%d databases (%d)") % (len(self.songdbids), self.nrsongs)
 
-    def _artistwrapper(self, aartist, songdbid):
-        return artist(self.songdbid, aartist.id, aartist.name, filters=self.filters)
-
     def getcontents(self):
         # reset cached value once in a while
         self.nrsongs = None
-        aartists = hub.request(requests.getartists(self.songdbid, wrapperfunc=self._artistwrapper, sort=self.cmpitem,
+        aartists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
                                                    filters=self.filters))
         if config.filelistwindow.virtualdirectoriesattop:
             return self.virtdirs + aartists
@@ -1065,7 +1061,7 @@ class basedir(totaldiritem):
     def getcontentsrecursivesorted(self):
         # we cannot rely on the default implementation since we don't want
         # to have the albums and songs included trice
-        artists = hub.request(requests.getartists(self.songdbid, wrapperfunc=self._artistwrapper, sort=self.cmpitem,
+        artists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
                                                   filters=self.filters))
         result = []
         for aartist in artists:
