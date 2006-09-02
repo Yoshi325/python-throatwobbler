@@ -246,7 +246,13 @@ class decodedsong:
         # stored in the database. The former one turns out to be more precise
         # for some VBR songs.
         self.ttime = self.decodedfile.ttime()
-        self.samplerate = self.decodedfile.samplerate()
+
+	# sometimes the mad library seems to report a wrong sample rate,
+	# so use the one stored in the database
+	if self.song.samplerate:
+	    self.samplerate = self.song.samplerate
+	else:
+	    self.samplerate = self.decodedfile.samplerate()
 
         self.buff = self.last_l = self.last_r = None
         self.buffpos = 0
