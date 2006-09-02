@@ -21,7 +21,7 @@ _fs_encoding = sys.getfilesystemencoding()
 # exported functions
 
 def encode(ustring):
-    return ustring.encode(_localecharset)
+    return ustring.encode(_localecharset, "replace")
 
 def decode_path(path):
     return path.decode(_fs_encoding)

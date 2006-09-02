@@ -27,6 +27,7 @@ import events, hub, requests
 import dbitem, item
 import log
 import service
+import encoding
 
 _counter = 0
 
@@ -157,7 +158,7 @@ class playlist(service.service):
     def _logplay(self, item):
         if self.logfilename:
             logfile = open(self.logfilename, "a")
-            logfile.write("%s: %s\n" % (time.asctime(), item.song.url))
+            logfile.write("%s: %s\n" % (time.asctime(), encoding.encode(item.song.url)))
             logfile.close()
 
     def _checkabortion(self):
