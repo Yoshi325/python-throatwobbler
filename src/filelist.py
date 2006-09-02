@@ -32,8 +32,9 @@ class filelist(slist.slist):
         self.shistory = []
         self.readdir()
 
-        self.win.channel.subscribe(events.artistaddedordeleted, self.artistaddedordeleted)
-        self.win.channel.subscribe(events.albumaddedordeleted, self.albumaddedordeleted)
+        self.win.channel.subscribe(events.artistschanged, self.artistschanged)
+        self.win.channel.subscribe(events.albumschanged, self.albumschanged)
+        self.win.channel.subscribe(events.tagschanged, self.tagschanged)
         self.win.channel.subscribe(events.dbplaylistchanged, self.dbplaylistchanged)
         self.win.channel.subscribe(events.filelistjumptosong, self.filelistjumptosong)
 
@@ -119,15 +120,16 @@ class filelist(slist.slist):
 
     # event handler
 
-    def artistaddedordeleted(self, event):
-        #if isinstance(self.dir[-1], item.basedir):
+    # XXX be more specific in the following
+    def artistschanged(self, event):
         self.updatedir()
         self.win.update()
 
-    def albumaddedordeleted(self, event):
-        #if (isinstance(self.dir[-1], item.artist) and
-        #    self.dir[-1].songdbid==event.songdbid and
-        #    self.dir[-1].name in event.album.artists):
+    def albumschanged(self, event):
+        self.updatedir()
+        self.win.update()
+
+    def tagschanged(self, event):
         self.updatedir()
         self.win.update()
 

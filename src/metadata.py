@@ -47,25 +47,25 @@ if localecharset in [None, 'ANSI_X3.4-1968']:
 class metadata:
     def __init__(self, path):
         """ parse metadata of file """
-        self.title = ""
-        self.album = ""
-        self.artist = ""
-        self.year = ""
-        self.genre = ""
-	self.comment = ""
-	self.lyrics = ""
+        self.title = u""
+        self.album = u""
+        self.artist = u""
+        self.year = u""
+        self.genre = u""
+        self.comment = u""
+        self.lyrics = u""
         self.tracknumber = None
-	self.trackcount = None
-	self.disknumber = None
-	self.diskcount = None
-	self.compilation = False
+        self.trackcount = None
+        self.disknumber = None
+        self.diskcount = None
+        self.compilation = False
         self.length = 0
-	self.version = None
-	self.layer = None
-	self.is_vbr = None
-	self.samplerate = None
-	self.bitrate = None
-	self.size = os.stat(path).st_size
+        self.version = None
+        self.layer = None
+        self.is_vbr = None
+        self.samplerate = None
+        self.bitrate = None
+        self.size = os.stat(path).st_size
         self.replaygain_track_gain = None
         self.replaygain_track_peak = None
         self.replaygain_album_gain = None
@@ -114,11 +114,11 @@ class vorbismetadata(metadata):
         self.tracknr = self.tracknr.encode(localecharset, 'replace')
         self.length = vf.time_total(0)
 
-	# example format according to vorbisgain documentation
-	# REPLAYGAIN_TRACK_GAIN=-7.03 dB
-	# REPLAYGAIN_TRACK_PEAK=1.21822226
-	# REPLAYGAIN_ALBUM_GAIN=-6.37 dB
-	# REPLAYGAIN_ALBUM_PEAK=1.21822226
+        # example format according to vorbisgain documentation
+        # REPLAYGAIN_TRACK_GAIN=-7.03 dB
+        # REPLAYGAIN_TRACK_PEAK=1.21822226
+        # REPLAYGAIN_ALBUM_GAIN=-6.37 dB
+        # REPLAYGAIN_ALBUM_PEAK=1.21822226
 
 try:
     import ogg.vorbis
@@ -132,9 +132,9 @@ def _splitnumbertotal(s):
     r = map(int, s.split("/"))
     number = r[0]
     if len(r) == 2:
-	count = r[1]
+        count = r[1]
     else:
-	count = None
+        count = None
     return number, count
 
 #
@@ -154,39 +154,42 @@ class mp3mutagenmetadata(metadata):
         # so extract this info before anything goes wrong
         self.length = mp3.info.length
 
-	self.version = mp3.info.version
-	self.layer = mp3.info.layer
-	self.samplerate = mp3.info.sample_rate
-	self.bitrate = mp3.info.bitrate
+        self.version = mp3.info.version
+        self.layer = mp3.info.layer
+        self.samplerate = mp3.info.sample_rate
+        self.bitrate = mp3.info.bitrate
 
-        for frame in mp3.tags.values():
-            if frame.FrameID == "TCON":
-                self.genre = " ".join(frame.genres)
-            elif frame.FrameID == "RVA2":
-                if frame.channel == 1:
-                    if frame.desc == "album":
-                        basename = "replaygain_album_"
-                    else:
-                        # for everything else, we assume it's track gain
-                        basename = "replaygain_track_"
-                    setattr(self, basename+"gain", frame.gain)
-                    setattr(self, basename+"peak", frame.peak)
-            elif frame.FrameID == "TLEN":
-                try:
-                    self.length = int(+frame/1000)
-                except:
-                    pass
-	    elif frame.FrameID == "TRCK":
-		self.tracknumber, self.trackcount = _splitnumbertotal(frame.text[0])
-	    elif frame.FrameID == "TPOS":
-		self.disknumber, self.diskcount = _splitnumbertotal(frame.text[0])
-	    #elif frame.FrameID == "TCMP":
-	    #	self.compilation = True
-            else:
-                name = self.framemapping.get(frame.FrameID, None)
-                if name:
-                    text = " ".join(map(unicode, frame.text))
-                    setattr(self, name, text)
+        if mp3.tags:
+            for frame in mp3.tags.values():
+                if frame.FrameID == "TCON":
+                    self.genre = " ".join(frame.genres)
+                elif frame.FrameID == "RVA2":
+                    if frame.channel == 1:
+                        if frame.desc == "album":
+                            basename = "replaygain_album_"
+                        else:
+                            # for everything else, we assume it's track gain
+                            basename = "replaygain_track_"
+                        setattr(self, basename+"gain", frame.gain)
+                        setattr(self, basename+"peak", frame.peak)
+                elif frame.FrameID == "TLEN":
+                    try:
+                        self.length = int(+frame/1000)
+                    except:
+                        pass
+                elif frame.FrameID == "TRCK":
+                    self.tracknumber, self.trackcount = _splitnumbertotal(frame.text[0])
+                elif frame.FrameID == "TPOS":
+                    self.disknumber, self.diskcount = _splitnumbertotal(frame.text[0])
+                #elif frame.FrameID == "TCMP":
+                #   self.compilation = True
+                else:
+                    name = self.framemapping.get(frame.FrameID, None)
+                    if name:
+                        text = " ".join(map(unicode, frame.text))
+                        setattr(self, name, text)
+        else:
+            log.debug("Could not read ID3 tags for song '%r'" % path)
 
         # self.title = MP3Info._strip_zero(self.title)
         # self.album = MP3Info._strip_zero(self.album)
@@ -206,9 +209,9 @@ class mp3eyeD3metadata(metadata):
         # so extract this info before anything goes wrong
         self.length = mp3file.getPlayTime()
 
-	self.is_vbr, bitrate = mp3file.getBitRate()
-	self.bitrate = bitrate * 1000
-	self.samplerate = mp3file.getSampleFreq()
+        self.is_vbr, bitrate = mp3file.getBitRate()
+        self.bitrate = bitrate * 1000
+        self.samplerate = mp3file.getSampleFreq()
 
         if mp3info:
             self.title = mp3info.getTitle()
@@ -235,7 +238,7 @@ class mp3eyeD3metadata(metadata):
                 self.genre = e.msg.split(':')[1].strip()
 
             self.tracknumber, self.trackcount = mp3info.getTrackNum()
-	    self.disknumber, self.diskcount = mp3info.getDiscNum()
+            self.disknumber, self.diskcount = mp3info.getDiscNum()
 
             # if the playtime is also in the ID3 tag information, we
             # try to read it from there
@@ -252,27 +255,27 @@ class mp3eyeD3metadata(metadata):
                 if length:
                     self.length = length
 
-	    for rva2frame in mp3info.frames["RVA2"]:
-		# since eyeD3 currently doesn't support RVA2 frames, we have to decode
-		# them on our own following mutagen
-		desc, rest = rva2frame.data.split("\x00", 1)
-		channel = ord(rest[0])
-		if channel == 1:
-		    gain = struct.unpack('>h', rest[1:3])[0]/512.0
-		    # http://bugs.xmms.org/attachment.cgi?id=113&action=view
-		    rest = rest[3:]
-		    peak = 0
-		    bits = ord(rest[0])
-		    bytes = min(4, (bits + 7) >> 3)
-		    shift = ((8 - (bits & 7)) & 7) + (4 - bytes) * 8
-		    for i in range(1, bytes+1):
-			peak *= 256
-			peak += ord(rest[i])
-		    peak *= 2**shift
-		    peak = (float(peak) / (2**31-1))
-		    if desc == "album":
+            for rva2frame in mp3info.frames["RVA2"]:
+                # since eyeD3 currently doesn't support RVA2 frames, we have to decode
+                # them on our own following mutagen
+                desc, rest = rva2frame.data.split("\x00", 1)
+                channel = ord(rest[0])
+                if channel == 1:
+                    gain = struct.unpack('>h', rest[1:3])[0]/512.0
+                    # http://bugs.xmms.org/attachment.cgi?id=113&action=view
+                    rest = rest[3:]
+                    peak = 0
+                    bits = ord(rest[0])
+                    bytes = min(4, (bits + 7) >> 3)
+                    shift = ((8 - (bits & 7)) & 7) + (4 - bytes) * 8
+                    for i in range(1, bytes+1):
+                        peak *= 256
+                        peak += ord(rest[i])
+                    peak *= 2**shift
+                    peak = (float(peak) / (2**31-1))
+                    if desc == "album":
                         basename = "replaygain_album_"
-		    else:
+                    else:
                         # for everything else, we assume it's track gain
                         basename = "replaygain_track_"
                     setattr(self, basename+"gain", gain)
@@ -292,11 +295,11 @@ class mp3MP3Infometadata(metadata):
         self.year = mp3info.year
         self.genre  = mp3info.genre
         self.tracknumber = _splitnumbertotal(mp3info.track)
-	self.version = mp3info.mpeg.version
-	self.layer = mp3info.mpeg.layer
-	self.is_vbr = mp3info.mpeg.is_vbr
-	self.bitrate = mp3info.mpeg.bitrate
-	self.samplerate = mp3info.mpeg.samplerate
+        self.version = mp3info.mpeg.version
+        self.layer = mp3info.mpeg.layer
+        self.is_vbr = mp3info.mpeg.is_vbr
+        self.bitrate = mp3info.mpeg.bitrate
+        self.samplerate = mp3info.mpeg.samplerate
         try:
             try:
                 self.length = int(mp3info.id3.tags["TLEN"])/1000

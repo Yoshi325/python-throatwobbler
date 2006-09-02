@@ -19,6 +19,7 @@
 
 import os.path, re, string, sys, time
 import log, metadata
+import encoding
 
 
 tracknrandtitlere = re.compile("^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
@@ -29,14 +30,13 @@ class dbitem:
 
     """ base class for various items stored in database:
 
-    songs, albums, artists, genres, decades, playlists"""
+    songs"""
 
     def __cmp__(self, other):
         try:
             return cmp(self.id, other.id)
         except:
             return 1
-
 
     def __hash__(self):
         return hash(self.id)
@@ -47,10 +47,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     relpath = os.path.normpath(relpath)
 
     path = os.path.normpath(os.path.join(basedir, relpath))
+
     if not os.access(path, os.R_OK):
         raise IOError("cannot read song")
 
-    url = "file://%s" % relpath
+    url = u"file://" + encoding.decode_path(relpath)
 
     # determine type of file from its extension
     type = metadata.gettype(os.path.splitext(relpath)[1])
@@ -58,13 +59,13 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         raise RuntimeError("Fileformat of song '%s' not supported" % (relpath))
 
     # song metadata
-    title = ""
-    album = ""
-    artist = ""
+    title = u""
+    album = u""
+    artist = u""
     year = None
-    genre = ""
-    comment = ""
-    lyrics = ""
+    genre = u""
+    comment = u""
+    lyrics = u""
     tracknumber = None
     trackcount = None
     disknumber = None
@@ -105,6 +106,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     else:
         fnartist = fnalbum = ""
 
+    # now convert this to unicode strings using the standard filesystem encoding
+    fntitle = encoding.decode_path(fntitle)
+    fnartist = encoding.decode_path(fnartist)
+    fnalbum = encoding.decode_path(fnalbum)
+
     fntitle = fntitle.replace("_", " ")
     fnalbum = fnalbum.replace("_", " ")
     fnartist = fnartist.replace("_", " ")
@@ -112,10 +118,10 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     try:
         metadatadecoder = metadata.getmetadatadecoder(type)
     except:
-        raise RuntimeError("Support for %s songs not enabled" % (type))
+        raise RuntimeError("Support for %s songs not enabled" % type)
 
     try:
-        log.debug("reading metadata for %s" % path)
+        log.debug("reading metadata for %r" % path)
         md = metadatadecoder(path)
         title = md.title
         album = md.album
@@ -138,9 +144,9 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         replaygain_track_peak = md.replaygain_track_peak
         replaygain_album_gain = md.replaygain_album_gain
         replaygain_album_peak = md.replaygain_album_peak
-        log.debug("metadata for %s read successfully" % path)
+        log.debug("metadata for %r read successfully" % path)
     except:
-        log.warning("could not read metadata for %s" % path)
+        log.warning("could not read metadata for %r" % path)
         log.debug_traceback()
 
     # do some further treatment of the song info
@@ -200,9 +206,14 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     #    title = string.translate(title, translationtable)
 
     if "Compilations" in path:
-	compilation = True
+        compilation = True
 
-    tags = ["G:%s" % genre]
+    tags = []
+    if genre:
+        tags.append("G:%s" % genre)
+    if year:
+        tags.append("D:%d" % (10*(year//10)))
+
 
     return song(url, type, title, album, artist, year, comment, lyrics, tags,
                 tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
@@ -226,7 +237,7 @@ class song(dbitem):
         self.year = year
         self.comment = comment
         self.lyrics = lyrics
-        self.tags = []
+        self.tags = tags
         self.tracknumber = tracknumber
         self.trackcount = trackcount
         self.disknumber = disknumber
@@ -325,20 +336,3 @@ class playlist(dbitem):
                 if os.path.isfile(path):
                     self.songs.append(path)
         file.close()
-
-
-class dbindex(dbitem):
-
-    """ base class for indices (besides albums and artists) in database """
-
-    def __init__(self, id):
-        self.id = id
-        self.artists = []
-        self.albums = []
-        self.songs = []
-
-
-class rating(dbindex):
-    def __init__(self, rating):
-        dbindex.__init__(self, str(rating))
-        self.rating = rating

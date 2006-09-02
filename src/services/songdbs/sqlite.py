@@ -104,71 +104,13 @@ CREATE INDEX compilation_song ON songs(compilation);
 """
 
 songcolumns = ["url", "type", "title", "album_id",
-	       "artist_id", "year", "comment", "lyrics",
-	       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-	       "compilation", "bitrate", "is_vbr", "samplerate", 
-	       "replaygain_track_gain", "replaygain_track_peak",
-	       "replaygain_album_gain", "replaygain_album_peak", 
-	       "size", "compilation", "date_added", "date_changed", "date_lastplayed", 
-	       "playcount", "rating"]
-
-# con = sqlite.connect(":memory:")
-# con.row_factory = sqlite.Row
-# con.executescript(create_tables)
-# 
-# class song:
-#     def __init__(self, title, album, artist, genre):
-#         self.title = title
-#         self.album = album
-#         self.artist = artist
-#         self.genre = genre
-# 
-# cur = con.cursor()
-# 
-# br = song("Bohemian Rapsody", "Greatest Hits", "Queen", "Rock")
-# wywh = song("Wish You Were Here", "Wish You Were Here", "Pink Floyd", "PsychedelicPsychedelic  Rock")
-# 
-# def insertsong(song):
-#     cur.execute("SELECT * FROM artists WHERE name=?", (song.artist,))
-#     r = cur.fetchone()
-#     if r is None:
-#         con.execute("INSERT INTO artists (name) VALUES (?)", (song.artist,))
-#         cur.execute("SELECT * FROM artists WHERE name=?", (song.artist,))
-#         r = cur.fetchone()
-#     song.artist_id = r["id"]
-# 
-#     cur.execute("SELECT * FROM albums WHERE name=? AND artist_id=?", (song.album, song.artist_id))
-#     r = cur.fetchone()
-#     if r is None:
-#         con.execute("INSERT INTO albums (name, artist_id) VALUES (?, ?)", (song.album, song.artist_id))
-#         cur.execute("SELECT * FROM albums WHERE name=? AND artist_id=?", (song.album, song.artist_id))
-#         r = cur.fetchone()
-#     song.album_id = r["id"]
-# 
-#     cur.execute("SELECT * FROM genres WHERE name=?", (song.genre,))
-#     r = cur.fetchone()
-#     if r is None:
-#         con.execute("INSERT INTO genres (name) VALUES (?)", (song.genre,))
-#         cur.execute("SELECT * FROM genres WHERE name=?", (song.genre,))
-#         r = cur.fetchone()
-#     song.genre_id = r["id"]
-# 
-#     cur.execute("""INSERT INTO songs (title, artist_id, album_id, genre_id) 
-#                  VALUES (?, ?, ?, ?)""", (song.title, song.artist_id, song.album_id, song.genre_id))
-# 
-# insertsong(br)
-# insertsong(wywh)
-# con.commit()
-# 
-# r = con.execute("""SELECT songs.title, artists.name AS artist, albums.name AS album
-#                    FROM songs
-#                    JOIN artists ON (songs.artist_id = artists.id)
-#                    JOIN albums ON (songs.album_id = albums.id)
-#                    """)
-# for c in r.fetchall():
-#     print c["title"], "-", c["artist"], "-", c["album"]
-
-
+               "artist_id", "year", "comment", "lyrics",
+               "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+               "compilation", "bitrate", "is_vbr", "samplerate", 
+               "replaygain_track_gain", "replaygain_track_peak",
+               "replaygain_album_gain", "replaygain_album_peak", 
+               "size", "compilation", "date_added", "date_changed", "date_lastplayed", 
+               "playcount", "rating"]
 
 #
 # statistical information about songdb
@@ -195,7 +137,7 @@ class songdbstats:
 
 class songdb(service.service):
     def __init__(self, id, config, songdbhub):
-        service.service.__init__(self, "%s songdb" % id, hub=songdbhub)
+        service.service.__init__(self, "%r songdb" % id, hub=songdbhub)
         self.id = id
         self.songdbbase = config.basename
         self.dbfile = "sqlite.db"
@@ -211,7 +153,7 @@ class songdb(service.service):
         self.cachesize = config.cachesize
 
         if not os.path.isdir(self.basedir):
-            raise errors.configurationerror("musicbasedir '%s' of database %s is not a directory." % (self.basedir, self.id))
+            raise errors.configurationerror("musicbasedir '%r' of database %r is not a directory." % (self.basedir, self.id))
 
         if not os.access(self.basedir, os.X_OK | os.R_OK):
             raise errors.configurationerror("you are not allowed to access and read config.general.musicbasedir.")
@@ -271,7 +213,7 @@ class songdb(service.service):
     def _initdb(self):
         """ initialise sqlite database """
 
-        #log.info(_("database %s: basedir %s, %d songs, %d artists, %d albums, %d genres, %d playlists") %
+        #log.info(_("database %r: basedir %r, %d songs, %d artists, %d albums, %d genres, %d playlists") %
         #         (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
         #          len(self.genres), len(self.playlists)))
 
@@ -312,7 +254,7 @@ class songdb(service.service):
 
     def _queryregistersong(self, path):
         """get song info from database or insert new one"""
-        log.debug("querying song: %s" % path)
+        log.debug("querying song: %r" % path)
 
         path = os.path.normpath(path)
 
@@ -330,13 +272,13 @@ class songdb(service.service):
            relpath = path[len(self.basedir):]
         else:
            relpath = path[len(self.basedir)+1:]
-	self.con.execute("SELECT id FROM songs WHERE url = ?", ("file://" + relpath,)).fetchone()
-	if r:
+        self.con.execute("SELECT id FROM songs WHERE url = ?", ("file://" + relpath,)).fetchone()
+        if r:
             return self._getsong(r["id"])
-	else:
+        else:
             song = dbitem.songfromfile(relpath, self.basedir,
                                        self.tracknrandtitlere, self.tagcapitalize, 
-				       self.tagstripleadingarticle, self.tagremoveaccents)
+                                       self.tagstripleadingarticle, self.tagremoveaccents)
 
             self._registersong(song)
             return song
@@ -344,27 +286,27 @@ class songdb(service.service):
 
     def _delsong(self, song):
         """delete song from database"""
-        log.debug("delete song: %s" % str(song))
+        log.debug("delete song: %r" % song)
         if not isinstance(song, dbitem.song):
-            log.error("_delsong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            log.error("_delsong: song has to be a dbitem.song instance, not a %r instance" % song.__class__)
             return
         # XXX send event?
 
     def _updatesong(self, song):
         """updates entry of given song"""
-        log.debug("updating song: %s" % str(song))
+        log.debug("updating song: %r" % song)
         if not isinstance(song, dbitem.song):
-            log.error("_updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            log.error("_updatesong: song has to be a dbitem.song instance, not a %r instance" % song.__class__)
             return
         pass
         hub.notify(events.songchanged(self.id, song))
 
     def _registersong(self, song):
         """add song to database"""
-        log.debug("registering song: %s" % str(song))
+        log.debug("registering song: %r" % song)
 
         if not isinstance(song, dbitem.song):
-            log.error("updatesong: song has to be a dbitem.song instance, not a %s instance" % repr(song.__class__))
+            log.error("updatesong: song has to be a dbitem.song instance, not a %r instance" % song.__class__)
             return
         #if not song.path.startswith(self.basedir):
         #    log.error("registersong: song path has to be located in basedir")
@@ -376,67 +318,71 @@ class songdb(service.service):
         #    # its id3 information (in case that it changed) and
         #    # write the new song in the database
         #    newsong.update_id3(song)
-	#     self._updatesong(newsong)
+        #     self._updatesong(newsong)
         #except:
-	self._txn_begin()
-	cur = self.con.cursor()
-	def queryregisterindex(indextable, name):
-	    newindexentry = False
-	    cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name, ))
-	    r = cur.fetchone()
-	    if r is None:
-		cur.execute("INSERT INTO %s (name) VALUES (?)" % indextable, (name, ))
-		cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name,))
-		r = cur.fetchone()
-		newindexentry = True
-	    return r["id"], newindexentry
-	try:
-	    song.artist_id, newartist = queryregisterindex("artists", song.artist)
+        self._txn_begin()
+        cur = self.con.cursor()
+        def queryregisterindex(indextable, name):
+            newindexentry = False
+            cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name, ))
+            r = cur.fetchone()
+            if r is None:
+                cur.execute("INSERT INTO %s (name) VALUES (?)" % indextable, (name, ))
+                cur.execute("SELECT id FROM %s WHERE name=?" % indextable, (name,))
+                r = cur.fetchone()
+                newindexentry = True
+            return r["id"], newindexentry
+        try:
+            song.artist_id, newartist = queryregisterindex("artists", song.artist)
 
-	    newalbum = False
-	    cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
-			(song.artist_id, song.album))
-	    r = cur.fetchone()
-	    if r is None:
-		cur.execute("INSERT INTO albums (artist_id, name) VALUES (?, ?)", 
-			    (song.artist_id, song.album))
-		cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
-			    (song.artist_id, song.album))
-		r = cur.fetchone()
-		newalbum = True
-	    song.album_id = r["id"]
+            newalbum = False
+            cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
+                        (song.artist_id, song.album))
+            r = cur.fetchone()
+            if r is None:
+                cur.execute("INSERT INTO albums (artist_id, name) VALUES (?, ?)", 
+                            (song.artist_id, song.album))
+                cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
+                            (song.artist_id, song.album))
+                r = cur.fetchone()
+                newalbum = True
+            song.album_id = r["id"]
 
-	    cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
-								",".join(["?"] * len(songcolumns))),
-			[getattr(song, columnname) for columnname in songcolumns])
+            cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
+                                                                ",".join(["?"] * len(songcolumns))),
+                        [getattr(song, columnname) for columnname in songcolumns])
 
-	    cur.execute("SELECT id FROM songs WHERE url = ?", (song.url,))
-	    r = cur.fetchone()
-	    song_id = r["id"]
+            cur.execute("SELECT id FROM songs WHERE url = ?", (song.url,))
+            r = cur.fetchone()
+            song_id = r["id"]
 
-	    for tag in song.tags:
-		tag_id = queryregisterindex("tags", tag)
-		# we should check whether this fails
-		cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song_id, tag_id))
-	    self.con.commit()
+            # register song tags
+            newtag = False
+            for tag in song.tags:
+                tag_id, newtag2 = queryregisterindex("tags", tag)
+                newtag = newtag or newtag2
+                cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", (song_id, tag_id))
+            self.con.commit()
 
-	    #for r in cur.execute("SELECT id, name FROM artists").fetchall():
-	    #    log.info("AR: %s %s" % (r["id"], r["name"]))
-	    #for r in cur.execute("SELECT id, artist_id, name FROM albums").fetchall():
-	    #    log.info("AL: %s %s %s" % (r["id"], r["artist_id"], r["name"]))
-	    #for r in cur.execute("SELECT id, title FROM songs").fetchall():
-	    #    log.info("S: %s %s" % (r["id"], r["title"]))
+            #for r in cur.execute("SELECT id, name FROM artists"):
+            #    log.info("AR: %s %s" % (r["id"], r["name"]))
+            #for r in cur.execute("SELECT id, artist_id, name FROM albums"):
+            #    log.info("AL: %s %s %s" % (r["id"], r["artist_id"], r["name"]))
+            #for r in cur.execute("SELECT id, title FROM songs"):
+            #    log.info("S: %s %s" % (r["id"], r["title"]))
 
-	    if newartist:
-		hub.notify(events.artistaddedordeleted(self.id, None))
-	    if newalbum:
-		hub.notify(events.albumaddedordeleted(self.id, None))
-	    # hub.notify(events.songchanged(self.id, song))
-	except:
-	    self._txn_abort()
-	    raise
-	else:
-	    self._txn_commit()
+            if newartist:
+                hub.notify(events.artistschanged(self.id))
+            if newalbum:
+                hub.notify(events.albumschanged(self.id))
+            if newtag:
+                hub.notify(events.tagschanged(self.id))
+            # hub.notify(events.songchanged(self.id, song))
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
 
 
 #    def _rescansong(self, song):
@@ -478,7 +424,7 @@ class songdb(service.service):
         if not self.playlists.has_key(playlist.id):
             raise KeyError
 
-        log.debug("delete playlist: %s" % str(playlist))
+        log.debug("delete playlist: %r" % playlist)
         self._txn_begin()
         try:
             self.playlists.delete(playlist.id, txn=self.txn)
@@ -525,46 +471,38 @@ class songdb(service.service):
 
     def _getsong(self, song_id):
         """return song entry with given song_id"""
-	select = "SELECT %s FROM songs" #  WHERE id = ?" % ", ".join(songcolumns)
-	select = """SELECT %s, artists.name AS artist, albums.name AS album FROM songs 
+        select = """SELECT %s, artists.name AS artist, albums.name AS album FROM songs 
                     JOIN albums ON albums.id == album_id
-		    JOIN artists ON artists.id == songs.artist_id
-		    WHERE songs.id = ?
-		    """ % ", ".join([c for c in songcolumns if c!="artist_id"])
-	log.debug(str(song_id))
-	try:
-	    log.debug("-----")
-	    r = self.con.execute(select, (song_id,)).fetchone()
-	    # r = self.con.execute(select).fetchone()
-	    log.debug("+++++")
-	    if r:
-		# fetch tags
-		tags = []
-		select = """SELECT tags.name AS name FROM tags 
-          		    JOIN taggings ON taggings.tag_id = tags.id
-			    WHERE taggings.song_id = ?"""
-		for r in self.con.execute(select, (song_id,)):
-		    tags.append(r["name"])
+                    JOIN artists ON artists.id == songs.artist_id
+                    WHERE songs.id = ?
+                    """ % ", ".join([c for c in songcolumns if c!="artist_id"])
+        try:
+            r = self.con.execute(select, (song_id,)).fetchone()
+            if r:
+                # fetch tags
+                tags = []
+                select = """SELECT tags.name AS name FROM tags
+                            JOIN taggings ON taggings.tag_id = tags.id
+                            WHERE taggings.song_id = ?"""
+                for tr in self.con.execute(select, (song_id,)):
+                    tags.append(tr["name"])
 
-		return dbitem.song(
-		    r["url"], r["type"], r["title"], r["album"], r["artist"], r["year"], r["comment"], 
-		    r["lyrics"], tags,
-		    r["tracknumber"], r["trackcount"], r["disknumber"], r["diskcount"], 
-		    r["compilation"], r["length"], r["bitrate"],
-		    r["samplerate"], r["is_vbr"], r["size"], r["replaygain_track_gain"], 
-		    r["replaygain_track_peak"],
-		    r["replaygain_album_gain"], r["replaygain_album_peak"],
-		    r["date_added"], r["date_changed"], r["date_lastplayed"], 
-		    r["playcount"], r["rating"])
-	    else:
-		log.debug("Song '%s' not found in database" % song_id)
-		return None
-	except:
-	    log.debug("EEEE")
-	    log.debug_traceback()
-	    return None
-
-
+                return dbitem.song(
+                    r["url"], r["type"], r["title"], r["album"], r["artist"], r["year"], r["comment"], 
+                    r["lyrics"], tags,
+                    r["tracknumber"], r["trackcount"], r["disknumber"], r["diskcount"], 
+                    r["compilation"], r["length"], r["bitrate"],
+                    r["samplerate"], r["is_vbr"], r["size"], r["replaygain_track_gain"], 
+                    r["replaygain_track_peak"],
+                    r["replaygain_album_gain"], r["replaygain_album_peak"],
+                    r["date_added"], r["date_changed"], r["date_lastplayed"], 
+                    r["playcount"], r["rating"])
+            else:
+                log.debug("Song '%d' not found in database" % song_id)
+                return None
+        except:
+            log.debug_traceback()
+            return None
 
     def _getalbum(self, album):
         """return given album"""
@@ -588,30 +526,29 @@ class songdb(service.service):
         All values either have to be strings or None, in which case they are ignored.
         """
         select = """SELECT songs.id as song_id
-                    FROM songs 
-		    JOIN artists ON (songs.artist_id = artists.id)
-		    JOIN albums  ON (songs.album_id = albums.id) """
-		    
+                    FROM songs
+                    JOIN artists ON (songs.artist_id = artists.id)
+                    JOIN albums  ON (songs.album_id = albums.id) """
+
         args = []
-	wherelist = []
+        wherelist = []
         if artist_name is not None:
-	    wherelist.append("artists.name = ?")
+            wherelist.append("artists.name = ?")
             args.append(artist_name)
         if album_name is not None:
-	    wherelist.append("albums.name = ?")
+            wherelist.append("albums.name = ?")
             args.append(album_name)
-	if wherelist:
-	    select = select + " WHERE " + " AND ".join(wherelist)
+        if wherelist:
+            select = select + " WHERE " + " AND ".join(wherelist)
 
-	return  [item.song(self.id, row["song_id"])
-		      for row in self.con.execute(select, args)]
+        return  [item.song(self.id, row["song_id"])
+                      for row in self.con.execute(select, args)]
 
     def _getartists(self, filters=None):
         """return all stored artists"""
-	select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
+        select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
                     FROM artists JOIN songs ON (artist_id = artists.id)
-		    WHERE (NOT songs.compilation AND
-		    songs.title LIKE '%id%')
+                    WHERE NOT songs.compilation
                     ORDER BY artists.name"""
         return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
                 for row in self.con.execute(select)]
@@ -781,10 +718,9 @@ class songdb(service.service):
         return songdbstats(self.id, "local", self.basedir, None, "", self.cachesize, 0, 0, 0, 0, 0)
 
     def getnumberofsongs(self, request):
-        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return len(self.songs)
+        return len(self.con.execute("SELECT id FROM songs").fetchall())
 
     def getnumberofdecades(self, request):
         return 0
@@ -831,6 +767,7 @@ class songdb(service.service):
         try:
             return self._getsong(request.id)
         except KeyError:
+            log.debug_traceback()
             return None
 
     def getsongs(self, request):
@@ -839,6 +776,7 @@ class songdb(service.service):
         try:
             return self._getsongs(request.artist, request.album, request.filters)
         except (KeyError, AttributeError, TypeError):
+            log.debug_traceback()
             return []
 
     def getartists(self, request):
@@ -847,6 +785,7 @@ class songdb(service.service):
         try:
             return self._getartists(request.filters)
         except KeyError:
+            log.debug_traceback()
             return []
 
     def getartist(self, request):
@@ -855,6 +794,7 @@ class songdb(service.service):
         try:
             return self._getartist(request.artist)
         except KeyError:
+            log.debug_traceback()
             return None
 
     def getalbums(self, request):
@@ -863,6 +803,7 @@ class songdb(service.service):
         try:
             return self._getalbums(request.artist, request.filters)
         except KeyError:
+            log.debug_traceback()
             return []
 
     def getalbum(self, request):
@@ -871,6 +812,7 @@ class songdb(service.service):
         try:
             return self._getalbum(request.album)
         except KeyError:
+            log.debug_traceback()
             return None
 
     def getgenres(self, request):
@@ -954,7 +896,7 @@ class songautoregisterer(service.service):
 
     def registerdirtree(self, dir):
         """ scan for songs and playlists in dir and its subdirectories, returning all items which have been scanned """
-        log.debug("registerer: entering %s"% dir)
+        log.debug("registerer: entering %r"% dir)
         self.channel.process()
         if self.done: return []
         songpaths = []
@@ -972,7 +914,7 @@ class songautoregisterer(service.service):
                     try:
                         registereditems.extend(self.registerdirtree(path))
                     except (IOError, OSError), e:
-                        log.warning("songautoregisterer: could not enter dir %s: %s" % (path, e))
+                        log.warning("songautoregisterer: could not enter dir %r: %r" % (path, e))
                 elif extension in self.supportedextensions:
                     songpaths.append(path)
                 elif extension == ".m3u":
@@ -999,7 +941,7 @@ class songautoregisterer(service.service):
             self._notify(events.registerplaylists(self.songdbid, playlists))
 
         registereditems.extend(playlists)
-        log.debug("registerer: leaving %s"% dir)
+        log.debug("registerer: leaving %r"% dir)
         return registereditems
 
     def run(self):
@@ -1031,19 +973,19 @@ class songautoregisterer(service.service):
 
     def autoregistersongs(self, event):
         if self.songdbid == event.songdbid:
-            log.info(_("database %s: scanning for songs in %s") % (self.songdbid, self.basedir))
+            log.info(_("database %r: scanning for songs in %r") % (self.songdbid, self.basedir))
 
             # get all songs and playlists currently stored in the database
             oldsongs = hub.request(requests.getsongs(self.songdbid))
             oldplaylists = hub.request(requests.getplaylists(self.songdbid))
 
             # scan for all songs and playlists in the filesystem
-            log.debug("database %s: searching for new songs" % self.songdbid)
+            log.debug("database %r: searching for new songs" % self.songdbid)
             registereditems = self.registerdirtree(self.basedir)
 
             # update information for songs which have not yet been scanned (in particular
             # remove songs which are no longer present in the database)
-            log.debug("database %s: removing stale songs" % self.songdbid)
+            log.debug("database %r: removing stale songs" % self.songdbid)
             registereditemshash = {}
             for item in registereditems:
                 registereditemshash[item] = None
@@ -1054,12 +996,12 @@ class songautoregisterer(service.service):
                 if playlist not in registereditemshash:
                     self.rescanplaylist(playlist)
 
-            log.info(_("database %s: finished scanning for songs in %s") % (self.songdbid, self.basedir))
+            log.info(_("database %r: finished scanning for songs in %r") % (self.songdbid, self.basedir))
 
     def rescansongs(self, event):
         if self.songdbid == event.songdbid:
-            log.info(_("database %s: rescanning %d songs") % (self.songdbid, len(event.songs)))
+            log.info(_("database %r: rescanning %d songs") % (self.songdbid, len(event.songs)))
             for song in event.songs:
                 self.rescansong(song)
-            log.info(_("database %s: finished rescanning %d songs") % (self.songdbid, len(event.songs)))
+            log.info(_("database %r: finished rescanning %d songs") % (self.songdbid, len(event.songs)))
 

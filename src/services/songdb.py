@@ -111,12 +111,12 @@ class songdbmanager(service.service):
     - dbitem.song instances are wrapped in item.song instances which also contain the
       id of the database where the song is stored.
     - Random song selections are handled.
-    
+
     """
-    
+
     def __init__(self):
         service.service.__init__(self, "songdb manager")
-        
+
         # hub for the various song databases
         self.songdbhub = hub.hub()
 
@@ -132,7 +132,7 @@ class songdbmanager(service.service):
         self.requestcachemisses = 0
         # current number of objects referred to by items in result cache
         self.requestcachesize = 0 
-        
+
         # we are a database service provider...
         self.channel.supply(requests.dbrequestsingle, self.dbrequestsingle)
         self.channel.supply(requests.dbrequestsongs, self.dbrequestsongs)
@@ -144,7 +144,7 @@ class songdbmanager(service.service):
         self.channel.supply(requests.getnumberofdecades, self.getnumberofdecades)
         self.channel.supply(requests.getnumberofgenres, self.getnumberofgenres)
         self.channel.supply(requests.getnumberofratings, self.getnumberofratings)
-        
+
         # and need to be informed about database changes
         self.channel.subscribe(events.dbevent, self.dbevent)
 
@@ -184,14 +184,14 @@ class songdbmanager(service.service):
         """ method decorator which caches results of the request """
         def newrequesthandler(self, request):
             requesthash = hash(request)
-            log.debug("dbrequest cache query for request: %s, %d" % (request, requesthash))
+            log.debug("dbrequest cache query for request: %s, %d" % (repr(request), requesthash))
             try:
                 # try to get the result from the cache
                 result = self.requestcache[requesthash][0]
                 # update atime
                 self.requestcache[requesthash][2] = time.time()
                 self.requestcachehits += 1
-                log.debug("dbrequest cache hit for request: %s" % request)
+                log.debug("dbrequest cache hit for request: %s" % repr(request))
             except KeyError:
                 # make a copy of request for later storage in cache
                 requestcopy = copy.copy(request)
@@ -209,7 +209,7 @@ class songdbmanager(service.service):
                         self.requestcachesize -= self.requestcache[key][3]
                         del self.requestcache[key]
                 log.debug("db request cache miss for request: %s (%d requests and %d objects cached)" %
-                          (request, len(self.requestcache), self.requestcachesize))
+                          (repr(request), len(self.requestcache), self.requestcachesize))
             return result
         return newrequesthandler
 
@@ -230,7 +230,7 @@ class songdbmanager(service.service):
         """ method decorator which sorts the result list if requested """
         def newrequesthandler(self, request):
             result = requesthandler(self, request)
-	    # XXX turned off
+            # XXX turned off
             if request.sort and 0:
                 result.sort(request.sort)
             return result
@@ -292,7 +292,7 @@ class songdbmanager(service.service):
         result = self.songdbhub.request(request)
         # wrap all dbitm.song instances in result in a item.song instance
         if isinstance(result, dbitem.song):
-	    return result
+            return result
         else:
             try:
                 newresult = []
@@ -310,11 +310,10 @@ class songdbmanager(service.service):
         nrequest = copy.copy(request)
         # we do not care about the random choice flag, this is done by the method decorator
         nrequest.random = False
-        # also reset the sort and wrapper function as otherwise
+        # also reset the sort function as otherwise
         # sending over the network (which requires pickling the
         # request) fails
         nrequest.sort = False
-        nrequest.wrapperfunc = False
         if request.songdbid is None:
             resulthash = {}
             for songdbid in self.songdbids:
@@ -323,30 +322,21 @@ class songdbmanager(service.service):
                 # the result.
                 # Note that in the case of getlastplayedsongs requests, we cheat
                 # a little bit, since then the result of the database request is a tuple
-                # (playingtime, dbsong). Correspondingly, wrapperfunc has to deal
-                # with such tuples instead of with the dbsongs themselves.
+                # (playingtime, dbsong).
                 for dbsong in self.dbrequestsongs(nrequest):
                     resulthash[dbsong] = songdbid
-            if request.wrapperfunc:
-                return [request.wrapperfunc(dbsong, songdbid) for dbsong, songdbid in resulthash.items()]
-            else:
-                return resulthash.values()
+            return resulthash.values()
         elif request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
             return
         else:
-            dbsongs = self.songdbhub.request(nrequest)
-            if request.wrapperfunc:
-                return [request.wrapperfunc(dbsong, request.songdbid) for dbsong in dbsongs]
-            else:
-                return dbsongs
+            return self.songdbhub.request(nrequest)
     dbrequestsongs = selectrandom(cacheresult(sortresult(dbrequestsongs)))
 
     def dbrequestlist(self, request):
         # make a copy of the original request, because we will subsequently modify it
         nrequest = copy.copy(request)
         # we do not want to wrap and sort the intermediate results
-        nrequest.wrapperfunc = None
         nrequest.sort = False
 
         if request.songdbid is None:
@@ -355,22 +345,15 @@ class songdbmanager(service.service):
                 nrequest.songdbid = songdbid
                 for result in self.dbrequestlist(nrequest):
                     resulthash[result] = songdbid
-            if request.wrapperfunc is not None:
-                return [request.wrapperfunc(item, songdbid) for item, songdbid in resulthash.items()]
-            else:
-                return resulthash.keys()
+            return resulthash.keys()
         elif request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
         else:
             # use nrequest here instead of request in order to not
-            # send wrapperfunc and sort to database (this fails when
+            # send sort to database (this fails when
             # using a network channel, since we cannot pickle these
             # objects)
-            result = self.songdbhub.request(nrequest)
-            if request.wrapperfunc is not None:
-                return [request.wrapperfunc(item, request.songdbid) for item in result]
-            else:
-                return result
+            return self.songdbhub.request(nrequest)
     dbrequestlist = cacheresult(sortresult(dbrequestlist))
 
     def getdatabasestats(self, request):
@@ -435,4 +418,3 @@ class songdbmanager(service.service):
                                   self.requestcachesize, self.requestcachemaxsize,
                                   len(self.requestcache),
                                   self.requestcachehits, self.requestcachemisses)
-        

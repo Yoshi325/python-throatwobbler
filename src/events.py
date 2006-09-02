@@ -237,22 +237,28 @@ class songchanged(event):
         return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
 
 
-class artistaddedordeleted(event):
-    def __init__(self, songdbid, artist):
+class artistschanged(event):
+    def __init__(self, songdbid):
         self.songdbid = songdbid
-        self.artist = artist
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.artist, self.songdbid)
+        return "%s->%s" % (self.__class__.__name__, self.songdbid)
 
 
-class albumaddedordeleted(event):
-    def __init__(self, songdbid, album):
+class albumschanged(event):
+    def __init__(self, songdbid):
         self.songdbid = songdbid
-        self.album = album
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.album, self.songdbid)
+        return "%s->%s" % (self.__class__.__name__, self.songdbid)
+
+
+class tagschanged(event):
+    def __init__(self, songdbid):
+        self.songdbid = songdbid
+
+    def __str__(self):
+        return "%s->%s" % (self.__class__.__name__, self.songdbid)
 
 
 class dbplaylistchanged(event):

@@ -1,6 +1,6 @@
 # -*- coding: ISO-8859-1 -*-
 
-# Copyright (C) 2002, 2003, 2004, 2005 Jörg Lehmann <joerg@luga.de>
+# Copyright (C) 2002, 2003, 2004, 2005, 2006 Jörg Lehmann <joerg@luga.de>
 #
 # This file is part of PyTone (http://www.luga.de/pytone/)
 #
@@ -39,7 +39,7 @@ def _mergefilters(lines, filters):
     return lines
 
 
-class item:
+class item(object):
     """ base class for various items presentend in the database and
     playlist windows (as opposed to those stored in the database
     itself (cf. module dbitem)"""
@@ -202,11 +202,13 @@ def _formatnumbertotal(number, total):
         return ""
 
 class song(item):
+
+    __slots__ = ["songdbid", "id", "song"]
+
     def __init__(self, songdbid, id):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
-	id + 1
         self.song = None
 
     def __repr__(self):
@@ -219,10 +221,10 @@ class song(item):
         if attr=="__setstate__":
             raise AttributeError
         if not self.song:
-	    import log
-	    log.debug("Fetching song metadata from database")
-	    self.song = hub.request(requests.getsong(self.songdbid, self.id))
-	    log.debug("Got song metadata from database")
+            import log
+            log.debug("Fetching song metadata from database")
+            self.song = hub.request(requests.getsong(self.songdbid, self.id))
+            log.debug("Got song metadata from database")
         return getattr(self.song, attr)
 
     def _updatesong(self):
@@ -233,7 +235,7 @@ class song(item):
         return self.id
 
     def getname(self):
-	return self.title
+        return self.title
 
     def getinfo(self):
         l = [["", "", "", ""]]*4
@@ -311,7 +313,7 @@ class song(item):
                   "", ""])
         l.append([_("Disk No:"), _formatnumbertotal(self.disknumber, self.diskcount), 
                   "", ""])
-        l.append([_("Genre:"), self.genre, "", ""])
+        l.append([_("Tags:"), u" | ".join(self.tags), "", ""])
         l.append([_("Time:"), "%d:%02d" % divmod(self.length, 60), "", ""])
         replaygain = ""
         if self.replaygain_track_gain is not None and self.replaygain_track_peak is not None:
@@ -323,26 +325,26 @@ class song(item):
                                                                  self.replaygain_album_gain,
                                                                  self.replaygain_album_peak)
         l.append([_("Replaygain:"), replaygain, "", ""])
-   
+
         if self.rating:
             l.append([_("Rating:"), "*"*self.rating, "", ""])
         else:
             l.append([_("Rating:"), "-", "", ""])
 
-        l.append([_("Times played:"), str(self.nrplayed), "", ""])
+        l.append([_("Times played:"), str(self.playcount), "", ""])
 
-        for played in self.lastplayed[-1:-6:-1]:
-            last = int((time.time()-played)/60)
-            days, rest = divmod(last, 24*60)
-            hours, minutes = divmod(rest, 60)
-            if days>0:
-                lastplayed = "%dd %dh %dm" % (days, hours, minutes)
-            elif hours>0:
-                lastplayed = "%dh %dm" % (hours, minutes)
-            else:
-                lastplayed = "%dm" % minutes
+        # for played in self.lastplayed[-1:-6:-1]:
+        #     last = int((time.time()-played)/60)
+        #     days, rest = divmod(last, 24*60)
+        #     hours, minutes = divmod(rest, 60)
+        #     if days>0:
+        #         lastplayed = "%dd %dh %dm" % (days, hours, minutes)
+        #     elif hours>0:
+        #         lastplayed = "%dh %dm" % (hours, minutes)
+        #     else:
+        #         lastplayed = "%dm" % minutes
 
-            l.append([_("Played:"), "%s (%s)" % (time.ctime(played), _("%s ago") % lastplayed), "", ""])
+        #     l.append([_("Played:"), "%s (%s)" % (time.ctime(played), _("%s ago") % lastplayed), "", ""])
 
         return l
 
@@ -703,9 +705,7 @@ class albums(totaldiritem):
         return "[%s (%d)]/" % (self.name, self.nralbums)
 
     def getcontents(self):
-        def albumwrapper(aalbum, songdbid):
-            return album(self.songdbid, aalbum.id, None, aalbum.name, filters=self.filters)
-        albums = hub.request(requests.getalbums(self.songdbid, wrapperfunc=albumwrapper, sort=self.cmpitem, filters=self.filters))
+        albums = hub.request(requests.getalbums(self.songdbid, sort=self.cmpitem, filters=self.filters))
         self.nralbums = len(albums)
         return albums
 
@@ -740,12 +740,8 @@ class genres(totaldiritem):
             self.nrgenres = hub.request(requests.getnumberofgenres(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Genres"), self.nrgenres)
 
-    def _genrewrapper(self, agenre, songdbid):
-        return index(self.songdbids, "%s:" % _("Genre"), agenre.name, self.filters.filtered(genrefilter(agenre.name)))
-
     def getcontents(self):
-        genres = hub.request(requests.getgenres(self.songdbid, wrapperfunc=self._genrewrapper, sort=self.cmpitem,
-                                                filters=self.filters))
+        genres = hub.request(requests.getgenres(self.songdbid, sort=self.cmpitem, filters=self.filters))
         self.nrgenres = len(genres)
         return genres
 
@@ -778,12 +774,8 @@ class decades(totaldiritem):
             self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Decades"), self.nrdecades)
 
-    def _decadewrapper(self, adecade, songdbid):
-        description = adecade.decade and "%ds" % adecade.decade or _("Unknown")
-        return index(self.songdbids, "%s:" % _("Decade"), description, self.filters.filtered(decadefilter(adecade.decade)))
-
     def getcontents(self):
-        decades = hub.request(requests.getdecades(self.songdbid, self._decadewrapper, sort=self.cmpitem, filters=self.filters))
+        decades = hub.request(requests.getdecades(self.songdbid, sort=self.cmpitem, filters=self.filters))
         self.nrdecades = len(decades)
         return decades
 
@@ -816,17 +808,8 @@ class ratings(totaldiritem):
         return cmp(x.description, y.description)
     cmpitem = staticmethod(cmpitem)
 
-    def _ratingwrapper(self, arating, songdbid):
-        if arating.rating is not None:
-            description =  "*" * arating.rating
-        else:
-            description =  _("Not rated")
-        return index(self.songdbids, "%s:" % _("Rating"), description,
-                       self.filters.filtered(ratingfilter(arating.rating)))
-
     def getcontents(self):
-        ratings = hub.request(requests.getratings(self.songdbid, wrapperfunc=self._ratingwrapper, sort=self.cmpitem,
-                                                  filters=self.filters))
+        ratings = hub.request(requests.getratings(self.songdbid, sort=self.cmpitem, filters=self.filters))
         self.nrratings = len(ratings)
         return ratings
 
@@ -906,11 +889,7 @@ class playlists(diritem):
         return "[%s (%d)]/" % (_("Playlists"), self.nrplaylists)
 
     def getcontents(self):
-        def playlistwrapper(aplaylist, songdbid):
-            # Note that a playlist is always bound to a particular songdb (much like a song).
-            # Thus, we have to use its songdbid here.
-            return playlist(songdbid, aplaylist.path, aplaylist.name, aplaylist.songs)
-        playlists = hub.request(requests.getplaylists(self.songdbid, wrapperfunc=playlistwrapper, sort=self.cmpitem))
+        playlists = hub.request(requests.getplaylists(self.songdbid, sort=self.cmpitem))
         self.nrplaylists = len(playlists)
         return playlists
 
