@@ -369,11 +369,11 @@ class songdbmanager(service.service):
     def getnumberofsongs(self, request):
         if request.songdbid is not None and request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
-        if request.songdbid is not None and request.artist is request.album is None and not request.filters:
+	# XXX use filters in sqlite instead
+        if request.songdbid is not None and request.filters is None:
             return self.songdbhub.request(request)
         else:
             return len(self.dbrequestsongs(requests.getsongs(songdbid=request.songdbid,
-                                                             artist=request.artist, album=request.album,
                                                              filters=request.filters)))
     getnumberofsongs = cacheresult(getnumberofsongs)
 

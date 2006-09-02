@@ -30,6 +30,8 @@ from services.songdb import _genrandomchoice
 # helper function for usage in getinfo methods, which merges information about
 # filters in third and forth columns of lines
 def _mergefilters(lines, filters):
+    # filter out filters which are to be shown
+    filters = [filter for filter in filters if filter.name]
     if filters:
         for nr, filter in enumerate(filters[:4]):
             if len(lines) > nr:
@@ -147,6 +149,52 @@ class filter:
     def __hash__(self):
         return hash("%s=%s" % (self.indexname, self.indexid))
 
+    def SQLstring(self):
+	return ""
+
+    def SQLargs(self):
+	return []
+
+
+class hiddenfilter(filter):
+    " a filter which does not show up in the UI "
+    def __init__(self, indexname, indexid):
+	filter.__init__(self, None, indexname, indexid)
+
+
+class compilationfilter(hiddenfilter):
+    def __init__(self, iscompilation):
+	self.iscompilation = iscompilation
+        hiddenfilter.__init__(self, "compilation", iscompilation)
+
+    def SQLstring(self):
+	return "%s songs.compilation" % (not self.iscompilation and "NOT" or "")
+	# return "(songs.compilation = %s)" % (self.iscompilation and "1" or "0")
+
+
+class artistfilter(hiddenfilter):
+    def __init__(self, artist_id):
+	self.artist_id = artist_id
+        hiddenfilter.__init__(self, "artist_id", artist_id)
+
+    def SQLstring(self):
+	return "artists.id = ?"
+
+    def SQLargs(self):
+	return [self.artist_id]
+
+
+class albumfilter(hiddenfilter):
+    def __init__(self, album_id):
+	self.album_id = album_id
+        hiddenfilter.__init__(self, "album_id", album_id)
+
+    def SQLstring(self):
+	return "albums.id = ?"
+
+    def SQLargs(self):
+	return [self.album_id]
+
 
 class decadefilter(filter):
 
@@ -180,13 +228,26 @@ class ratingfilter(filter):
 class filters(tuple):
 
      def getname(self):
-         if self:
-             return " <%s>" % (", ".join([filter.name for filter in self]))
+	 s = ", ".join([filter.name for filter in self if filter.name])
+         if s:
+             return " <%s>" % s
          else:
              return ""
 
      def filtered(self, filter):
          return filters(self + (filter,))
+
+     def SQLstring(self):
+	filterstring = " AND ".join(["(%s)" % filter.SQLstring() for filter in self])
+	if filterstring:
+	    filterstring = "WHERE (%s)" % filterstring
+	return filterstring
+
+     def SQLargs(self):
+	 result = []
+	 for filter in self:
+	     result.extend(filter.SQLargs())
+	 return result
 
 #
 # specialized classes
@@ -411,21 +472,21 @@ class artist(diritem):
         self.songdbid = songdbid
         self.id = id
         self.name = name
-        self.filters = filters
+        self.filters = filters.filtered(artistfilter(id))
 
     def __repr__(self):
         return "artist(%s) in %s (filtered: %s)" % (self.name, self.songdbid, repr(self.filters))
 
     def getcontents(self):
-        albums = hub.request(requests.getalbums(self.songdbid, self.name, 
+        albums = hub.request(requests.getalbums(self.songdbid,
                                                 sort=self.cmpitem, filters=self.filters))
-        return albums + [songs(self.songdbid, self.name)]
+        return albums + [songs(self.songdbid, self.name, self.filters)]
 
     def getcontentsrecursive(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.name, filters=self.filters))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters))
 
     def getcontentsrecursivesorted(self):
-        albums = hub.request(requests.getalbums(self.songdbid, self.name, 
+        albums = hub.request(requests.getalbums(self.songdbid,
                                                 sort=self.cmpitem, filters=self.filters))
         result = []
         for aalbum in albums:
@@ -433,7 +494,7 @@ class artist(diritem):
         return result
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.name, filters=self.filters, random=True))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
         return self.name + self.filters.getname()
@@ -464,7 +525,7 @@ class album(diritem):
         self.id = id
         self.artist = artist
         self.name = name
-        self.filters = filters
+        self.filters = filters.filtered(albumfilter(id))
 
     def __repr__(self):
         return "album(%s) in %s" % (self.id, self.songdbid)
@@ -480,24 +541,18 @@ class album(diritem):
         return self.id
 
     def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name, sort=self.cmpitem,
-                                              filters=self.filters))
+        songs = hub.request(requests.getsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
         return songs
 
     def getcontentsrecursive(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, album=self.name,
-                                             filters=self.filters))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters))
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongs(self.songdbid,
-                                             artist=self.artist,
-                                             album=self.name,
-                                             filters=self.filters,
-                                             random=True))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
-        if self.artist:
-            s = "%s - %s" % (self.artist, self.name)
+        if item:
+            s = "%s - %s" % (item.artist, item.album)
         else:
             s = self.name
         return s + self.filters.getname()
@@ -710,14 +765,17 @@ class albums(totaldiritem):
         return albums
 
     def getheader(self, item):
-        #if item:
-        #    return item.artist
-        #else:
-        #    return self.getname()[1:-2]
         return self.getname()[1:-2] + self.filters.getname()
 
     def getinfo(self):
-        return _mergefilters([[_("Albums"), "", "", ""]], self.filters)
+        return _mergefilters([[self.name, "", "", ""]], self.filters)
+
+
+class compilations(albums):
+    def __init__(self, songdbid, filters):
+	filters = filters.filtered(compilationfilter(True))
+	albums.__init__(self, songdbid, filters)
+	self.name = _("Compilations")
 
 
 class genres(totaldiritem):
@@ -835,7 +893,7 @@ class songs(diritem):
 
     def getname(self):
         if self.nrsongs is None:
-            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, artist=self.artist, filters=self.filters))
+            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (self.name, self.nrsongs)
 
     def cmpitem(x, y):
@@ -846,7 +904,7 @@ class songs(diritem):
     cmpitem = staticmethod(cmpitem)
 
     def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, artist=self.artist, filters=self.filters, sort=self.cmpitem))
+        songs = hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.cmpitem))
         self.nrsongs = len(songs)
         return songs
 
@@ -985,16 +1043,18 @@ class basedir(totaldiritem):
             self.basedir = None
         self.filters = filters
         self.maxnr = 100
-        self.nrsongs = None
+        self.nrartists = None
+	self.nrsongs = None
         self._initvirtdirs()
 
     def _initvirtdirs(self):
         self.virtdirs = []
-        return
+        self.virtdirs.append(compilations(self.songdbid, filters=self.filters))
         if self.type == "local" and not self.filters:
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
+	return
         for filter in self.filters:
             if isinstance(filter, decadefilter):
                 break
@@ -1028,10 +1088,13 @@ class basedir(totaldiritem):
             return _("%d databases (%d)") % (len(self.songdbids), self.nrsongs)
 
     def getcontents(self):
-        # reset cached value once in a while
-        self.nrsongs = None
+	# do not show artists which only appear in compilations
+	filters = self.filters.filtered(compilationfilter(False))
         aartists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
-                                                   filters=self.filters))
+                                                   filters=filters))
+	self.nrartists = len(aartists)
+	# reset cached value
+	self.nrsongs = None
         if config.filelistwindow.virtualdirectoriesattop:
             return self.virtdirs + aartists
         else:
@@ -1048,12 +1111,20 @@ class basedir(totaldiritem):
         return result
 
     def getheader(self, item):
-        if self.nrsongs is None:
-            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
+        if self.nrartists is not None:
+	    nrartistsstring = _("%d artists") % self.nrartists
+	else:
+	    nrartistsstring = _("? artists") 
         if self.basedir:
-            s = _("Database (%s, %d songs)") % (self.basedir, self.nrsongs)
+            maxlen = 15
+            dirname = self.basedir
+            if len(dirname)>maxlen:
+                dirname = "..."+dirname[-maxlen+3:]
+            else:
+                dirname = self.basedir
+            s = _("Database (%s, %s)") % (dirname, nrartistsstring)
         else:
-            s = _("%d databases (%d songs)") % (len(self.songdbids), self.nrsongs)
+            s = _("%d databases (%s)") % (len(self.songdbids), nrartistsstring)
         return s + self.filters.getname()
 
     def getinfo(self):

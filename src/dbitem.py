@@ -23,7 +23,10 @@ import encoding
 
 
 tracknrandtitlere = re.compile("^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
-UNKNOWN = "Unknown"
+UNKNOWN = u"Unknown"
+# artist name for compilations
+VARIOUS = u"___VARIOUS___"
+
 
 
 class dbitem:
@@ -62,6 +65,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     title = u""
     album = u""
     artist = u""
+    album_artist = u""
     year = None
     genre = u""
     comment = u""
@@ -187,6 +191,10 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         except:
             year = None
 
+    artist = artist.strip()
+    album = album.strip()
+    title = title.strip()
+
     if capitalize:
         # normalize artist, album and title
         artist = string.capwords(artist)
@@ -208,6 +216,11 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     if "Compilations" in path:
         compilation = True
 
+    if compilation: 
+	album_artist = VARIOUS
+    else:
+	album_artist = artist
+
     tags = []
     if genre:
         tags.append("G:%s" % genre)
@@ -215,7 +228,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         tags.append("D:%d" % (10*(year//10)))
 
 
-    return song(url, type, title, album, artist, year, comment, lyrics, tags,
+    return song(url, type, title, album, artist, album_artist, year, comment, lyrics, tags,
                 tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                 samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                 replaygain_album_gain, replaygain_album_peak,
@@ -224,7 +237,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
 
 class song(dbitem):
 
-    def __init__(self, url, type, title, album, artist, year, comment, lyrics, tags,
+    def __init__(self, url, type, title, album, artist, album_artist, year, comment, lyrics, tags,
                  tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                  samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                  replaygain_album_gain, replaygain_album_peak,
@@ -233,6 +246,7 @@ class song(dbitem):
         self.type = type
         self.title = title
         self.album = album
+	self.album_artist = album_artist
         self.artist = artist
         self.year = year
         self.comment = comment

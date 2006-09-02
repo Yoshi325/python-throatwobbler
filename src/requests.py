@@ -153,17 +153,7 @@ class getsongsinplaylist(dbrequestsingle):
 #
 
 class getsongs(dbrequestsongs):
-
-    def __init__(self, songdbid, artist=None, album=None, sort=False, filters=None, random=False):
-        dbrequestsongs.__init__(self, songdbid, random, sort)
-        self.songdbid = songdbid
-        self.artist = artist
-        self.album = album
-        self.filters = filters
-
-    def __repr__(self):
-        return "%r(%r, %r, sort=%r, filters=%r, random=%r)->%r" % (self.__class__.__name__,
-                  self.artist, self.album, self.sort,  self.filters, self.random, self.songdbid)
+    pass
 
 
 class getlastplayedsongs(dbrequestsongs):
@@ -196,14 +186,13 @@ class getartists(dbrequestlist):
 
 
 class getalbums(dbrequestlist):
-    def __init__(self, songdbid, artist=None, sort=False, filters=None):
+    def __init__(self, songdbid, sort=False, filters=None):
         self.songdbid = songdbid
-        self.artist = artist
         self.sort = sort
         self.filters = filters
 
     def __repr__(self):
-        return "%r(%r, %r, %r)->%r" % (self.__class__.__name__, self.artist, self.sort, self.filters, self.songdbid)
+        return "%r(%r, %r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.songdbid)
 
 
 class getgenres(dbrequestlist):
@@ -226,17 +215,12 @@ class getplaylists(dbrequestlist):
 #
 
 class getnumberofsongs(dbrequest):
-    def __init__(self, songdbid, artist=None, album=None, filters=None):
+    def __init__(self, songdbid, filters=None):
         self.songdbid = songdbid
-        self.artist = artist
-        self.album = album
         self.filters = filters
 
     def __repr__(self):
-        return ( "%r(%r, %r, %r))->%r" %
-                 (self.__class__.__name__,
-                  self.artist, self.album, self.filters,
-                  self.songdbid))
+        return "%r(%r))->%r" % (self.__class__.__name__, self.filters, self.songdbid)
 
 
 class dbrequestnumber(dbrequest):

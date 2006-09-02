@@ -1,3 +1,4 @@
+
 # -*- coding: ISO-8859-1 -*-
 
 # Copyright (C) 2002, 2003, 2004, 2006 Jörg Lehmann <joerg@luga.de>
@@ -68,6 +69,7 @@ CREATE TABLE songs (
   title                 TEXT,
   album_id              INTEGER CONSTRAINT fk_song_album_id  REFERENCES albums(id),
   artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
+  album_artist_id       INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
   year                  INTEGER,
   comment               TEXT,
   lyrics                TEXT,
@@ -104,13 +106,14 @@ CREATE INDEX compilation_song ON songs(compilation);
 """
 
 songcolumns = ["url", "type", "title", "album_id",
-               "artist_id", "year", "comment", "lyrics",
+               "artist_id", "album_artist_id", "year", "comment", "lyrics",
                "length", "tracknumber", "trackcount", "disknumber", "diskcount",
                "compilation", "bitrate", "is_vbr", "samplerate", 
                "replaygain_track_gain", "replaygain_track_peak",
                "replaygain_album_gain", "replaygain_album_peak", 
                "size", "compilation", "date_added", "date_changed", "date_lastplayed", 
                "playcount", "rating"]
+
 
 #
 # statistical information about songdb
@@ -333,17 +336,19 @@ class songdb(service.service):
                 newindexentry = True
             return r["id"], newindexentry
         try:
-            song.artist_id, newartist = queryregisterindex("artists", song.artist)
+	    song.artist_id, newartist = queryregisterindex("artists", song.artist)
+	    song.album_artist_id, newartist2 = queryregisterindex("artists", song.album_artist)
+	    newartist = newartist or newartist2
 
             newalbum = False
             cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
-                        (song.artist_id, song.album))
+                        (song.album_artist_id, song.album))
             r = cur.fetchone()
             if r is None:
                 cur.execute("INSERT INTO albums (artist_id, name) VALUES (?, ?)", 
-                            (song.artist_id, song.album))
+                            (song.album_artist_id, song.album))
                 cur.execute("SELECT id FROM albums WHERE artist_id=? AND name=?", 
-                            (song.artist_id, song.album))
+                            (song.album_artist_id, song.album))
                 r = cur.fetchone()
                 newalbum = True
             song.album_id = r["id"]
@@ -471,7 +476,8 @@ class songdb(service.service):
 
     def _getsong(self, song_id):
         """return song entry with given song_id"""
-        select = """SELECT %s, artists.name AS artist, albums.name AS album FROM songs 
+        select = """SELECT %s, artists.name AS artist, albums.name AS album 
+	            FROM songs 
                     JOIN albums ON albums.id == album_id
                     JOIN artists ON artists.id == songs.artist_id
                     WHERE songs.id = ?
@@ -487,8 +493,13 @@ class songdb(service.service):
                 for tr in self.con.execute(select, (song_id,)):
                     tags.append(tr["name"])
 
+		# fetch album artist
+                select = """SELECT name FROM artists WHERE id = ?"""
+                album_artist_name = self.con.execute(select, (r["album_artist_id"],)).fetchone()["name"]
+
                 return dbitem.song(
-                    r["url"], r["type"], r["title"], r["album"], r["artist"], r["year"], r["comment"], 
+                    r["url"], r["type"], r["title"], r["album"], r["artist"], album_artist_name, 
+		    r["year"], r["comment"], 
                     r["lyrics"], tags,
                     r["tracknumber"], r["trackcount"], r["disknumber"], r["diskcount"], 
                     r["compilation"], r["length"], r["bitrate"],
@@ -512,62 +523,47 @@ class songdb(service.service):
         """return given artist"""
         return self.artists.get(artist)
 
-    def _filtersongs(self, songs, filters):
-        """return items matching filters"""
-        for filter in filters:
-            indexname = filter.indexname
-            indexid = filter.indexid
-            songs = [song for song in songs if getattr(song, indexname) == indexid]
-        return songs
-
-    def _getsongs(self, artist_name=None, album_name=None, filters=None):
-        """ returns song of given artist, album filtered according ot filters
-
-        All values either have to be strings or None, in which case they are ignored.
-        """
+    def _getsongs(self, filters=None):
+        """ returns song  filtered according ot filters"""
+	filterstring = filters and filters.SQLstring() or ""
+	filterargs = filters and filters.SQLargs() or []
         select = """SELECT songs.id as song_id
                     FROM songs
                     JOIN artists ON (songs.artist_id = artists.id)
-                    JOIN albums  ON (songs.album_id = albums.id) """
-
-        args = []
-        wherelist = []
-        if artist_name is not None:
-            wherelist.append("artists.name = ?")
-            args.append(artist_name)
-        if album_name is not None:
-            wherelist.append("albums.name = ?")
-            args.append(album_name)
-        if wherelist:
-            select = select + " WHERE " + " AND ".join(wherelist)
-
+                    JOIN albums  ON (songs.album_id = albums.id) 
+		    %s""" % filterstring
+	log.debug(select)
         return  [item.song(self.id, row["song_id"])
-                      for row in self.con.execute(select, args)]
+		 for row in self.con.execute(select, filterargs)]
 
     def _getartists(self, filters=None):
         """return all stored artists"""
+	filterstring = filters and filters.SQLstring() or ""
+	filterargs = filters and filters.SQLargs() or []
         select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
                     FROM artists JOIN songs ON (artist_id = artists.id)
-                    WHERE NOT songs.compilation
-                    ORDER BY artists.name"""
+                    %s
+                    ORDER BY artists.name COLLATE NOCASE""" % filterstring
         return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
-                for row in self.con.execute(select)]
+                for row in self.con.execute(select, filterargs)]
 
-    def _getalbums(self, artist_name=None, filters=None):
+    def _getalbums(self, filters=None):
         """return albums of a given artist
 
         artist_name has to be a string. If it is None, all stored
         albums are returned
         """
-        select =""" SELECT albums.id, artists.name AS artist_name, albums.name AS album_name
-                    FROM albums JOIN artists ON (artist_id = artists.id)
-                    """
-        args = []
-        if artist_name is not None:
-            select = select + " WHERE artists.name = ?"
-            args += [artist_name]
-        return [item.album(self.id, row["id"], row["artist_name"], row["album_name"], filters)
-                for row in self.con.execute(select, args)]
+	filterstring = filters and filters.SQLstring() or ""
+	filterargs = filters and filters.SQLargs() or []
+        select =""" SELECT DISTINCT albums.id AS album_id, artists.name AS artist_name, albums.name AS album_name
+                    FROM albums 
+		    JOIN artists ON (albums.artist_id = artists.id)
+		    JOIN songs ON (songs.album_id = albums.id)
+		    %s
+		    ORDER BY albums.name COLLATE NOCASE""" % filterstring
+	log.debug(select)
+        return [item.album(self.id, row["album_id"], row["artist_name"], row["album_name"], filters)
+                for row in self.con.execute(select, filterargs)]
 
     def _filterindex(self, index, filters):
         """ return all keys in index filtered by filters """
@@ -720,7 +716,7 @@ class songdb(service.service):
     def getnumberofsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return len(self.con.execute("SELECT id FROM songs").fetchall())
+        return self.con.execute("SELECT count(*) FROM songs").fetchone()[0]
 
     def getnumberofdecades(self, request):
         return 0
@@ -745,6 +741,7 @@ class songdb(service.service):
         return len(self.ratings.keys())
 
     def getnumberofalbums(self, request):
+	return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
         # see above
@@ -774,7 +771,7 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
-            return self._getsongs(request.artist, request.album, request.filters)
+            return self._getsongs(request.filters)
         except (KeyError, AttributeError, TypeError):
             log.debug_traceback()
             return []
@@ -801,7 +798,7 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
-            return self._getalbums(request.artist, request.filters)
+            return self._getalbums(request.filters)
         except KeyError:
             log.debug_traceback()
             return []
