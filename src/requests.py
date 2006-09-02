@@ -195,11 +195,7 @@ class getalbums(dbrequestlist):
         return "%r(%r, %r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.songdbid)
 
 
-class getgenres(dbrequestlist):
-    pass
-
-
-class getdecades(dbrequestlist):
+class gettags(dbrequestlist):
     pass
 
 
@@ -238,10 +234,7 @@ class getnumberofalbums(dbrequestnumber):
 class getnumberofartists(dbrequestnumber):
     pass
 
-class getnumberofdecades(dbrequestnumber):
-    pass
-
-class getnumberofgenres(dbrequestnumber):
+class getnumberoftags(dbrequestnumber):
     pass
 
 class getnumberofratings(dbrequestnumber):

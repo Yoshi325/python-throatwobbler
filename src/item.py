@@ -196,22 +196,32 @@ class albumfilter(hiddenfilter):
 	return [self.album_id]
 
 
-class decadefilter(filter):
+class searchfilter(filter):
+    def __init__(self, searchstring):
+	self.searchstring = searchstring
+        filter.__init__(self, "Search: %s" % searchstring, None, searchstring)
 
-    """ filters items of a given decade """
+    def SQLstring(self):
+	return "(songs.title LIKE ?) OR (albums.name LIKE ?) OR (artists.name LIKE ?)"
 
-    def __init__(self, decade):
-        name = "%s=%s" % (_("Decade"), decade and "%ds" % decade or _("Unknown"))
-        filter.__init__(self, name, indexname="decade", indexid=decade)
+    def SQLargs(self):
+	return ["%%%s%%" % self.searchstring] * 3
 
 
-class genrefilter(filter):
+class tagfilter(filter):
 
-    """ filters only items of given genre """
+    """ filters only items of given tag """
 
-    def __init__(self, genre):
-        name = "%s=%s" % (_("Genre"), genre)
-        filter.__init__(self, name, indexname="genre", indexid=genre)
+    def __init__(self, tag_id, tag_name):
+        name = "%s=%s" % (_("Tag"), tag_name)
+	self.tag_id = tag_id
+        filter.__init__(self, name, indexname="tag", indexid=tag_id)
+
+    def SQLstring(self):
+	return "tags.id = ?"
+
+    def SQLargs(self):
+	return [self.tag_id]
 
 
 class ratingfilter(filter):
@@ -576,6 +586,8 @@ class album(diritem):
                 song._updatesong()
 
 
+
+
 class playlist(diritem):
 
     """ songs in a playlist in the corresponding database """
@@ -778,38 +790,38 @@ class compilations(albums):
 	self.name = _("Compilations")
 
 
-class genres(totaldiritem):
+class tags(totaldiritem):
 
-    """ all genres in the corresponding database """
+    """ all tags in the corresponding database """
 
     def __init__(self, songdbid, songdbids, filters):
         self.songdbid = songdbid
         self.songdbids = songdbids
         self.filters = filters
-        self.name = _("Genres")
-        self.nrgenres = None
+        self.name = _("Tags")
+        self.nrtags = None
 
     def cmpitem(x, y):
         return cmp(x.description, y.description)
     cmpitem = staticmethod(cmpitem)
 
     def getname(self):
-        if self.nrgenres is None:
-            self.nrgenres = hub.request(requests.getnumberofgenres(self.songdbid, filters=self.filters))
-        return "[%s (%d)]/" % (_("Genres"), self.nrgenres)
+        if self.nrtags is None:
+            self.nrtags = hub.request(requests.getnumberoftags(self.songdbid, filters=self.filters))
+        return "[%s (%d)]/" % (self.name, self.nrtags)
 
     def getcontents(self):
-        genres = hub.request(requests.getgenres(self.songdbid, sort=self.cmpitem, filters=self.filters))
-        self.nrgenres = len(genres)
-        return genres
+        tags = hub.request(requests.gettags(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        self.nrtags = len(tags)
+        return tags
 
     def getheader(self, item):
-        if self.nrgenres is None:
-            self.nrgenres = hub.request(requests.getnumberofgenres(self.songdbid, filters=self.filters))
-        return "%s (%d)" % (_("Genres"), self.nrgenres) + self.filters.getname()
+        if self.nrtags is None:
+            self.nrtags = hub.request(requests.getnumberoftags(self.songdbid, filters=self.filters))
+        return "%s (%d)" % (self.name, self.nrtags) + self.filters.getname()
 
     def getinfo(self):
-        return _mergefilters([[_("Genres"), "", "", ""]], self.filters)
+        return _mergefilters([[self.name, "", "", ""]], self.filters)
 
 
 class decades(totaldiritem):
@@ -1041,7 +1053,7 @@ class basedir(totaldiritem):
             self.songdbid = None
             self.type = "virtual"
             self.basedir = None
-        self.filters = filters
+        self.filters = filters # .filtered(searchfilter("blonde"))
         self.maxnr = 100
         self.nrartists = None
 	self.nrsongs = None
@@ -1054,17 +1066,13 @@ class basedir(totaldiritem):
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
+
+        for filter in self.filters:
+            if isinstance(filter, tagfilter):
+                break
+        else:
+            self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
 	return
-        for filter in self.filters:
-            if isinstance(filter, decadefilter):
-                break
-        else:
-            self.virtdirs.append(decades(self.songdbid, self.songdbids, filters=self.filters))
-        for filter in self.filters:
-            if isinstance(filter, genrefilter):
-                break
-        else:
-            self.virtdirs.append(genres(self.songdbid, self.songdbids, filters=self.filters))
         for filter in self.filters:
             if isinstance(filter, ratingfilter):
                 break
@@ -1151,3 +1159,9 @@ class index(basedir):
     def getinfo(self):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])
 
+class tag(index):
+    def __init__(self, songdbid, id, name, filters):
+	self.id = id
+	filters = filters.filtered(tagfilter(id, name))
+	index.__init__(self, [songdbid], _("Tag:"), name, filters)
+	

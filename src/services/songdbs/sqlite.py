@@ -120,40 +120,41 @@ songcolumns = ["url", "type", "title", "album_id",
 #
 
 class songdbstats:
-    def __init__(self, id, type, basedir, location, dbenvdir, cachesize,
-                 numberofsongs, numberofalbums, numberofartists, numberofgenres, numberofdecades):
+    def __init__(self, id, type, basedir, location, dbfile, cachesize,
+                 numberofsongs, numberofalbums, numberofartists, numberoftags):
         self.id = id
         self.type = type
         self.basedir = basedir
         self.location = location
-        self.dbenvdir = dbenvdir
+        self.dbfile = dbfile
         self.cachesize = cachesize
         self.numberofsongs = numberofsongs
         self.numberofalbums = numberofalbums
         self.numberofartists = numberofartists
-        self.numberofgenres = numberofgenres
-        self.numberofdecades = numberofdecades
+        self.numberoftags = numberoftags
 
 #
 # songdb class
 #
 
 class songdb(service.service):
+
+    currentdbversion = 1
+
     def __init__(self, id, config, songdbhub):
         service.service.__init__(self, "%r songdb" % id, hub=songdbhub)
         self.id = id
-        self.songdbbase = config.basename
-        self.dbfile = "sqlite.db"
         self.basedir = config.musicbasedir
+        self.dbfile = config.dbfile
+        self.cachesize = config.cachesize
 
         self.playingstatslength = config.playingstatslength
         self.tracknrandtitlere = config.tracknrandtitlere
         self.tagcapitalize = config.tags_capitalize
         self.tagstripleadingarticle = config.tags_stripleadingarticle
         self.tagremoveaccents = config.tags_removeaccents
-        # unneeded
-        # self.dbenvdir = config.dbenvdir
-        self.cachesize = config.cachesize
+
+
 
         if not os.path.isdir(self.basedir):
             raise errors.configurationerror("musicbasedir '%r' of database %r is not a directory." % (self.basedir, self.id))
@@ -164,11 +165,6 @@ class songdb(service.service):
 
         # currently active transaction - initially, none
         self.txn = None
-
-        try:
-            self._initdb()
-        except:
-            raise errors.databaseerror("cannot initialise/open song database files.")
 
         # we need to be informed about database changes
         self.channel.subscribe(events.updatesong, self.updatesong)
@@ -194,11 +190,9 @@ class songdb(service.service):
         self.channel.supply(requests.getnumberofsongs, self.getnumberofsongs)
         self.channel.supply(requests.getnumberofalbums, self.getnumberofalbums)
         self.channel.supply(requests.getnumberofartists, self.getnumberofartists)
-        self.channel.supply(requests.getnumberofgenres, self.getnumberofgenres)
-        self.channel.supply(requests.getnumberofdecades, self.getnumberofdecades)
+        self.channel.supply(requests.getnumberoftags, self.getnumberoftags)
         self.channel.supply(requests.getnumberofratings, self.getnumberofratings)
-        self.channel.supply(requests.getgenres, self.getgenres)
-        self.channel.supply(requests.getdecades, self.getdecades)
+        self.channel.supply(requests.gettags, self.gettags)
         self.channel.supply(requests.getratings, self.getratings)
         self.channel.supply(requests.getlastplayedsongs, self.getlastplayedsongs)
         self.channel.supply(requests.gettopplayedsongs, self.gettopplayedsongs)
@@ -213,17 +207,18 @@ class songdb(service.service):
                                                  self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents)
         self.autoregisterer.start()
 
-    def _initdb(self):
-        """ initialise sqlite database """
-
-        #log.info(_("database %r: basedir %r, %d songs, %d artists, %d albums, %d genres, %d playlists") %
-        #         (self.id, self.basedir, len(self.songs),  len(self.artists),  len(self.albums),
-        #          len(self.genres), len(self.playlists)))
-
     def run(self):
-        self.con = sqlite.connect(":memory:")
+        # self.con = sqlite.connect(":memory:")
+	log.debug("dbfile: '%s'" % self.dbfile)
+	self.con = sqlite.connect(self.dbfile)
         self.con.row_factory = sqlite.Row
-        self.con.executescript(create_tables)
+
+	dbversion = self.con.execute("PRAGMA user_version").fetchone()[0]
+	log.debug("Found on-disk db version: %d" % dbversion)
+	if dbversion == 0:
+	    # fresh database
+	    self.con.executescript(create_tables)
+	    self.con.execute("PRAGMA user_version=%d" % self.currentdbversion)
         service.service.run(self)
         self.close()
 
@@ -524,66 +519,67 @@ class songdb(service.service):
         return self.artists.get(artist)
 
     def _getsongs(self, filters=None):
-        """ returns song  filtered according ot filters"""
+        """ returns songs filtered according to filters"""
 	filterstring = filters and filters.SQLstring() or ""
 	filterargs = filters and filters.SQLargs() or []
-        select = """SELECT songs.id as song_id
+        select = """SELECT DISTINCT songs.id as song_id
                     FROM songs
-                    JOIN artists ON (songs.artist_id = artists.id)
-                    JOIN albums  ON (songs.album_id = albums.id) 
+                    JOIN artists  ON (songs.artist_id = artists.id)
+                    JOIN albums   ON (songs.album_id = albums.id) 
+		    JOIN taggings ON (taggings.song_id = songs.id)
+		    JOIN tags     ON (taggings.tag_id = tags.id)
 		    %s""" % filterstring
-	log.debug(select)
         return  [item.song(self.id, row["song_id"])
 		 for row in self.con.execute(select, filterargs)]
 
     def _getartists(self, filters=None):
-        """return all stored artists"""
+        """return artists filtered according to filters"""
 	filterstring = filters and filters.SQLstring() or ""
 	filterargs = filters and filters.SQLargs() or []
         select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
-                    FROM artists JOIN songs ON (artist_id = artists.id)
+                    FROM artists 
+		    JOIN songs    ON (songs.artist_id = artists.id)
+		    JOIN albums   ON (album_id = albums.id)
+		    JOIN taggings ON (taggings.song_id = songs.id)
+		    JOIN tags     ON (taggings.tag_id = tags.id)
                     %s
                     ORDER BY artists.name COLLATE NOCASE""" % filterstring
         return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
                 for row in self.con.execute(select, filterargs)]
 
     def _getalbums(self, filters=None):
-        """return albums of a given artist
-
-        artist_name has to be a string. If it is None, all stored
-        albums are returned
-        """
+        """return albums filtered according to filters"""
 	filterstring = filters and filters.SQLstring() or ""
 	filterargs = filters and filters.SQLargs() or []
-        select =""" SELECT DISTINCT albums.id AS album_id, artists.name AS artist_name, albums.name AS album_name
-                    FROM albums 
-		    JOIN artists ON (albums.artist_id = artists.id)
-		    JOIN songs ON (songs.album_id = albums.id)
-		    %s
-		    ORDER BY albums.name COLLATE NOCASE""" % filterstring
-	log.debug(select)
+        select ="""SELECT DISTINCT albums.id AS album_id, artists.name AS artist_name, albums.name AS album_name
+	           FROM albums 
+		   JOIN artists  ON (albums.artist_id = artists.id)
+		   JOIN songs    ON (songs.album_id = albums.id)
+		   JOIN taggings ON (taggings.song_id = songs.id)
+		   JOIN tags     ON (taggings.tag_id = tags.id)
+		   %s
+		   ORDER BY albums.name COLLATE NOCASE""" % filterstring
         return [item.album(self.id, row["album_id"], row["artist_name"], row["album_name"], filters)
                 for row in self.con.execute(select, filterargs)]
 
-    def _filterindex(self, index, filters):
-        """ return all keys in index filtered by filters """
-        items = getattr(self, index).values()
-        if filters:
-            for filter in filters:
-                newitems = []
-                indexname = filter.indexname
-                indexid = filter.indexid
-                for item in items:
-                    for song in map(self.songs.get, item.songs):
-                        if getattr(song, indexname) == indexid:
-                            newitems.append(item)
-                            break
-                items = newitems
-        return items
+    def _gettags(self, filters=None):
+        """return tags filtered according to filters"""
+	filterstring = filters and filters.SQLstring() or ""
+	filterargs = filters and filters.SQLargs() or []
+        select ="""SELECT DISTINCT tags.id AS tag_id, tags.name AS tag_name
+	           FROM tags
+		   JOIN taggings ON (taggings.tag_id = tags.id)
+		   JOIN songs    ON (songs.id = taggings.song_id)
+		   JOIN artists  ON (albums.artist_id = artists.id)
+		   JOIN albums   ON (albums.id = songs.album_id)
+		   %s
+		   ORDER BY tags.name COLLATE NOCASE""" % filterstring
+        return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)#
+                for row in self.con.execute(select, filterargs)]
 
     def _getratings(self, filters):
         """return all stored ratings"""
-        return self._filterindex("ratings", filters)
+	return []
 
     def _getlastplayedsongs(self, filters):
         """return the last played songs"""
@@ -686,7 +682,7 @@ class songdb(service.service):
             for playlist in event.playlists:
                 try: self._registerplaylist(playlist)
                 except (IOError, OSError): pass
-
+		
     def delplaylist(self, event):
         if event.songdbid == self.id:
             try:
@@ -710,48 +706,33 @@ class songdb(service.service):
     def getdatabasestats(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        numberofdecades = self.getnumberofdecades(requests.getnumberofdecades(self.id))
-        return songdbstats(self.id, "local", self.basedir, None, "", self.cachesize, 0, 0, 0, 0, 0)
+        return songdbstats(self.id, "local", self.basedir, None, self.dbfile, self.cachesize, 
+			   0, 0, 0, 0)
 
     def getnumberofsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         return self.con.execute("SELECT count(*) FROM songs").fetchone()[0]
 
-    def getnumberofdecades(self, request):
-        return 0
+    def getnumberoftags(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return len(self.decades.keys())
-
-    def getnumberofgenres(self, request):
-        return 0
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        # XXX why does len(self.genres) not work???
-        # return len(self.genres)
-        return len(self.genres.keys())
+        return self.con.execute("SELECT count(*) FROM tags").fetchone()[0]
 
     def getnumberofratings(self, request):
-        return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        # XXX why does len(self.genres) not work???
-        # return len(self.genres)
-        return len(self.ratings.keys())
+        return 0
 
     def getnumberofalbums(self, request):
-	return 0
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        # see above
-        return len(self.albums.keys())
+        return self.con.execute("SELECT count(*) FROM albums").fetchone()[0]
 
     def getnumberofartists(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        # see above
-        return len(self.artists.keys())
+        return self.con.execute("SELECT count(*) FROM artists").fetchone()[0]
 
     def queryregistersong(self, request):
         if self.id != request.songdbid:
@@ -812,15 +793,10 @@ class songdb(service.service):
             log.debug_traceback()
             return None
 
-    def getgenres(self, request):
+    def gettags(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return self._getgenres(request.filters)
-
-    def getdecades(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._getdecades(request.filters)
+        return self._gettags(request.filters)
 
     def getratings(self, request):
         if self.id != request.songdbid:

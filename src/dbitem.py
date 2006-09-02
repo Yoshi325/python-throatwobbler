@@ -21,28 +21,13 @@ import os.path, re, string, sys, time
 import log, metadata
 import encoding
 
-
 tracknrandtitlere = re.compile("^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
+
+# name used for unknown artist or album
 UNKNOWN = u"Unknown"
 # artist name for compilations
 VARIOUS = u"___VARIOUS___"
 
-
-
-class dbitem:
-
-    """ base class for various items stored in database:
-
-    songs"""
-
-    def __cmp__(self, other):
-        try:
-            return cmp(self.id, other.id)
-        except:
-            return 1
-
-    def __hash__(self):
-        return hash(self.id)
 
 # factory function for songs
 
@@ -235,7 +220,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
                 date_added, date_changed, date_lastplayed, playcount, rating)
 
 
-class song(dbitem):
+class song:
 
     def __init__(self, url, type, title, album, artist, album_artist, year, comment, lyrics, tags,
                  tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
@@ -277,6 +262,15 @@ class song(dbitem):
         self.date_lastplayed = date_lastplayed
         self.playcount = playcount
         self.rating = rating
+
+    def __cmp__(self, other):
+        try:
+            return cmp(self.id, other.id)
+        except:
+            return 1
+
+    def __hash__(self):
+        return hash(self.id)
 
     def __repr__(self):
         return "song(%s)" % (self.url)
@@ -330,7 +324,11 @@ class song(dbitem):
        else:
            return 1.0
 
-class playlist(dbitem):
+
+class playlist:
+
+    # XXX just for the code
+
     def __init__(self, path):
         self.path = self.id = os.path.normpath(path)
         self.name = os.path.basename(path)

@@ -385,10 +385,7 @@ class database(configsection):
     requestcachesize = configint("50000")
     class __template__(configsection):
         type = configalternatives("local", ["local", "remote"])
-        # the next two options will be removed in the future!
-        basename = configpath("~/.pytone/mp3")
-        dbfile = configpath("")
-        dbenvdir = configpath("~/.pytone/mp3")
+        dbfile = configpath("~/.pytone/mp3.db")
         cachesize = configint("1000")
         musicbasedir = configpath("")
         tracknrandtitlere = configre(r"^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
@@ -878,8 +875,7 @@ def checkoptions():
 
 
     # check database options
-    basenames = []
-    dbenvdirs = []
+    dbfiles = []
 
     if not database.getsubsections():
         print "Please define at least one song database in your configuration file."
@@ -893,23 +889,11 @@ def checkoptions():
                     "to the location of your MP3/Ogg Vorbis files." % databasename )
             sys.exit(2)
 
-        if songdb.basename != "":
-            if songdb.basename in basenames:
-                print "basename '%s' of database '%s' already in use." % (songdb.basename, databasename)
+        if songdb.dbfile != "":
+            if songdb.dbfile in dbfiles:
+                print "dbfile '%s' of database '%s' already in use." % (songdb.dbfile, databasename)
                 sys.exit(2)
-            basenames.append(songdb.basename)
-
-        if songdb.dbenvdir in dbenvdirs:
-            print "dbenvdir '%s' of database '%s' already in use." % (songdb.dbenvdir, databasename)
-            sys.exit(2)
-        dbenvdirs.append(songdb.dbenvdir)
-
-        if songdb.dbfile:
-            if songdb.dbfile == "db":
-                log.warning(_('using dbfile="db" by default, please remove dbfile entry in [database.%s] section of your config file') % databasename)
-            else:
-                print "setting dbfile not possible anymore, please move dbfile of database '%s'" % databasename
-                sys.exit(2)
+            dbfiles.append(songdb.dbfile)
 
     # check whether oss module is present
     try:

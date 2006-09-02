@@ -141,8 +141,7 @@ class songdbmanager(service.service):
         self.channel.supply(requests.getnumberofsongs, self.getnumberofsongs)
         self.channel.supply(requests.getnumberofalbums, self.getnumberofalbums)
         self.channel.supply(requests.getnumberofartists, self.getnumberofartists)
-        self.channel.supply(requests.getnumberofdecades, self.getnumberofdecades)
-        self.channel.supply(requests.getnumberofgenres, self.getnumberofgenres)
+        self.channel.supply(requests.getnumberoftags, self.getnumberoftags)
         self.channel.supply(requests.getnumberofratings, self.getnumberofratings)
 
         # and need to be informed about database changes
@@ -394,17 +393,13 @@ class songdbmanager(service.service):
         return self._requestnumbers(request, requests.getalbums)
     getnumberofalbums = cacheresult(getnumberofalbums)
 
-    def getnumberofdecades(self, request):
-        return self._requestnumbers(request, requests.getdecades)
-    getnumberofdecades = cacheresult(getnumberofdecades)
+    def getnumberoftags(self, request):
+        return self._requestnumbers(request, requests.gettags)
+    getnumberoftags = cacheresult(getnumberoftags)
 
     def getnumberofartists(self, request):
         return self._requestnumbers(request, requests.getartists)
     getnumberofartists = cacheresult(getnumberofartists)
-
-    def getnumberofgenres(self, request):
-        return self._requestnumbers(request, requests.getgenres)
-    getnumberofgenres = cacheresult(getnumberofgenres)
 
     def getnumberofratings(self, request):
         return self._requestnumbers(request, requests.getratings)
