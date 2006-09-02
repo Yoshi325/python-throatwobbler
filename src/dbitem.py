@@ -298,6 +298,9 @@ class song:
     def play(self):
         self.playcount += 1
         self.date_lastplayed = time.time()
+	
+    def unplay(self):
+	log.info("unlay not implemeted yet")
 
     def replaygain(self, profiles):
        # the following code is adapted from quodlibet
