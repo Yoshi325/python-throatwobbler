@@ -215,38 +215,18 @@ class tagfilter(filter):
 
     """ filters only items of given tag """
 
-#     def __init__(self, tag_ids, tag_name):
-#         name = "%s=%s" % (_("Tag"), tag_name)
-# 	self.tag_ids = tag_ids
-#         filter.__init__(self, name, indexname="tag", indexid=tag_ids)
-
-#     def SQL_JOIN_string(self):
-# 	wheres = " AND ".join(["taggings.tag_id = ?"]*len(self.tag_ids))
-# 	joins = []
-# 	for tag_id in self.tag_ids:
-# 	    tablename = "taggings_%d" % tag_id
-# 	    joins.append("JOIN taggings AS %s ON (%s.song_id = songs.id)" % (tablename, tablename))
-# 	return "\n".join(joins)
-
-#     def SQL_WHERE_string(self):
-# 	return " AND ".join(["(taggings_%d.tag_id = %d)" % (tag_id, tag_id) for tag_id in self.tag_ids])
-
-
-    def __init__(self, tag_id, tag_name):
-        name = "%s=%s" % (_("Tag"), tag_name)
+    def __init__(self, tag_id, tag_name, inverse=False):
+        name = "%s%s=%s" % (_("Tag"), inverse and "!" or "", tag_name)
 	self.tag_id = tag_id
+	self.inverse = inverse
         filter.__init__(self, name, indexname="tag", indexid=tag_id)
 
     def SQL_JOIN_string(self):
 	tablename = "taggings_%d" % self.tag_id
-	return "JOIN taggings AS %s ON (%s.song_id = songs.id)" % (tablename, tablename)
+	return "JOIN taggings AS %s ON (%s.tag_id = %d AND %s.song_id = songs.id)" % (tablename, tablename, self.tag_id, tablename)
 
     def SQL_WHERE_string(self):
-	return "(taggings_%d.tag_id = %d)" % (self.tag_id, self.tag_id)
-
-        #return "tags.name = ?"
-	#return "taggings.tag_id = ?"
-	#return "? IN (SELECT tags.id FROM tags WHERE tags.id = taggings.tag_id)"
+	return ""
 
 
 class ratingfilter(filter):
@@ -276,12 +256,12 @@ class filters(tuple):
 	 return "\n".join([filter.SQL_JOIN_string() for filter in self])
 
      def SQL_WHERE_string(self):
-	filterstring = " AND ".join(["(%s)" % filter.SQL_WHERE_string() for filter in self])
-	import log
-	log.debug("%s" % len(self))
-	if filterstring:
-	    filterstring = "WHERE (%s)" % filterstring
-	return filterstring
+	 wheres = [filter.SQL_WHERE_string() for filter in self]
+	 wheres = ["(%s)" % s for s in wheres if s]
+	 filterstring = " AND ".join(wheres)
+	 if filterstring:
+	     filterstring = "WHERE (%s)" % filterstring
+	     return filterstring
 
      def SQLargs(self):
 	 result = []
