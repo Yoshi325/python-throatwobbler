@@ -846,6 +846,10 @@ class tags(totaldiritem):
         self.filters = filters
         self.name = _("Tags")
         self.nrtags = None
+	self.previous_tag_ids = []
+	for filter in self.filters:
+	    if isinstance(filter, tagfilter):
+		self.previous_tag_ids.append(filter.tag_id)
 
     def cmpitem(x, y):
         return cmp(x.description, y.description)
@@ -853,17 +857,18 @@ class tags(totaldiritem):
 
     def getname(self):
         if self.nrtags is None:
-            self.nrtags = hub.request(requests.getnumberoftags(self.songdbid, filters=self.filters))
+            self.nrtags = len(self.getcontents())
         return "[%s (%d)]/" % (self.name, self.nrtags)
 
     def getcontents(self):
         tags = hub.request(requests.gettags(self.songdbid, sort=self.cmpitem, filters=self.filters))
+	tags = [tag for tag in tags if tag.id not in self.previous_tag_ids]
         self.nrtags = len(tags)
         return tags
 
     def getheader(self, item):
         if self.nrtags is None:
-            self.nrtags = hub.request(requests.getnumberoftags(self.songdbid, filters=self.filters))
+            self.nrtags = len(self.getcontents())
         return "%s (%d)" % (self.name, self.nrtags) + self.filters.getname()
 
     def getinfo(self):
