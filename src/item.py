@@ -149,7 +149,10 @@ class filter:
     def __hash__(self):
         return hash("%s=%s" % (self.indexname, self.indexid))
 
-    def SQLstring(self):
+    def SQL_JOIN_string(self):
+	return ""
+
+    def SQL_WHERE_string(self):
 	return ""
 
     def SQLargs(self):
@@ -167,7 +170,7 @@ class compilationfilter(hiddenfilter):
 	self.iscompilation = iscompilation
         hiddenfilter.__init__(self, "compilation", iscompilation)
 
-    def SQLstring(self):
+    def SQL_WHERE_string(self):
 	return "%s songs.compilation" % (not self.iscompilation and "NOT" or "")
 	# return "(songs.compilation = %s)" % (self.iscompilation and "1" or "0")
 
@@ -177,7 +180,7 @@ class artistfilter(hiddenfilter):
 	self.artist_id = artist_id
         hiddenfilter.__init__(self, "artist_id", artist_id)
 
-    def SQLstring(self):
+    def SQL_WHERE_string(self):
 	return "artists.id = ?"
 
     def SQLargs(self):
@@ -189,7 +192,7 @@ class albumfilter(hiddenfilter):
 	self.album_id = album_id
         hiddenfilter.__init__(self, "album_id", album_id)
 
-    def SQLstring(self):
+    def SQL_WHERE_string(self):
 	return "albums.id = ?"
 
     def SQLargs(self):
@@ -201,7 +204,7 @@ class searchfilter(filter):
 	self.searchstring = searchstring
         filter.__init__(self, "Search: %s" % searchstring, None, searchstring)
 
-    def SQLstring(self):
+    def SQL_WHERE_string(self):
 	return "(songs.title LIKE ?) OR (albums.name LIKE ?) OR (artists.name LIKE ?)"
 
     def SQLargs(self):
@@ -212,16 +215,38 @@ class tagfilter(filter):
 
     """ filters only items of given tag """
 
+#     def __init__(self, tag_ids, tag_name):
+#         name = "%s=%s" % (_("Tag"), tag_name)
+# 	self.tag_ids = tag_ids
+#         filter.__init__(self, name, indexname="tag", indexid=tag_ids)
+
+#     def SQL_JOIN_string(self):
+# 	wheres = " AND ".join(["taggings.tag_id = ?"]*len(self.tag_ids))
+# 	joins = []
+# 	for tag_id in self.tag_ids:
+# 	    tablename = "taggings_%d" % tag_id
+# 	    joins.append("JOIN taggings AS %s ON (%s.song_id = songs.id)" % (tablename, tablename))
+# 	return "\n".join(joins)
+
+#     def SQL_WHERE_string(self):
+# 	return " AND ".join(["(taggings_%d.tag_id = %d)" % (tag_id, tag_id) for tag_id in self.tag_ids])
+
+
     def __init__(self, tag_id, tag_name):
         name = "%s=%s" % (_("Tag"), tag_name)
 	self.tag_id = tag_id
         filter.__init__(self, name, indexname="tag", indexid=tag_id)
 
-    def SQLstring(self):
-	return "tags.id = ?"
+    def SQL_JOIN_string(self):
+	tablename = "taggings_%d" % self.tag_id
+	return "JOIN taggings AS %s ON (%s.song_id = songs.id)" % (tablename, tablename)
 
-    def SQLargs(self):
-	return [self.tag_id]
+    def SQL_WHERE_string(self):
+	return "(taggings_%d.tag_id = %d)" % (self.tag_id, self.tag_id)
+
+        #return "tags.name = ?"
+	#return "taggings.tag_id = ?"
+	#return "? IN (SELECT tags.id FROM tags WHERE tags.id = taggings.tag_id)"
 
 
 class ratingfilter(filter):
@@ -247,8 +272,13 @@ class filters(tuple):
      def filtered(self, filter):
          return filters(self + (filter,))
 
-     def SQLstring(self):
-	filterstring = " AND ".join(["(%s)" % filter.SQLstring() for filter in self])
+     def SQL_JOIN_string(self):
+	 return "\n".join([filter.SQL_JOIN_string() for filter in self])
+
+     def SQL_WHERE_string(self):
+	filterstring = " AND ".join(["(%s)" % filter.SQL_WHERE_string() for filter in self])
+	import log
+	log.debug("%s" % len(self))
 	if filterstring:
 	    filterstring = "WHERE (%s)" % filterstring
 	return filterstring
@@ -274,12 +304,14 @@ def _formatnumbertotal(number, total):
 
 class song(item):
 
-    __slots__ = ["songdbid", "id", "song"]
+    __slots__ = ["songdbid", "id", "album_id", "artist_id", "song"]
 
-    def __init__(self, songdbid, id):
+    def __init__(self, songdbid, id, album_id, artist_id):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
+	self.album_id = album_id
+	self.artist_id = artist_id
         self.song = None
 
     def __repr__(self):
@@ -300,7 +332,7 @@ class song(item):
 
     def _updatesong(self):
         """ notify database of song changes """
-        hub.notify(events.updatesong(self.songdbid, self.song))
+        hub.notify(events.updatesong(self.songdbid, self))
 
     def getid(self):
         return self.id
@@ -510,7 +542,14 @@ class artist(diritem):
         return self.name + self.filters.getname()
 
     def getinfo(self):
-        return _mergefilters([[_("Artist:"), self.name, "", ""]], self.filters)
+	if self.name == dbitem.UNKNOWN:
+	    artistname = _("Unknown")
+	elif self.name == dbitem.VARIOUS:
+	    # this should not happen, actually
+	    artistname = _("Various")
+	else:
+	    artistname = self.name
+        return _mergefilters([[_("Artist:"), artistname, "", ""]], self.filters)
 
     def isartist(self):
         return True
@@ -568,8 +607,15 @@ class album(diritem):
         return s + self.filters.getname()
 
     def getinfo(self):
-        l = [[_("Artist:"), self.artist is None and _("various") or self.artist, "", ""],
-             [_("Album:"), self.name, "", ""]]
+	if self.artist == dbitem.UNKNOWN:
+	    artistname = _("Unknown")
+	elif self.artist == dbitem.VARIOUS:
+	    artistname = _("Various")
+	else:
+	    artistname = self.artist
+	albumname =  self.name == dbitem.UNKNOWN and _("Unknown") or self.name
+        l = [[_("Artist:"), artistname, "", ""],
+             [_("Album:"), albumname, "", ""]]
         return _mergefilters(l, self.filters)
 
     def isalbum(self):
@@ -1053,7 +1099,7 @@ class basedir(totaldiritem):
             self.songdbid = None
             self.type = "virtual"
             self.basedir = None
-        self.filters = filters # .filtered(searchfilter("blonde"))
+        self.filters = filters # .filtered(tagfilter(19, "a"))
         self.maxnr = 100
         self.nrartists = None
 	self.nrsongs = None
@@ -1068,7 +1114,7 @@ class basedir(totaldiritem):
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
 
         for filter in self.filters:
-            if isinstance(filter, tagfilter):
+            if isinstance(filter, tagfilter) and 0:
                 break
         else:
             self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
@@ -1152,9 +1198,13 @@ class index(basedir):
         self.type = "index"
 
     def getname(self):
-        if self.nrsongs is None:
-            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
-        return "%s (%d)/" % (self.description, self.nrsongs)
+	# XXX make this configurable (note that showing the numbers by default is rather costly)
+	if 1:
+	    return "%s/" % self.description
+	else:
+	    if self.nrsongs is None:
+		self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
+	    return "%s (%d)/" % (self.description, self.nrsongs)
 
     def getinfo(self):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])

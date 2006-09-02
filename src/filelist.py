@@ -147,12 +147,12 @@ class filelist(slist.slist):
         self.shistory = []
         self.dir = [self.basedir]
         self.readdir()
-        if self.selectbyname(event.song.artist):
+        if self.selectbyid(event.song.artist_id):
             self.dirdown()
             # We might have skipped the album when there is only a single one of
             # the given artist.
             if not self.dir[-1].isalbum():
-                if self.selectbyname(event.song.album):
+                if self.selectbyid(event.song.album_id):
                     self.dirdown()
-                self.selectbyname(event.song.name)
+                self.selectbyid(event.song.id)
         self.win.update()

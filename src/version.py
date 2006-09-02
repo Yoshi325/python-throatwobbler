@@ -17,5 +17,5 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-version = "2.3.1"
+version = "3.0pre"
 copyright = "(c) 2002, 2003, 2004, 2005, 2006 Jörg Lehmann <joerg@luga.de>"

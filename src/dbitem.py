@@ -24,7 +24,7 @@ import encoding
 tracknrandtitlere = re.compile("^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
 
 # name used for unknown artist or album
-UNKNOWN = u"Unknown"
+UNKNOWN = u"___UNKNOWN___"
 # artist name for compilations
 VARIOUS = u"___VARIOUS___"
 

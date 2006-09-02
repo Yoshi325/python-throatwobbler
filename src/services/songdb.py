@@ -248,8 +248,7 @@ class songdbmanager(service.service):
             # Not very pretty, but for the moment enough
             if ( oldsong.album == newsong.album and
                  oldsong.artist == newsong.artist and
-                 oldsong.genre == newsong.genre and
-                 oldsong.decade == newsong.decade and
+                 oldsong.tags == newsong.tags and
                  oldsong.rating == newsong.rating ):
                 # only the playing information was changed, so we just
                 # delete the relevant cache results

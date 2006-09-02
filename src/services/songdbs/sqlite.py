@@ -103,6 +103,9 @@ CREATE INDEX album_id_song ON songs(album_id);
 CREATE INDEX artist_id_song ON songs(artist_id);
 CREATE INDEX year_song ON songs(year);
 CREATE INDEX compilation_song ON songs(compilation);
+
+CREATE INDEX taggings_song_id ON taggings(song_id);
+CREATE INDEX taggings_tag_id ON taggings(tag_id);
 """
 
 songcolumns = ["url", "type", "title", "album_id",
@@ -293,8 +296,8 @@ class songdb(service.service):
     def _updatesong(self, song):
         """updates entry of given song"""
         log.debug("updating song: %r" % song)
-        if not isinstance(song, dbitem.song):
-            log.error("_updatesong: song has to be a dbitem.song instance, not a %r instance" % song.__class__)
+        if not isinstance(song, item.song):
+            log.error("_updatesong: song has to be an item.song instance, not a %r instance" % song.__class__)
             return
         pass
         hub.notify(events.songchanged(self.id, song))
@@ -520,62 +523,69 @@ class songdb(service.service):
 
     def _getsongs(self, filters=None):
         """ returns songs filtered according to filters"""
-	filterstring = filters and filters.SQLstring() or ""
-	filterargs = filters and filters.SQLargs() or []
-        select = """SELECT DISTINCT songs.id as song_id
+	joinstring = filters and filters.SQL_JOIN_string() or ""
+	wherestring = filters and filters.SQL_WHERE_string() or ""
+	args = filters and filters.SQLargs() or []
+        select = """SELECT DISTINCT songs.id as song_id, albums.id AS album_id, artists.id AS artist_id
                     FROM songs
                     JOIN artists  ON (songs.artist_id = artists.id)
                     JOIN albums   ON (songs.album_id = albums.id) 
-		    JOIN taggings ON (taggings.song_id = songs.id)
-		    JOIN tags     ON (taggings.tag_id = tags.id)
-		    %s""" % filterstring
-        return  [item.song(self.id, row["song_id"])
-		 for row in self.con.execute(select, filterargs)]
+		    %s
+		    %s""" % (joinstring, wherestring)
+	log.debug(select)
+        return  [item.song(self.id, row["song_id"], row["album_id"], row["artist_id"])
+		 for row in self.con.execute(select, args)]
 
     def _getartists(self, filters=None):
         """return artists filtered according to filters"""
-	filterstring = filters and filters.SQLstring() or ""
-	filterargs = filters and filters.SQLargs() or []
+	log.debug(filters.getname())
+	joinstring = filters and filters.SQL_JOIN_string() or ""
+	wherestring = filters and filters.SQL_WHERE_string() or ""
+	args = filters and filters.SQLargs() or []
         select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
                     FROM artists 
 		    JOIN songs    ON (songs.artist_id = artists.id)
 		    JOIN albums   ON (album_id = albums.id)
-		    JOIN taggings ON (taggings.song_id = songs.id)
-		    JOIN tags     ON (taggings.tag_id = tags.id)
+		    %s
                     %s
-                    ORDER BY artists.name COLLATE NOCASE""" % filterstring
+                    ORDER BY artists.name COLLATE NOCASE""" % (joinstring, wherestring)
+	log.debug(select)
         return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
-                for row in self.con.execute(select, filterargs)]
+                for row in self.con.execute(select, args)]
 
     def _getalbums(self, filters=None):
         """return albums filtered according to filters"""
-	filterstring = filters and filters.SQLstring() or ""
-	filterargs = filters and filters.SQLargs() or []
+	joinstring = filters and filters.SQL_JOIN_string() or ""
+	wherestring = filters and filters.SQL_WHERE_string() or ""
+	args = filters and filters.SQLargs() or []
         select ="""SELECT DISTINCT albums.id AS album_id, artists.name AS artist_name, albums.name AS album_name
 	           FROM albums 
 		   JOIN artists  ON (albums.artist_id = artists.id)
 		   JOIN songs    ON (songs.album_id = albums.id)
-		   JOIN taggings ON (taggings.song_id = songs.id)
-		   JOIN tags     ON (taggings.tag_id = tags.id)
 		   %s
-		   ORDER BY albums.name COLLATE NOCASE""" % filterstring
+		   %s
+		   ORDER BY albums.name COLLATE NOCASE""" % (joinstring, wherestring)
+	# 
+	log.debug(select)
         return [item.album(self.id, row["album_id"], row["artist_name"], row["album_name"], filters)
-                for row in self.con.execute(select, filterargs)]
+                for row in self.con.execute(select, args)]
 
     def _gettags(self, filters=None):
         """return tags filtered according to filters"""
-	filterstring = filters and filters.SQLstring() or ""
-	filterargs = filters and filters.SQLargs() or []
+	joinstring = filters and filters.SQL_JOIN_string() or ""
+	wherestring = filters and filters.SQL_WHERE_string() or ""
+	args = filters and filters.SQLargs() or []
         select ="""SELECT DISTINCT tags.id AS tag_id, tags.name AS tag_name
 	           FROM tags
 		   JOIN taggings ON (taggings.tag_id = tags.id)
-		   JOIN songs    ON (songs.id = taggings.song_id)
-		   JOIN artists  ON (albums.artist_id = artists.id)
-		   JOIN albums   ON (albums.id = songs.album_id)
+		   JOIN songs ON (songs.id = taggings.song_id)
 		   %s
-		   ORDER BY tags.name COLLATE NOCASE""" % filterstring
-        return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)#
-                for row in self.con.execute(select, filterargs)]
+		   %s
+		   ORDER BY tags.name COLLATE NOCASE""" % (joinstring, wherestring)
+	# JOIN taggings ON (taggings.tag_id = tags.id)
+	log.debug(select)
+        return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
+                for row in self.con.execute(select, args)]
 
     def _getratings(self, filters):
         """return all stored ratings"""
