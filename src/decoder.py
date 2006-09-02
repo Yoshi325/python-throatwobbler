@@ -19,6 +19,9 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import os.path
+
+import hub, requests
 import log
 import pcm
 
@@ -228,7 +231,16 @@ class decodedsong:
             log.error("No decoder for song type '%s' registered "% self.song.type)
             raise RuntimeError("No decoder for song type '%s' registered "% self.song.type)
 
-        self.decodedfile = decoder(song.path)
+	if self.song.url.startswith("file://"):
+	    dbstats = hub.request(requests.getdatabasestats(song.songdbid))
+	    if not dbstats.basedir:
+		log.error("Currently only support for locally stored songs available")
+		raise RuntimeError("Currently only support for locally stored songs available")
+	    path = os.path.join(dbstats.basedir, song.url[7:])
+	    self.decodedfile = decoder(path)
+	else:
+            log.error("Currently only support for locally stored songs available")
+            raise RuntimeError("Currently only support for locally stored songs available")
 
         # Use the total time given by the decoder library and not the one
         # stored in the database. The former one turns out to be more precise

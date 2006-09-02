@@ -157,7 +157,7 @@ class playlist(service.service):
     def _logplay(self, item):
         if self.logfilename:
             logfile = open(self.logfilename, "a")
-            logfile.write("%s: %s\n" % (time.asctime(), item.song.path))
+            logfile.write("%s: %s\n" % (time.asctime(), item.song.url))
             logfile.close()
 
     def _checkabortion(self):
@@ -241,10 +241,14 @@ class playlist(service.service):
         # it is ok if the song is contained in a local song database, so we first
         # check whether this is the case.
         # XXX make this behaviour configurable?
+	stats = hub.request(requests.getdatabasestats(song.songdbid))
         if isinstance(song, item.song):
-            stats = hub.request(requests.getdatabasestats(song.songdbid))
             if stats.type == "local":
                 return song
+
+	return song
+
+        # XXX do we really need this
         if os.path.isfile(song.path):
             # first we try to access the song via its filesystem path
             return hub.request(requests.queryregistersong(self.songdbid, song.path))
