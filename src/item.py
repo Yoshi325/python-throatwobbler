@@ -188,6 +188,13 @@ class albumfilter(hiddenfilter):
     def SQLargs(self):
 	return [self.album_id]
 
+class playedsongsfilter(hiddenfilter):
+    def __init__(self):
+        filter.__init__(self, "played songs", None, None)
+
+    def SQL_WHERE_string(self):
+	return "songs.playcount > 0"
+
 
 class searchfilter(filter):
     def __init__(self, searchstring):
@@ -220,6 +227,8 @@ class tagfilter(filter):
     def SQL_WHERE_string(self):
 	return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
 		 (self.inverted and "NOT " or "", self.tag_id) )
+
+
 
 
 class ratingfilter(filter):
@@ -743,21 +752,24 @@ class topplayedsongs(diritem):
 
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
-        self.filters = filters
+        self.filters = filters.added(playedsongsfilter())
         self.name = "[%s]" % _("Top played songs")
 
-    def cmpitem(x, y):
-        return cmp(y.nrplayed, x.nrplayed) or cmp(y.lastplayed, x.lastplayed)
-    cmpitem = staticmethod(cmpitem)
+    class _orderclass:
+        def cmpitem(self, x, y):
+	    return cmp(y.playcount, x.playcount) or cmp(y.date_lastplayed, x.date_lastplayed)
+	def SQL_string(self):
+	    return "ORDER BY songs.playcount, songs.date_lastplayed DESC LIMIT 100"
+    order = _orderclass()
 
     def getcontents(self):
-        songs = hub.request(requests.gettopplayedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        songs = hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters))
         return songs
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.gettopplayedsongs(self.songdbid, filters=self.filters, random=True))
+        return hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item:
@@ -780,7 +792,7 @@ class lastaddedsongs(diritem):
 
     class _orderclass:
         def cmpitem(self, x, y):
-	    return cmp(x.date_added, y.date_added)
+	    return cmp(y.date_added, x.date_added)
 	def SQL_string(self):
 	    return "ORDER BY songs.date_added DESC LIMIT 100"
     order = _orderclass()
@@ -1086,20 +1098,17 @@ class basedir(totaldiritem):
         else:
             self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
 
-	# temporarily here
-        self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
-	return
-        for filter in self.filters:
-            if isinstance(filter, ratingfilter):
-                break
-        else:
-            self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
+	#for filter in self.filters:
+        #    if isinstance(filter, ratingfilter):
+        #        break
+        #else:
+        #    self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
-        self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
+        #self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
-        self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
-        if not self.filters:
-            self.virtdirs.append(playlists(self.songdbid))
+        #self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
+        #if not self.filters:
+        #    self.virtdirs.append(playlists(self.songdbid))
         if len(self.songdbids) > 1:
             self.virtdirs.extend([basedir([songdbid], self.filters) for songdbid in self.songdbids])
 

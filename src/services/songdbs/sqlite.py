@@ -189,7 +189,6 @@ class songdb(service.service):
         self.channel.supply(requests.gettags, self.gettags)
         self.channel.supply(requests.getratings, self.getratings)
         self.channel.supply(requests.getlastplayedsongs, self.getlastplayedsongs)
-        self.channel.supply(requests.gettopplayedsongs, self.gettopplayedsongs)
         self.channel.supply(requests.getplaylist, self.getplaylist)
         self.channel.supply(requests.getplaylists, self.getplaylists)
         self.channel.supply(requests.getsongsinplaylist, self.getsongsinplaylist)
@@ -585,11 +584,6 @@ class songdb(service.service):
             return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]
                     if songid in filteredsongids]
 
-    def _gettopplayedsongs(self, filters):
-        """return the top played songs"""
-        keys = self.stats["topplayed"]
-        return self._filtersongs(map(self.songs.get, keys), filters)
-
     def _getplaylist(self, path):
         """returns playlist entry with given path"""
         return self.playlists.get(path)
@@ -764,11 +758,6 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getlastplayedsongs(request.filters)
-
-    def gettopplayedsongs(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._gettopplayedsongs(request.filters)
 
     def getplaylist(self, request):
         if self.id != request.songdbid:

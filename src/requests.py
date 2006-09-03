@@ -157,10 +157,6 @@ class getlastplayedsongs(dbrequestsongs):
         dbrequestsongs.__init__(self, songdbid, random, sort, filters)
 
 
-class gettopplayedsongs(dbrequestsongs):
-    pass
-
-
 class getsongsinplaylists(dbrequestsongs):
     """ return all songs stored in all playlists """
     pass
