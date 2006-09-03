@@ -115,22 +115,13 @@ class getsong(dbrequestsingle):
         return "%r(%r,%r)->%r" % (self.__class__.__name__, self.song_id, self.song_url, self.songdbid)
 
 
-class getalbum(dbrequestsingle):
-    def __init__(self, songdbid, album):
+class gettag_id(dbrequestsingle):
+    def __init__(self, songdbid, tag_name):
         self.songdbid = songdbid
-        self.album = album
+        self.tag_name = tag_name
 
     def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.album, self.songdbid)
-
-
-class getartist(dbrequestsingle):
-    def __init__(self, songdbid, artist):
-        self.songdbid = songdbid
-        self.artist = artist
-
-    def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.artist, self.songdbid)
+        return "%r(%r)->%r" % (self.__class__.__name__, self.tag_name, self.songdbid)
 
 
 class getplaylist(dbrequestsingle):

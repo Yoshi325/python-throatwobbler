@@ -1224,8 +1224,11 @@ class index(basedir):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])
 
 class tag(index):
-    def __init__(self, songdbid, id, name, filters):
+    def __init__(self, songdbid, id, name, nfilters):
 	self.id = id
-	filters = filters.added(tagfilter(id, name))
-	index.__init__(self, [songdbid], _("Tag:"), name, filters)
+	if nfilters is not None:
+	    nfilters = nfilters.added(tagfilter(id, name))
+	else:
+	    nfilters = filters((tagfilter(id, name),))
+	index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
 	

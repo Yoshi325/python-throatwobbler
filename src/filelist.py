@@ -18,7 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import config
-import events, hub
+import events, requests, hub
 import item
 import slist
 
@@ -26,9 +26,15 @@ class filelist(slist.slist):
 
     def __init__(self, win, songdbids):
         slist.slist.__init__(self, win, config.filelistwindow.scrollmode == "page")
+
+	def tagfilter(tag_name, inverted):
+	    tag_id = hub.request(requests.gettag_id(songdbids[0], tag_name))
+	    if tag_id:
+		return item.tagfilter(tag_id, tag_name, inverted)
+	    raise RuntimeError("tag '%s' not known" % tag_name)
 	
-	basefilters = filters=item.filters((item.tagfilter(42, "G:Podcast", inverted=True),
-					    item.tagfilter(4, "G:Classical", inverted=True),))
+
+	basefilters = item.filters((tagfilter("G:Podcast", True),))
 
         self.basedir = item.basedir(songdbids, basefilters)
 	# self.basedir = item.basedir(songdbids)

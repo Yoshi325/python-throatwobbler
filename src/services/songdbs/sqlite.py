@@ -179,8 +179,7 @@ class songdb(service.service):
         self.channel.supply(requests.getsong, self.getsong)
         self.channel.supply(requests.getartists, self.getartists)
         self.channel.supply(requests.getalbums, self.getalbums)
-        self.channel.supply(requests.getalbum, self.getalbum)
-        self.channel.supply(requests.getartist, self.getartist)
+        self.channel.supply(requests.gettag_id, self.gettag_id)
         self.channel.supply(requests.getsongs, self.getsongs)
         self.channel.supply(requests.getnumberofsongs, self.getnumberofsongs)
         self.channel.supply(requests.getnumberofalbums, self.getnumberofalbums)
@@ -493,13 +492,8 @@ class songdb(service.service):
             log.debug_traceback()
             return None
 
-    def _getalbum(self, album):
-        """return given album"""
-        return self.albums[album]
-
-    def _getartist(self, artist):
-        """return given artist"""
-        return self.artists.get(artist)
+    def _gettag_id(self, tag_name):
+	return self.con.execute("SELECT id FROM tags WHERE name = ?", [tag_name]).fetchone()[0]
 
     def _getsongs(self, filters=None):
         """ returns songs filtered according to filters"""
@@ -571,9 +565,11 @@ class songdb(service.service):
 		   %s
 		   ORDER BY tags.name COLLATE NOCASE""" % (joinstring, wherestring)
 	# JOIN taggings ON (taggings.tag_id = tags.id)
-	log.debug(select)
-        return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
+	# log.debug(select)
+        r = [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
                 for row in self.con.execute(select, args)]
+	log.debug(repr(r))
+	return r
 
     def _getratings(self, filters):
         """return all stored ratings"""
@@ -738,15 +734,6 @@ class songdb(service.service):
             log.debug_traceback()
             return []
 
-    def getartist(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        try:
-            return self._getartist(request.artist)
-        except KeyError:
-            log.debug_traceback()
-            return None
-
     def getalbums(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
@@ -756,12 +743,12 @@ class songdb(service.service):
             log.debug_traceback()
             return []
 
-    def getalbum(self, request):
+    def gettag_id(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
-            return self._getalbum(request.album)
-        except KeyError:
+            return self._gettag_id(request.tag_name)
+        except:
             log.debug_traceback()
             return None
 
