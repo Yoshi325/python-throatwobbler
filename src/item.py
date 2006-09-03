@@ -146,8 +146,9 @@ class filter:
         self.indexname = indexname
         self.indexid = indexid
 
-    def __hash__(self):
-        return hash("%s=%s" % (self.indexname, self.indexid))
+    def __repr__(self):
+	# for dbrequest cache
+        return "%r=%r" % (self.indexname, self.indexid)
 
     def SQL_JOIN_string(self):
 	return ""
@@ -215,18 +216,21 @@ class tagfilter(filter):
 
     """ filters only items of given tag """
 
-    def __init__(self, tag_id, tag_name, inverse=False):
-        name = "%s%s=%s" % (_("Tag"), inverse and "!" or "", tag_name)
+    def __init__(self, tag_id, tag_name, inverted=False):
+        name = "%s%s=%s" % (_("Tag"), inverted and "!" or "", tag_name)
 	self.tag_id = tag_id
-	self.inverse = inverse
+	self.inverted = inverted
         filter.__init__(self, name, indexname="tag", indexid=tag_id)
 
+    def __repr__(self):
+	return "tag%s=%s" % (self.inverted and "!" or "", self.tag_id)
+
     def SQL_JOIN_string(self):
-	tablename = "taggings_%d" % self.tag_id
-	return "JOIN taggings AS %s ON (%s.tag_id = %d AND %s.song_id = songs.id)" % (tablename, tablename, self.tag_id, tablename)
+	return ""
 
     def SQL_WHERE_string(self):
-	return ""
+	return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
+		 (self.inverted and "NOT " or "", self.tag_id) )
 
 
 class ratingfilter(filter):
@@ -242,32 +246,32 @@ class ratingfilter(filter):
 
 class filters(tuple):
 
-     def getname(self):
-	 s = ", ".join([filter.name for filter in self if filter.name])
-         if s:
-             return " <%s>" % s
-         else:
-             return ""
+    def getname(self):
+	s = ", ".join([filter.name for filter in self if filter.name])
+	if s:
+	    return " <%s>" % s
+	else:
+	    return ""
 
-     def filtered(self, filter):
-         return filters(self + (filter,))
+    def filtered(self, filter):
+	return filters(self + (filter,))
 
-     def SQL_JOIN_string(self):
-	 return "\n".join([filter.SQL_JOIN_string() for filter in self])
+    def SQL_JOIN_string(self):
+	return "\n".join([filter.SQL_JOIN_string() for filter in self])
 
-     def SQL_WHERE_string(self):
-	 wheres = [filter.SQL_WHERE_string() for filter in self]
-	 wheres = ["(%s)" % s for s in wheres if s]
-	 filterstring = " AND ".join(wheres)
-	 if filterstring:
-	     filterstring = "WHERE (%s)" % filterstring
-	     return filterstring
+    def SQL_WHERE_string(self):
+	wheres = [filter.SQL_WHERE_string() for filter in self]
+	wheres = ["(%s)" % s for s in wheres if s]
+	filterstring = " AND ".join(wheres)
+	if filterstring:
+	    filterstring = "WHERE (%s)" % filterstring
+	    return filterstring
 
-     def SQLargs(self):
-	 result = []
-	 for filter in self:
-	     result.extend(filter.SQLargs())
-	 return result
+    def SQLargs(self):
+	result = []
+	for filter in self:
+	    result.extend(filter.SQLargs())
+	return result
 
 #
 # specialized classes
@@ -334,7 +338,7 @@ class song(item):
             l[1] += ["", ""]
         l[2] = [_("Artist:"), self.artist,
               _("Time:"), helper.formattime(self.length)]
-        # l[3] = [_("Genre:"), self.genre]
+        l[3] = [_("Tags:"), u" | ".join(self.tags)]
 
         if 0 and self.getplayingtime() is not None:
             seconds = int((time.time()-self.getplayingtime())/60)

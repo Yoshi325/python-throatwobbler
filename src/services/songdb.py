@@ -182,15 +182,16 @@ class songdbmanager(service.service):
     def cacheresult(requesthandler):
         """ method decorator which caches results of the request """
         def newrequesthandler(self, request):
+            log.debug("dbrequest cache: query for request: %s" % repr(request))
             requesthash = hash(request)
-            log.debug("dbrequest cache query for request: %s, %d" % (repr(request), requesthash))
+            log.debug("dbrequest cache: sucessfully hashed request: %d" % requesthash)
             try:
                 # try to get the result from the cache
                 result = self.requestcache[requesthash][0]
                 # update atime
                 self.requestcache[requesthash][2] = time.time()
                 self.requestcachehits += 1
-                log.debug("dbrequest cache hit for request: %s" % repr(request))
+                log.debug("dbrequest cache: hit for request: %s" % repr(request))
             except KeyError:
                 # make a copy of request for later storage in cache
                 requestcopy = copy.copy(request)
@@ -201,7 +202,7 @@ class songdbmanager(service.service):
                 self.requestcachesize += resultnoobjects
                 # remove least recently used items from cache
                 if self.requestcachesize > self.requestcachemaxsize:
-                    log.debug("db rqeuest cache: purging old items")
+                    log.debug("dbrequest cache: purging old items")
                     cachebytime = [(item[2], key) for key, item in self.requestcache.items()]
                     cachebytime.sort()
                     for atime, key in cachebytime[-10:]:
@@ -258,6 +259,7 @@ class songdbmanager(service.service):
                         del self.requestcache[key]
                 return
         # otherwise we delete the queries for the correponding database (and all compound queries)
+	log.debug("dbrequest cache: emptying cache for database %s" % event.songdbid)
         for key, item in self.requestcache.items():
             songdbid = item[1].songdbid
             if songdbid is None or songdbid == event.songdbid:
@@ -274,7 +276,7 @@ class songdbmanager(service.service):
             log.error("songdbmanager: invalid songdbid '%s' for database event" % event.songdbid)
             return
 
-        # first update result cache (to allow the updatechace method
+        # first update result cache (to allow the updatecache method
         # to query the old state of the database)
         self.updatecache(event)
         # and then send the event to the database

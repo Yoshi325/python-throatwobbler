@@ -26,9 +26,13 @@ class filelist(slist.slist):
 
     def __init__(self, win, songdbids):
         slist.slist.__init__(self, win, config.filelistwindow.scrollmode == "page")
+	
+	basefilters = filters=item.filters(())
+	basefilters = basefilters.filtered(item.tagfilter(42, "G:Podcast", inverted=True))
+	basefilters = basefilters.filtered(item.tagfilter(4, "G:Classical", inverted=True))
 
-        # self.basedir = item.basedir(songdbids, filters=item.filters(()).filtered(item.tagfilter(42, "G:Podcast", True)))
-	self.basedir = item.basedir(songdbids)
+        self.basedir = item.basedir(songdbids, basefilters)
+	# self.basedir = item.basedir(songdbids)
         self.dir = [self.basedir]
         self.shistory = []
         self.readdir()
