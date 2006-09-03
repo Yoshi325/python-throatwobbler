@@ -75,13 +75,12 @@ class dbrequestlist(dbrequest):
 
     Note that the resulting list must not be changed by the caller!
     """
-    def __init__(self, songdbid, sort=False, filters=None):
+    def __init__(self, songdbid, filters=None):
         self.songdbid = songdbid
-        self.sort = sort
         self.filters = filters
 
     def __repr__(self):
-        return "%r(%r, %r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.songdbid)
+        return "%r(%r)->%r" % (self.__class__.__name__, self.filters, self.songdbid)
 
 #
 # database requests which yield a single result
@@ -172,23 +171,11 @@ class getsongsinplaylists(dbrequestsongs):
 
 
 class getartists(dbrequestlist):
-    def __init__(self, songdbid, sort=False, filters=None):
-        self.songdbid = songdbid
-        self.sort = sort
-        self.filters = filters
-
-    def __repr__(self):
-        return "%r(%r, %r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.songdbid)
+    pass
 
 
 class getalbums(dbrequestlist):
-    def __init__(self, songdbid, sort=False, filters=None):
-        self.songdbid = songdbid
-        self.sort = sort
-        self.filters = filters
-
-    def __repr__(self):
-        return "%r(%r, %r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.songdbid)
+    pass
 
 
 class gettags(dbrequestlist):

@@ -79,17 +79,6 @@ class diritem(item):
     def getid(self):
         return self.name
 
-    def cmpitem(x, y):
-        """ compare the two items x, y of diritem
-
-        Note that can be implemented as a staticmethod, when no reference to the
-        concrete instance is necessary. This may be useful, when cmpitem is passed to
-        database requests, because then the caching of the result only works, when always
-        the same cmpitem function is passed to the request. """
-        # by default we just compare the names of the artists (case insensitively)
-        return cmp(x.name.lower(), y.name.lower())
-    cmpitem = staticmethod(cmpitem)
-
     def getcontents(self):
         """ return items contained in self """
         pass
@@ -529,16 +518,14 @@ class artist(diritem):
         return "artist(%s) in %s (filtered: %s)" % (self.name, self.songdbid, repr(self.filters))
 
     def getcontents(self):
-        albums = hub.request(requests.getalbums(self.songdbid,
-                                                sort=self.cmpitem, filters=self.filters))
+        albums = hub.request(requests.getalbums(self.songdbid, filters=self.filters))
         return albums + [songs(self.songdbid, self.name, self.filters)]
 
     def getcontentsrecursive(self):
         return hub.request(requests.getsongs(self.songdbid, filters=self.filters))
 
     def getcontentsrecursivesorted(self):
-        albums = hub.request(requests.getalbums(self.songdbid,
-                                                sort=self.cmpitem, filters=self.filters))
+        albums = hub.request(requests.getalbums(self.songdbid, filters=self.filters))
         result = []
         for aalbum in albums:
             result.extend(aalbum.getcontentsrecursivesorted())
@@ -829,7 +816,7 @@ class albums(totaldiritem):
         return "[%s (%d)]/" % (self.name, self.nralbums)
 
     def getcontents(self):
-        albums = hub.request(requests.getalbums(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        albums = hub.request(requests.getalbums(self.songdbid, filters=self.filters))
         self.nralbums = len(albums)
         return albums
 
@@ -862,17 +849,13 @@ class tags(totaldiritem):
 	    if isinstance(filter, tagfilter):
 		self.previous_tag_ids.append(filter.tag_id)
 
-    def cmpitem(x, y):
-        return cmp(x.description, y.description)
-    cmpitem = staticmethod(cmpitem)
-
     def getname(self):
         if self.nrtags is None:
             self.nrtags = len(self.getcontents())
         return "[%s (%d)]/" % (self.name, self.nrtags)
 
     def getcontents(self):
-        tags = hub.request(requests.gettags(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        tags = hub.request(requests.gettags(self.songdbid, filters=self.filters))
 	tags = [tag for tag in tags if tag.id not in self.previous_tag_ids]
         self.nrtags = len(tags)
         return tags
@@ -884,40 +867,6 @@ class tags(totaldiritem):
 
     def getinfo(self):
         return _mergefilters([[self.name, "", "", ""]], self.filters)
-
-
-class decades(totaldiritem):
-
-    """ all decades in the corresponding database """
-
-    def __init__(self, songdbid, songdbids, filters):
-        self.songdbid = songdbid
-        self.songdbids = songdbids
-        self.filters = filters
-        self.name = _("Decades")
-        self.nrdecades = None
-
-    def cmpitem(x, y):
-        return cmp(x.description, y.description)
-    cmpitem = staticmethod(cmpitem)
-
-    def getname(self):
-        if self.nrdecades is None:
-            self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid, filters=self.filters))
-        return "[%s (%d)]/" % (_("Decades"), self.nrdecades)
-
-    def getcontents(self):
-        decades = hub.request(requests.getdecades(self.songdbid, sort=self.cmpitem, filters=self.filters))
-        self.nrdecades = len(decades)
-        return decades
-
-    def getheader(self, item):
-        if self.nrdecades is None:
-            self.nrdecades = hub.request(requests.getnumberofdecades(self.songdbid))
-        return "%s (%d)" % (_("Decades"), self.nrdecades) + self.filters.getname()
-
-    def getinfo(self):
-        return _mergefilters([[_("Decades"), "", "", ""]], self.filters)
 
 
 class ratings(totaldiritem):
@@ -936,12 +885,8 @@ class ratings(totaldiritem):
             self.nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (_("Ratings"), self.nrratings)
 
-    def cmpitem(x, y):
-        return cmp(x.description, y.description)
-    cmpitem = staticmethod(cmpitem)
-
     def getcontents(self):
-        ratings = hub.request(requests.getratings(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        ratings = hub.request(requests.getratings(self.songdbid, filters=self.filters))
         self.nrratings = len(ratings)
         return ratings
 
@@ -1024,7 +969,7 @@ class playlists(diritem):
         return "[%s (%d)]/" % (_("Playlists"), self.nrplaylists)
 
     def getcontents(self):
-        playlists = hub.request(requests.getplaylists(self.songdbid, sort=self.cmpitem))
+        playlists = hub.request(requests.getplaylists(self.songdbid))
         self.nrplaylists = len(playlists)
         return playlists
 
@@ -1163,8 +1108,7 @@ class basedir(totaldiritem):
     def getcontents(self):
 	# do not show artists which only appear in compilations
 	filters = self.filters.added(compilationfilter(False))
-        aartists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
-                                                   filters=filters))
+        aartists = hub.request(requests.getartists(self.songdbid, filters=filters))
 	self.nrartists = len(aartists)
 	# reset cached value
 	self.nrsongs = None
@@ -1176,8 +1120,7 @@ class basedir(totaldiritem):
     def getcontentsrecursivesorted(self):
         # we cannot rely on the default implementation since we don't want
         # to have the albums and songs included trice
-        artists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
-                                                  filters=self.filters))
+        artists = hub.request(requests.getartists(self.songdbid, filters=self.filters))
         result = []
         for aartist in artists:
             result.extend(aartist.getcontentsrecursivesorted())

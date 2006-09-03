@@ -337,8 +337,6 @@ class songdbmanager(service.service):
     def dbrequestlist(self, request):
         # make a copy of the original request, because we will subsequently modify it
         nrequest = copy.copy(request)
-        # we do not want to wrap and sort the intermediate results
-        nrequest.sort = False
 
         if request.songdbid is None:
             resulthash = {}
@@ -346,6 +344,7 @@ class songdbmanager(service.service):
                 nrequest.songdbid = songdbid
                 for result in self.dbrequestlist(nrequest):
                     resulthash[result] = songdbid
+	    # sort results
             return resulthash.keys()
         elif request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
@@ -355,7 +354,7 @@ class songdbmanager(service.service):
             # using a network channel, since we cannot pickle these
             # objects)
             return self.songdbhub.request(nrequest)
-    dbrequestlist = cacheresult(sortresult(dbrequestlist))
+    dbrequestlist = cacheresult(dbrequestlist)
 
     def getdatabasestats(self, request):
         if request.songdbid is None:
