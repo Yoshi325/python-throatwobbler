@@ -1,4 +1,4 @@
-# -*- coding: ISO-8859-1 -*-
+## -*- coding: ISO-8859-1 -*-
 
 # Copyright (C) 2002, 2003, 2004 Jörg Lehmann <joerg@luga.de>
 #
@@ -108,27 +108,27 @@ class sendeventin(event):
 class checkpointdb(dbevent):
     """flush memory pool, write checkpoint record to log and flush flog of songdbid"""
 
+class addsong(dbevent):
+    """ add song to database """
+
+    def __init__(self, songdbid, song):
+        self.songdbid = songdbid
+        self.song = song
+
+    def __str__(self):
+        return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
+
 
 class updatesong(dbevent):
     """ update song in database """
 
-    def __init__(self, songdbid, song):
+    def __init__(self, songdbid, oldsong, newsong):
         self.songdbid = songdbid
-        self.song = song
+        self.oldsong = oldsong
+        self.newsong = newsong
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
-
-
-class rescansong(dbevent):
-    """ reread id3 information of song (or delete it if it does not longer exist) """
-
-    def __init__(self, songdbid, song):
-        self.songdbid = songdbid
-        self.song = song
-
-    def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
+        return "%s(%s, 5s)->%s" % (self.__class__.__name__, self.oldsong, self.newsong, self.songdbid)
 
 
 class delsong(dbevent):
@@ -140,28 +140,6 @@ class delsong(dbevent):
 
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
-
-
-class updatealbum(dbevent):
-    """ update album in database """
-
-    def __init__(self, songdbid, album):
-        self.songdbid = songdbid
-        self.album = album
-
-    def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.album, self.songdbid)
-
-
-class updateartist(dbevent):
-    """ update artist in database """
-
-    def __init__(self, songdbid, artist):
-        self.songdbid = songdbid
-        self.artist = artist
-
-    def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.artist, self.songdbid)
 
 
 class updateplaylist(dbevent):
@@ -186,15 +164,6 @@ class delplaylist(dbevent):
         return "%s(%s)->%s" % (self.__class__.__name__, self.playlist, self.songdbid)
 
 
-class registersongs(dbevent):
-    def __init__(self, songdbid, songs):
-        self.songdbid = songdbid
-        self.songs = songs
-
-    def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.songs, self.songdbid)
-
-
 class registerplaylists(dbevent):
     def __init__(self, songdbid, playlists):
         self.songdbid = songdbid
@@ -205,7 +174,16 @@ class registerplaylists(dbevent):
 
 
 class autoregistersongs(dbevent):
-    """ start autoregisterer for database """
+    """ start autoregisterer for database 
+
+    If force is set, the m_time of songs is ignored and they are always rescanned.
+    """
+    def __init__(self, songdbid, force=False):
+        self.songdbid = songdbid
+	self.force = force
+
+    def __str__(self):
+        return "%s(%s)->%s" % (self.__class__.__name__, self.force, self.songdbid)
 
 
 class rescansongs(dbevent):
@@ -236,8 +214,16 @@ class songchanged(event):
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
 
+class songschanged(event):
+    "list of songs in database changed"
+    def __init__(self, songdbid):
+        self.songdbid = songdbid
+
+    def __str__(self):
+        return "%s->%s" % (self.__class__.__name__, self.songdbid)
 
 class artistschanged(event):
+    "list of artists in database changed"
     def __init__(self, songdbid):
         self.songdbid = songdbid
 
@@ -246,6 +232,7 @@ class artistschanged(event):
 
 
 class albumschanged(event):
+    "list of albums in database changed"
     def __init__(self, songdbid):
         self.songdbid = songdbid
 
@@ -254,6 +241,7 @@ class albumschanged(event):
 
 
 class tagschanged(event):
+    "list of tags in database changed"
     def __init__(self, songdbid):
         self.songdbid = songdbid
 

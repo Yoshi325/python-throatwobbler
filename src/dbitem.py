@@ -73,7 +73,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     # statistical information
     playcount = 0
     date_lastplayed = None
-    date_changed = date_added = time.time()
+    date_updated = date_added = time.time()
     rating = None
     tags = []
 
@@ -216,7 +216,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
                 tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                 samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                 replaygain_album_gain, replaygain_album_peak,
-                date_added, date_changed, date_lastplayed, playcount, rating)
+                date_added, date_updated, date_lastplayed, playcount, rating)
 
 
 class song:
@@ -225,7 +225,7 @@ class song:
                  tracknumber, trackcount, disknumber, diskcount, compilation, length, bitrate,
                  samplerate, is_vbr, size, replaygain_track_gain, replaygain_track_peak,
                  replaygain_album_gain, replaygain_album_peak,
-                 date_added, date_changed, date_lastplayed, playcount, rating):
+                 date_added, date_updated, date_lastplayed, playcount, rating):
         self.url = url
         self.type = type
         self.title = title
@@ -256,9 +256,9 @@ class song:
         self.replaygain_album_peak = replaygain_album_peak
 
         # statistical information
-        self.date_added = date_added
-        self.date_changed = date_changed
-        self.date_lastplayed = date_lastplayed
+        self.date_added = date_added              # when has song been added to db
+        self.date_updated = date_updated          # when has song metadata last been updated
+        self.date_lastplayed = date_lastplayed    # when has song been played for the last time
         self.playcount = playcount
         self.rating = rating
 
@@ -269,7 +269,7 @@ class song:
             return 1
 
     def __hash__(self):
-        return hash(self.id)
+        return hash(self.url)
 
     def __repr__(self):
         return "song(%s)" % (self.url)
@@ -292,7 +292,7 @@ class song:
         self.replaygain_track_peak = othersong.replaygain_track_peak
         self.replaygain_album_gain = othersong.replaygain_album_gain
         self.replaygain_album_peak = othersong.replaygain_album_peak
-        self.date_changed = time.time()
+        self.date_updated = time.time()
 
     def play(self):
         self.playcount += 1

@@ -28,7 +28,7 @@ class filelist(slist.slist):
         slist.slist.__init__(self, win, config.filelistwindow.scrollmode == "page")
 	
 	basefilters = filters=item.filters((item.tagfilter(42, "G:Podcast", inverted=True),
-					    item.tagfilter(4, "G:Classical", inverted=True)))
+					    item.tagfilter(4, "G:Classical", inverted=True),))
 
         self.basedir = item.basedir(songdbids, basefilters)
 	# self.basedir = item.basedir(songdbids)
@@ -36,6 +36,7 @@ class filelist(slist.slist):
         self.shistory = []
         self.readdir()
 
+        self.win.channel.subscribe(events.songschanged, self.songschanged)
         self.win.channel.subscribe(events.artistschanged, self.artistschanged)
         self.win.channel.subscribe(events.albumschanged, self.albumschanged)
         self.win.channel.subscribe(events.tagschanged, self.tagschanged)
@@ -123,6 +124,11 @@ class filelist(slist.slist):
             self.getselected().rescan()
 
     # event handler
+
+    def songschanged(self, event):
+	if isinstance( self.dir[-1], (item.songs, item.album)):
+	    self.updatedir()
+	    self.win.update()
 
     def artistschanged(self, event):
 	if isinstance( self.dir[-1], item.basedir):

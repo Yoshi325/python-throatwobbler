@@ -250,6 +250,7 @@ class playlist(service.service):
 	return song
 
         # XXX do we really need this
+        # currently it does not work anymore
         if os.path.isfile(song.path):
             # first we try to access the song via its filesystem path
             return hub.request(requests.queryregistersong(self.songdbid, song.path))

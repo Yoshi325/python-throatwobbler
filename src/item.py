@@ -299,12 +299,13 @@ class song(item):
 
     __slots__ = ["songdbid", "id", "album_id", "artist_id", "song"]
 
-    def __init__(self, songdbid, id, album_id, artist_id):
+    def __init__(self, songdbid, id, album_id, artist_id, album_artist_id):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
 	self.album_id = album_id
 	self.artist_id = artist_id
+	self.album_artist_id = album_artist_id
         self.song = None
 
     def __repr__(self):
@@ -317,11 +318,12 @@ class song(item):
         if attr=="__setstate__":
             raise AttributeError
         if not self.song:
-            import log
-            log.debug("Fetching song metadata from database")
             self.song = hub.request(requests.getsong(self.songdbid, self.id))
-            log.debug("Got song metadata from database")
-        return getattr(self.song, attr)
+	# return metadata if we have been able to fetch it, otherwise return None
+	if self.song:
+	    return getattr(self.song, attr)
+	else:
+	    return None
 
     def _updatesong(self):
         """ notify database of song changes """
@@ -331,10 +333,16 @@ class song(item):
         return self.id
 
     def getname(self):
-        return self.title
+	if self.title:
+	    return self.title
+	else:
+	    return "DELETED"
 
     def getinfo(self):
         l = [["", "", "", ""]]*4
+	# if we are unable to fetch the title, the song has been deleted in the meantime
+	if self.title is None:
+	    return l
         l[0] = [_("Title:"), self.title]
         if self.tracknumber:
             l[0] += [_("Nr:"), _formatnumbertotal(self.tracknumber, self.trackcount)]
@@ -375,6 +383,9 @@ class song(item):
 
     def getinfolong(self):
         l = []
+	# if we are unable to fetch the title, the song has been deleted in the meantime
+	if self.title is None:
+	    return l
         directory, filename = os.path.split(self.song.url)
         l.append([_("Path:"), directory, "", ""])
         l.append([_("File name:"), filename, "", ""])
@@ -450,6 +461,8 @@ class song(item):
         of characters which are neither letters, digits, a blank or a colon.
         """
 
+	if self.title is None:
+	    return "DELETED"
         d = {}
         d.update(self.song.__dict__)
         d.update(adddict)
@@ -489,11 +502,13 @@ class song(item):
 
     def rescan(self):
         """rescan id3 information for song, keeping playing statistic, rating, etc."""
+	# XXX check whether song has been deleted
         hub.notify(events.rescansong(self.songdbid, self.song))
 
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
+	# XXX check callers what happens if the song has been deleted in the meantime
         if self.playingtime is None and self.song.lastplayed:
             return self.song.lastplayed[-1]
         else:

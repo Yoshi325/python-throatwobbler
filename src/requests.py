@@ -92,22 +92,27 @@ class getdatabasestats(dbrequest):
     pass
 
 
-class queryregistersong(dbrequestsingle):
-    def __init__(self, songdbid, path):
+class addsong(dbrequestsingle):
+    def __init__(self, songdbid, song):
         self.songdbid = songdbid
-        self.path = path
+        self.song = song
 
     def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.path, self.songdbid)
+        return "%r(%r)->%r" % (self.__class__.__name__, self.song, self.songdbid)
 
 
 class getsong(dbrequestsingle):
-    def __init__(self, songdbid, id):
+    """get song from database songdbid corresponding to either song_id or song_url
+
+    Exactly one of song_id or song_url has to be not None.
+    """
+    def __init__(self, songdbid, song_id=None, song_url=None):
         self.songdbid = songdbid
-        self.id = id
+        self.song_id = song_id
+	self.song_url = song_url
 
     def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.id, self.songdbid)
+        return "%r(%r,%r)->%r" % (self.__class__.__name__, self.song_id, self.song_url, self.songdbid)
 
 
 class getalbum(dbrequestsingle):
