@@ -778,17 +778,20 @@ class lastaddedsongs(diritem):
         self.filters = filters
         self.name = "[%s]" % _("Last added songs")
 
-    def cmpitem(x, y):
-        return cmp(y.added, x.added)
-    cmpitem = staticmethod(cmpitem)
+    class _orderclass:
+        def cmpitem(self, x, y):
+	    return cmp(x.date_added, y.date_added)
+	def SQL_string(self):
+	    return "ORDER BY songs.date_added DESC LIMIT 100"
+    order = _orderclass()
 
     def getcontents(self):
-        return hub.request(requests.getlastaddedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        return hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters))
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getlastaddedsongs(self.songdbid, filters=self.filters, random=True))
+        return hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item:
@@ -1082,6 +1085,9 @@ class basedir(totaldiritem):
                 break
         else:
             self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
+
+	# temporarily here
+        self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
 	return
         for filter in self.filters:
             if isinstance(filter, ratingfilter):

@@ -161,10 +161,6 @@ class gettopplayedsongs(dbrequestsongs):
     pass
 
 
-class getlastaddedsongs(dbrequestsongs):
-    pass
-
-
 class getsongsinplaylists(dbrequestsongs):
     """ return all songs stored in all playlists """
     pass
