@@ -220,7 +220,9 @@ class songdb(service.service):
 	log.debug("Found on-disk db version: %d" % dbversion)
 	if dbversion == 0:
 	    # fresh database
+	    self._txn_begin()
 	    self.con.executescript(create_tables)
+	    self._txn_commit()
 	    self.con.execute("PRAGMA user_version=%d" % self.currentdbversion)
         service.service.run(self)
         self.close()
@@ -231,19 +233,17 @@ class songdb(service.service):
     # transaction machinery
 
     def _txn_begin(self):
-        return
         if self.txn:
             raise RuntimeError("more than one transaction in parallel is not supported")
-        self.txn = self.dbenv.txn_begin()
+        # self.con.execute("BEGIN TRANSACTION")
+        self.txn = True
 
     def _txn_commit(self):
-        return
-        self.txn.commit()
+        # self.con.execute("COMMIT TRANSACTION")
         self.txn = None
 
     def _txn_abort(self):
-        return
-        self.txn.abort()
+	# self.con.execute("ROLLBACK")
         self.txn = None
 
     # resetting db stats
@@ -558,14 +558,19 @@ class songdb(service.service):
 	joinstring = filters and filters.SQL_JOIN_string() or ""
 	wherestring = filters and filters.SQL_WHERE_string() or ""
 	args = filters and filters.SQLargs() or []
+	# Hackish, but effective to allow collections show up in artists view
+	if filters.contains(item.artistfilter):
+	    artist_id_column = "artist_id"
+	else:
+	    artist_id_column = "album_artist_id"
         select ="""SELECT DISTINCT albums.id AS album_id, artists.name AS artist_name, albums.name AS album_name
 	           FROM albums 
-		   JOIN artists  ON (albums.artist_id = artists.id)
+		   JOIN artists  ON (songs.%s = artists.id)
 		   JOIN songs    ON (songs.album_id = albums.id)
 		   %s
 		   %s
-		   ORDER BY albums.name COLLATE NOCASE""" % (joinstring, wherestring)
-	# 
+		   ORDER BY albums.name COLLATE NOCASE""" % (artist_id_column, joinstring, wherestring)
+
 	log.debug(select)
         return [item.album(self.id, row["album_id"], row["artist_name"], row["album_name"], filters)
                 for row in self.con.execute(select, args)]

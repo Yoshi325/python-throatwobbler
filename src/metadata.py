@@ -19,26 +19,8 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-import locale, os, struct, sys
+import struct
 import log
-
-fallbacklocalecharset = "iso-8859-1"
-
-# Try to determine "correct" character set for the reencoding of the
-# unicode strings contained in Ogg Vorbis files
-try:
-    # works only in python > 2.3
-    localecharset = locale.getpreferredencoding()
-except:
-    try:
-        localecharset = locale.getdefaultlocale()[1]
-    except:
-        try:
-            localecharset = sys.getdefaultencoding()
-        except:
-            localecharset = fallbacklocalecharset
-if localecharset in [None, 'ANSI_X3.4-1968']:
-    localecharset = fallbacklocalecharset
 
 #
 # metadata decoder class and simple decoder registry
@@ -65,7 +47,7 @@ class metadata:
         self.is_vbr = None
         self.samplerate = None
         self.bitrate = None
-        self.size = os.stat(path).st_size
+
         self.replaygain_track_gain = None
         self.replaygain_track_peak = None
         self.replaygain_album_gain = None
@@ -99,19 +81,14 @@ def gettype(extension):
 class vorbismetadata(metadata):
     def __init__(self, path):
         vf = ogg.vorbis.VorbisFile(path)
+	# XXX to be updated
         id3get = vf.comment().as_dict().get
         self.title = id3get('TITLE', [""])[0]
-        self.title = self.title.encode(localecharset, 'replace')
         self.album = id3get('ALBUM', [""])[0]
-        self.album = self.album.encode(localecharset, 'replace')
         self.artist = id3get('ARTIST', [""])[0]
-        self.artist = self.artist.encode(localecharset, 'replace')
-        self.year = id3get('DATE', [""])[0]
-        self.year = self.year.encode(localecharset, 'replace')
+        self.year = int(id3get('DATE', [""])[0])
         self.genre  = id3get('GENRE', [""])[0]
-        self.genre = self.genre.encode(localecharset, 'replace')
         self.tracknr = id3get('TRACKNUMBER', [""])[0]
-        self.tracknr = self.tracknr.encode(localecharset, 'replace')
         self.length = vf.time_total(0)
 
         # example format according to vorbisgain documentation
@@ -145,7 +122,9 @@ class mp3mutagenmetadata(metadata):
     framemapping = { "TIT2": "title",
                      "TALB": "album",
                      "TPE1": "artist",
-                     "TDRC": "year"  }
+                     "TDRC": "year",
+		     "COMM": "comment",
+		     "USLT": "lyrics" }
     def __init__(self, path):
         metadata.__init__(self, path)
         mp3 = mutagen.mp3.MP3(path, ID3=ID3hack)
@@ -191,9 +170,6 @@ class mp3mutagenmetadata(metadata):
         else:
             log.debug("Could not read ID3 tags for song '%r'" % path)
 
-        # self.title = MP3Info._strip_zero(self.title)
-        # self.album = MP3Info._strip_zero(self.album)
-        # self.artist = MP3Info._strip_zero(self.artist)
 
 #
 # ID3 metadata decoder (using eyeD3 module)
@@ -215,20 +191,17 @@ class mp3eyeD3metadata(metadata):
 
         if mp3info:
             self.title = mp3info.getTitle()
-            self.title = self.title.encode(localecharset, 'replace')
             self.title = MP3Info._strip_zero(self.title)
 
             self.album = mp3info.getAlbum()
-            self.album = self.album.encode(localecharset, 'replace')
             self.album = MP3Info._strip_zero(self.album)
 
             self.artist = mp3info.getArtist()
-            self.artist = self.artist.encode(localecharset, 'replace')
             self.artist = MP3Info._strip_zero(self.artist)
 
             self.year = mp3info.getYear()
             if self.year:
-                self.year = self.year.encode(localecharset, 'replace')
+                self.year = int(self.year)
 
             try:
                 self.genre = mp3info.getGenre()
@@ -358,17 +331,11 @@ class flacmetadata(metadata):
                 comment = flac.metadata.VorbisComment(block).comments
                 id3get = lambda key, default: getattr(comment, key, default)
                 self.title = id3get('TITLE', "")
-                self.title = self.title.encode(localecharset, 'replace')
                 self.album = id3get('ALBUM', "")
-                self.album = self.album.encode(localecharset, 'replace')
                 self.artist = id3get('ARTIST', "")
-                self.artist = self.artist.encode(localecharset, 'replace')
                 self.year = id3get('DATE', "")
-                self.year = self.year.encode(localecharset, 'replace')
                 self.genre  = id3get('GENRE', "")
-                self.genre = self.genre.encode(localecharset, 'replace')
                 self.tracknr = id3get('TRACKNUMBER', "")
-                self.tracknr = self.tracknr.encode(localecharset, 'replace')
             elif block.type == flac.metadata.STREAMINFO:
                 streaminfo = block.data.stream_info
                 self.length = streaminfo.total_samples / streaminfo.sample_rate

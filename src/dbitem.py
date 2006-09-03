@@ -17,7 +17,7 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-import os.path, re, string, sys, time
+import os, os.path, re, string, sys, time
 import log, metadata
 import encoding
 
@@ -64,7 +64,7 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     bitrate = None
     samplerate = None
     is_vbr = None
-    size = None
+    size = os.stat(path).st_size
     replaygain_track_gain = None
     replaygain_track_peak = None
     replaygain_album_gain = None
@@ -128,7 +128,6 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         bitrate = md.bitrate
         samplerate = md.samplerate
         is_vbr = md.is_vbr
-        size = md.size
         replaygain_track_gain = md.replaygain_track_gain
         replaygain_track_peak = md.replaygain_track_peak
         replaygain_album_gain = md.replaygain_album_gain

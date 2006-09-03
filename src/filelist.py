@@ -27,9 +27,8 @@ class filelist(slist.slist):
     def __init__(self, win, songdbids):
         slist.slist.__init__(self, win, config.filelistwindow.scrollmode == "page")
 	
-	basefilters = filters=item.filters(())
-	basefilters = basefilters.filtered(item.tagfilter(42, "G:Podcast", inverted=True))
-	basefilters = basefilters.filtered(item.tagfilter(4, "G:Classical", inverted=True))
+	basefilters = filters=item.filters((item.tagfilter(42, "G:Podcast", inverted=True),
+					    item.tagfilter(4, "G:Classical", inverted=True)))
 
         self.basedir = item.basedir(songdbids, basefilters)
 	# self.basedir = item.basedir(songdbids)
@@ -125,18 +124,20 @@ class filelist(slist.slist):
 
     # event handler
 
-    # XXX be more specific in the following
     def artistschanged(self, event):
-        self.updatedir()
-        self.win.update()
+	if isinstance( self.dir[-1], item.basedir):
+	    self.updatedir()
+	    self.win.update()
 
     def albumschanged(self, event):
-        self.updatedir()
-        self.win.update()
+	if isinstance(self.dir[-1], (item.albums, item.artist, item.compilations)):
+	    self.updatedir()
+	    self.win.update()
 
     def tagschanged(self, event):
-        self.updatedir()
-        self.win.update()
+	if isinstance(self.dir[-1], item.tags):
+	    self.updatedir()
+	    self.win.update()
 
     def dbplaylistchanged(self, event):
         #if (isinstance(self.dir[-1], item.artist) and

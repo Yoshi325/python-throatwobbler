@@ -182,10 +182,10 @@ class artistfilter(hiddenfilter):
         hiddenfilter.__init__(self, "artist_id", artist_id)
 
     def SQL_WHERE_string(self):
-	return "artists.id = ?"
+	return "artists.id = ? OR songs.album_artist_id = ?"
 
     def SQLargs(self):
-	return [self.artist_id]
+	return [self.artist_id, self.artist_id]
 
 
 class albumfilter(hiddenfilter):
@@ -253,8 +253,17 @@ class filters(tuple):
 	else:
 	    return ""
 
-    def filtered(self, filter):
+    def added(self, filter):
 	return filters(self + (filter,))
+
+    def removed(self, filterclass):
+	return filters(tuple([f for f in self if not isinstance(f, filterclass)]))
+
+    def contains(self, filterclass):
+	for f in self:
+	    if isinstance(f, filterclass):
+		return True
+	return False
 
     def SQL_JOIN_string(self):
 	return "\n".join([filter.SQL_JOIN_string() for filter in self])
@@ -498,7 +507,8 @@ class artist(diritem):
         self.songdbid = songdbid
         self.id = id
         self.name = name
-        self.filters = filters.filtered(artistfilter(id))
+
+        self.filters = filters.removed(compilationfilter).added(artistfilter(id))
 
     def __repr__(self):
         return "artist(%s) in %s (filtered: %s)" % (self.name, self.songdbid, repr(self.filters))
@@ -558,7 +568,7 @@ class album(diritem):
         self.id = id
         self.artist = artist
         self.name = name
-        self.filters = filters.filtered(albumfilter(id))
+        self.filters = filters.added(albumfilter(id))
 
     def __repr__(self):
         return "album(%s) in %s" % (self.id, self.songdbid)
@@ -815,7 +825,7 @@ class albums(totaldiritem):
 
 class compilations(albums):
     def __init__(self, songdbid, filters):
-	filters = filters.filtered(compilationfilter(True))
+	filters = filters.added(compilationfilter(True))
 	albums.__init__(self, songdbid, filters)
 	self.name = _("Compilations")
 
@@ -1088,7 +1098,7 @@ class basedir(totaldiritem):
             self.songdbid = None
             self.type = "virtual"
             self.basedir = None
-        self.filters = filters # .filtered(tagfilter(19, "a"))
+        self.filters = filters # .added(tagfilter(19, "a"))
         self.maxnr = 100
         self.nrartists = None
 	self.nrsongs = None
@@ -1132,7 +1142,7 @@ class basedir(totaldiritem):
 
     def getcontents(self):
 	# do not show artists which only appear in compilations
-	filters = self.filters.filtered(compilationfilter(False))
+	filters = self.filters.added(compilationfilter(False))
         aartists = hub.request(requests.getartists(self.songdbid, sort=self.cmpitem,
                                                    filters=filters))
 	self.nrartists = len(aartists)
@@ -1201,6 +1211,6 @@ class index(basedir):
 class tag(index):
     def __init__(self, songdbid, id, name, filters):
 	self.id = id
-	filters = filters.filtered(tagfilter(id, name))
+	filters = filters.added(tagfilter(id, name))
 	index.__init__(self, [songdbid], _("Tag:"), name, filters)
 	
