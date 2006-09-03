@@ -313,8 +313,9 @@ class songdbmanager(service.service):
         # also reset the sort function as otherwise
         # sending over the network (which requires pickling the
         # request) fails
-        nrequest.sort = False
+	# XXX we disable this at the moment
         if request.songdbid is None:
+	    nrequest.sort = False
             resulthash = {}
             for songdbid in self.songdbids:
                 nrequest.songdbid = songdbid

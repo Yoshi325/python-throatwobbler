@@ -327,7 +327,7 @@ class song(item):
 
     def _updatesong(self):
         """ notify database of song changes """
-        hub.notify(events.updatesong(self.songdbid, self))
+        hub.notify(events.updatesong(self.songdbid, None, self))
 
     def getid(self):
         return self.id
@@ -588,18 +588,20 @@ class album(diritem):
     def __repr__(self):
         return "album(%s) in %s" % (self.id, self.songdbid)
 
-    def cmpitem(x, y):
-        return ( x.disknumber and y.disknumber and cmp(x.disknumber, y.disknumber) or
-                 x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
-                 cmp(x.name, y.name) or
-                 cmp(x.path, y.path) )
-    cmpitem = staticmethod(cmpitem)
+    class _orderclass:
+	def cmpitem(self, x, y):
+	    return ( x.disknumber and y.disknumber and cmp(x.disknumber, y.disknumber) or
+		     x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
+		     cmp(x.title, y.title) )
+	def SQL_string(self):
+	    return "ORDER BY songs.disknumber, songs.tracknumber, songs.title"
+    order = _orderclass()
 
     def getid(self):
         return self.id
 
     def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
+        songs = hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters))
         return songs
 
     def getcontentsrecursive(self):
@@ -968,15 +970,18 @@ class songs(diritem):
             self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
         return "[%s (%d)]/" % (self.name, self.nrsongs)
 
-    def cmpitem(x, y):
-        return ( cmp(x.title, y.title) or
-                 cmp(x.album, y.album) or
-                 cmp(x.path, y.path)
-                 )
-    cmpitem = staticmethod(cmpitem)
+    class _orderclass:
+        def cmpitem(self, x, y):
+	    return ( cmp(x.title, y.title) or
+		     cmp(x.album, y.album) or
+		     cmp(x.path, y.path)
+		     )
+	def SQL_string(self):
+	    return "ORDER BY songs.title, albums.name, songs.url"
+    order = _orderclass()
 
     def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.cmpitem))
+        songs = hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.order))
         self.nrsongs = len(songs)
         return songs
 

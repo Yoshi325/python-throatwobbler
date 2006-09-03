@@ -495,10 +495,11 @@ class songdb(service.service):
     def _gettag_id(self, tag_name):
 	return self.con.execute("SELECT id FROM tags WHERE name = ?", [tag_name]).fetchone()[0]
 
-    def _getsongs(self, filters=None):
+    def _getsongs(self, sort=None, filters=None):
         """ returns songs filtered according to filters"""
 	joinstring = filters and filters.SQL_JOIN_string() or ""
 	wherestring = filters and filters.SQL_WHERE_string() or ""
+	orderstring = sort and sort.SQL_string() or ""
 	args = filters and filters.SQLargs() or []
         select = """SELECT DISTINCT songs.id              AS song_id, 
 	                            songs.album_id        AS album_id, 
@@ -508,8 +509,10 @@ class songdb(service.service):
                     JOIN artists  ON (songs.artist_id = artists.id)
                     JOIN albums   ON (songs.album_id = albums.id) 
 		    %s
-		    %s""" % (joinstring, wherestring)
-	log.debug(select)
+		    %s
+		    %s
+                    """ % (joinstring, wherestring, orderstring)
+	# log.debug(select)
         return  [item.song(self.id, row["song_id"], row["album_id"], row["artist_id"], row["album_artist_id"])
 		 for row in self.con.execute(select, args)]
 
@@ -566,10 +569,8 @@ class songdb(service.service):
 		   ORDER BY tags.name COLLATE NOCASE""" % (joinstring, wherestring)
 	# JOIN taggings ON (taggings.tag_id = tags.id)
 	# log.debug(select)
-        r = [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
+        return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
                 for row in self.con.execute(select, args)]
-	log.debug(repr(r))
-	return r
 
     def _getratings(self, filters):
         """return all stored ratings"""
@@ -720,7 +721,7 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
-            return self._getsongs(request.filters)
+            return self._getsongs(request.sort, request.filters)
         except (KeyError, AttributeError, TypeError):
             log.debug_traceback()
             return []
