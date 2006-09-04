@@ -17,6 +17,8 @@ if _localecharset in [None, 'ascii', 'ANSI_X3.4-1968']:
     _localecharset = _fallbacklocalecharset
 
 _fs_encoding = sys.getfilesystemencoding()
+if _fs_encoding in [None, 'ascii', 'ANSI_X3.4-1968']:
+    _fs_encoding = _fallbacklocalecharset
 
 # exported functions
 
