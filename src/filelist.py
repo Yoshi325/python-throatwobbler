@@ -21,6 +21,7 @@ import config
 import events, requests, hub
 import item
 import slist
+import log
 
 class filelist(slist.slist):
 
@@ -31,10 +32,11 @@ class filelist(slist.slist):
 	    tag_id = hub.request(requests.gettag_id(songdbids[0], tag_name))
 	    if tag_id:
 		return item.tagfilter(tag_id, tag_name, inverted)
-	    raise RuntimeError("tag '%s' not known" % tag_name)
+            else:
+	        log.info("filter tag '%s' not known" % tag_name)
 	
-
-	basefilters = item.filters((tagfilter("G:Podcast", True),))
+        filters = [tagfilter("G:Podcast", True)]
+	basefilters = item.filters(tuple(filter for filter in filters if filter))
 
         self.basedir = item.basedir(songdbids, basefilters)
 	# self.basedir = item.basedir(songdbids)
