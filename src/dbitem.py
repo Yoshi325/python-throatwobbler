@@ -48,9 +48,9 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
 
     # song metadata
     title = u""
-    album = u""
-    artist = u""
-    album_artist = u""
+    album = None
+    artist = None
+    album_artist = None
     year = None
     genre = u""
     comment = u""
@@ -153,15 +153,15 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
     if not album:
         if fnalbum:
             album = fnalbum
-        else:
-            album = UNKNOWN
+        #else:
+        #    album = UNKNOWN
 
     # nor empty artist names
     if not artist:
         if fnartist:
             artist = fnartist
-        else:
-            artist = UNKNOWN
+        #else:
+        #    artist = UNKNOWN
 
     # nor empty genres
     if not genre:
@@ -175,17 +175,21 @@ def songfromfile(relpath, basedir, tracknrandtitlere, capitalize, stripleadingar
         except:
             year = None
 
-    artist = artist.strip()
-    album = album.strip()
+    if artist:
+        artist = artist.strip()
+    if album:
+        album = album.strip()
     title = title.strip()
 
     if capitalize:
         # normalize artist, album and title
-        artist = string.capwords(artist)
-        album = string.capwords(album)
+        if artist:
+           artist = string.capwords(artist)
+        if album:
+            album = string.capwords(album)
         title = string.capwords(title)
 
-    if stripleadingarticle:
+    if stripleadingarticle and artist:
         # strip leading "The " in artist names, often used inconsistently
         if artist.startswith("The ") and len(artist)>4:
             artist = artist[4:]

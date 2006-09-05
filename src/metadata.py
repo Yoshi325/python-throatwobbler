@@ -30,12 +30,12 @@ class metadata:
     def __init__(self, path):
         """ parse metadata of file """
         self.title = u""
-        self.album = u""
-        self.artist = u""
-        self.year = u""
-        self.genre = u""
-        self.comment = u""
-        self.lyrics = u""
+        self.album = None
+        self.artist = None
+        self.year = None
+        self.genre = None
+        self.comment = None
+        self.lyrics = None
         self.tracknumber = None
         self.trackcount = None
         self.disknumber = None
