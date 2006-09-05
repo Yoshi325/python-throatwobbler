@@ -21,6 +21,7 @@
 import os
 import errno
 import sys
+import random
 import time
 
 from pysqlite2 import dbapi2 as sqlite
@@ -119,7 +120,21 @@ songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
 songcolumns_all = songcolumns_woindex + songcolumns_indices
 
+#
+# weight function for random sorting
+#
 
+def random_weight(rating, date_lastplayed):
+    rating = rating or 3
+    if date_lastplayed:
+	# Simple heuristic algorithm to consider song ratings
+	# for random selection. Certainly not optimal!
+	last = max(0, (time.time()-song.date_lastplayed)/60)
+	rating -= 2 * math.exp(-last/lastplayedscale)
+	if rating < 1:
+	    rating = 1
+
+    return random.random() * 2**rating
 #
 # statistical information about songdb
 #
@@ -207,6 +222,9 @@ class songdb(service.service):
         log.debug("dbfile: '%s'" % self.dbfile)
         self.con = sqlite.connect(self.dbfile)
         self.con.row_factory = sqlite.Row
+	# register random weight function
+
+	self.con.create_function("random_weight", 2, random_weight)
 
         dbversion = self.con.execute("PRAGMA user_version").fetchone()[0]
         log.debug("Found on-disk db version: %d" % dbversion)

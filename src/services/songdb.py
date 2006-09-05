@@ -60,10 +60,10 @@ def _genrandomchoice(songs):
     while length < config.general.randominsertlength:
         for song in sample:
             rating = song.rating or 3
-            if song.lastplayed:
+            if song.date_lastplayed:
                 # Simple heuristic algorithm to consider song ratings
                 # for random selection. Certainly not optimal!
-                last = max(0, (currenttime-song.lastplayed[-1])/60)
+                last = max(0, (currenttime-song.date_lastplayed)/60)
                 rating -= 2 * math.exp(-last/lastplayedscale)
                 if rating < 1:
                     rating = 1
@@ -218,12 +218,22 @@ class songdbmanager(service.service):
 
         Note that the result has to be a list of songs.
         """
+	class _orderclass:
+	    def SQL_string(self):
+		return "ORDER BY random_weight(songs.rating, songs.date_lastplayed) LIMIT 10"
+	randomorder = _orderclass()
         def newrequesthandler(self, request):
-            songs = requesthandler(self, request)
             if request.random:
-                return _genrandomchoice(songs)
-            else:
-                return songs
+		request.sort = randomorder
+	    songs = requesthandler(self, request)
+	    return songs
+	    result = []
+	    length = 0
+	    for song in songs:
+		result.append(song)
+		length += song.length
+		if length >= config.general.randominsertlength or len(result) >= 10:
+		    return result
         return newrequesthandler
 
     def sortresult(requesthandler):
@@ -308,8 +318,6 @@ class songdbmanager(service.service):
     def dbrequestsongs(self, request):
         # make a copy of the original request, because we will subsequently modify it
         nrequest = copy.copy(request)
-        # we do not care about the random choice flag, this is done by the method decorator
-        nrequest.random = False
         # also reset the sort function as otherwise
         # sending over the network (which requires pickling the
         # request) fails

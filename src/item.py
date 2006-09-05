@@ -943,7 +943,8 @@ class songs(diritem):
     getcontentsrecursivesorted = getcontentsrecursive = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, filters=self.filters, random=True))
+        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, filters=self.filters, 
+					     random=True))
 
     def getheader(self, item):
         if item:
