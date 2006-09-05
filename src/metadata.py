@@ -63,6 +63,7 @@ class song_metadata:
     date_lastplayed = None
     playcount = 0
     rating = None
+
     def __init__(self):
         self.tags = []
         self.date_updated = self.date_added = time.time()
