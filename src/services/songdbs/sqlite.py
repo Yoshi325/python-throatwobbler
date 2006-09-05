@@ -59,7 +59,7 @@ CREATE TABLE taggings (
 
 CREATE TABLE playstats (
   song_id        INTEGER CONSTRAINT fk_song_id REFERENCES songs(id),
-  playtime       TIMESTAMP
+  date_played    TIMESTAMP
 );
 
 CREATE TABLE songs (
@@ -108,14 +108,16 @@ CREATE INDEX taggings_song_id ON taggings(song_id);
 CREATE INDEX taggings_tag_id ON taggings(tag_id);
 """
 
-songcolumns = ["url", "type", "title", "album_id",
-               "artist_id", "album_artist_id", "year", "comment", "lyrics",
-               "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-               "compilation", "bitrate", "is_vbr", "samplerate", 
-               "replaygain_track_gain", "replaygain_track_peak",
-               "replaygain_album_gain", "replaygain_album_peak", 
-               "size", "compilation", "date_added", "date_updated", "date_lastplayed", 
-               "playcount", "rating"]
+songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
+		       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+		       "compilation", "bitrate", "is_vbr", "samplerate", 
+		       "replaygain_track_gain", "replaygain_track_peak",
+		       "replaygain_album_gain", "replaygain_album_peak", 
+		       "size", "compilation", "date_added", "date_updated", "date_lastplayed", 
+		       "playcount", "rating"]
+
+songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
+songcolumns_all = songcolumns_woindex + songcolumns_indices
 
 
 #
@@ -268,6 +270,8 @@ class songdb(service.service):
 
     def _checkremoveindex(self, indextable, reftable, indexnames, value):
         "remove entry from indextable if no longer referenced in reftable and return whether this has happened"
+	if value is None:
+	    return False
         wheres = " OR ".join(["%s = ?" % indexname for indexname in indexnames])
         num = self.cur.execute("SELECT count(*) FROM %s WHERE (%s)" % (reftable, wheres),
                                [value]*len(indexnames)).fetchone()[0]
@@ -289,18 +293,28 @@ class songdb(service.service):
         self._txn_begin()
         try:
             # query and register artist, album_artist and album
-            song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.artist])
-            song.album_artist_id, newartist2 = self._queryregisterindex("artists", ["name"], 
-                                                                        [song.album_artist])
-            newartist = newartist or newartist2
-
-            song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
-                                                               [song.album_artist_id, song.album])
+	    if song.artist:
+		song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.artist])
+	    else:
+		song.artist_id, newartist = None, False
+	    if song.album_artist:
+		song.album_artist_id, newartist2 = self._queryregisterindex("artists", ["name"], 
+									    [song.album_artist])
+		newartist = newartist or newartist2
+		if song.album:
+		    song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
+								       [song.album_artist_id, song.album])
+		else:
+		    song.album_id, newalbum = None, False
+	    else:
+		song.album_artist_id = None
+		song.album_id = None
+		newalbum = False
 
             # register song
-            self.cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns),
-                                                                     ",".join(["?"] * len(songcolumns))),
-                             [getattr(song, columnname) for columnname in songcolumns])
+            self.cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns_all),
+                                                                     ",".join(["?"] * len(songcolumns_all))),
+                             [getattr(song, columnname) for columnname in songcolumns_all])
 
             self.cur.execute("SELECT id FROM songs WHERE url = ?", (song.url,))
             r = self.cur.fetchone()
@@ -437,6 +451,12 @@ class songdb(service.service):
     # !!! It is not save to call any of the following methods when a transaction is active !!!
     ##########################################################################################
 
+    _song_select = """SELECT %s, artists.name AS artist, albums.name AS album 
+                      FROM songs 
+                      JOIN albums ON albums.id == album_id
+                      JOIN artists ON artists.id == songs.artist_id
+                      """ % ", ".join([c for c in songcolumns_all if c!="artist_id"])
+
     def _getsong(self, song_id=None, song_url=None):
         """return song entry with given song_id or url"""
         if song_id is not None:
@@ -449,13 +469,9 @@ class songdb(service.service):
             args = [song_url]
         else:
             raise KeyError
-        select = """SELECT %s, artists.name AS artist, albums.name AS album 
-                    FROM songs 
-                    JOIN albums ON albums.id == album_id
-                    JOIN artists ON artists.id == songs.artist_id
-                    %s
-                    """ % (", ".join([c for c in songcolumns if c!="artist_id"]), wherestring)
+
         try:
+	    select = "%s%s" % (self._song_select, wherestring)
             r = self.con.execute(select, args).fetchone()
             if r:
                 # fetch tags
@@ -468,19 +484,17 @@ class songdb(service.service):
 
                 # fetch album artist
                 select = """SELECT name FROM artists WHERE id = ?"""
-                album_artist_name = self.con.execute(select, (r["album_artist_id"],)).fetchone()["name"]
+		if r["album_artist_id"] is not None:
+		    album_artist = self.con.execute(select, (r["album_artist_id"],)).fetchone()["name"]
 
-                return dbitem.song(
-                    r["url"], r["type"], r["title"], r["album"], r["artist"], album_artist_name, 
-                    r["year"], r["comment"], 
-                    r["lyrics"], tags,
-                    r["tracknumber"], r["trackcount"], r["disknumber"], r["diskcount"], 
-                    r["compilation"], r["length"], r["bitrate"],
-                    r["samplerate"], r["is_vbr"], r["size"], r["replaygain_track_gain"], 
-                    r["replaygain_track_peak"],
-                    r["replaygain_album_gain"], r["replaygain_album_peak"],
-                    r["date_added"], r["date_updated"], r["date_lastplayed"], 
-                    r["playcount"], r["rating"])
+                md = metadata.song_metadata()
+		for field in songcolumns_woindex:
+		    md[field] = r[field]
+		md.tags = tags
+		md.album = r["album"]
+		md.artist = r["artist"]
+		md.album_artist = album_artist
+		return md
             else:
                 log.debug("Song '%r' not found in database" % args[0])
                 return None

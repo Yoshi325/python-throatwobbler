@@ -19,7 +19,7 @@
 
 
 import os.path, string, time
-import config, dbitem, metadata
+import config, metadata
 import events, hub, requests
 import helper
 
@@ -43,8 +43,7 @@ def _mergefilters(lines, filters):
 
 class item(object):
     """ base class for various items presentend in the database and
-    playlist windows (as opposed to those stored in the database
-    itself (cf. module dbitem)"""
+    playlist windows."""
 
     def __init__(self, songdbid):
         """ each item has to be bound to a specific database
@@ -482,12 +481,12 @@ class song(item):
         return formatstring % d
 
     def play(self):
-        self.song.play()
+        # self.song.play()
         self._updatesong()
 
     def unplay(self):
         """ forget last time song has been played (e.g., because playback was not complete) """
-        self.song.unplay()
+        # self.song.unplay()
         self._updatesong()
 
     def rate(self, rating):
@@ -547,9 +546,7 @@ class artist(diritem):
         return self.name + self.filters.getname()
 
     def getinfo(self):
-	if self.name == dbitem.UNKNOWN:
-	    artistname = _("Unknown")
-	elif self.name == dbitem.VARIOUS:
+	if self.name == metadata.VARIOUS:
 	    # this should not happen, actually
 	    artistname = _("Various")
 	else:
@@ -614,13 +611,11 @@ class album(diritem):
         return s + self.filters.getname()
 
     def getinfo(self):
-	if self.artist == dbitem.UNKNOWN:
-	    artistname = _("Unknown")
-	elif self.artist == dbitem.VARIOUS:
+	if self.artist == metadata.VARIOUS:
 	    artistname = _("Various")
 	else:
 	    artistname = self.artist
-	albumname =  self.name == dbitem.UNKNOWN and _("Unknown") or self.name
+	albumname =  self.name 
         l = [[_("Artist:"), artistname, "", ""],
              [_("Album:"), albumname, "", ""]]
         return _mergefilters(l, self.filters)

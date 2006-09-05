@@ -19,39 +19,218 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-import struct
+import os.path, re, struct, time
 import log
 
+# artist name for compilations
+VARIOUS = u"___VARIOUS___"
+
+tracknrandtitlere = re.compile("^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
+
 #
-# metadata decoder class and simple decoder registry
+# song metadata class
 #
 
-class metadata:
-    def __init__(self, path):
-        """ parse metadata of file """
-        self.title = u""
-        self.album = None
-        self.artist = None
-        self.year = None
-        self.genre = None
-        self.comment = None
-        self.lyrics = None
-        self.tracknumber = None
-        self.trackcount = None
-        self.disknumber = None
-        self.diskcount = None
-        self.compilation = False
-        self.length = 0
-        self.version = None
-        self.layer = None
-        self.is_vbr = None
-        self.samplerate = None
-        self.bitrate = None
+class song_metadata:
 
-        self.replaygain_track_gain = None
-        self.replaygain_track_peak = None
-        self.replaygain_album_gain = None
-        self.replaygain_album_peak = None
+    url = None
+    type = None
+    title = None
+    album = None
+    artist = None
+    album_artist = None
+    tags = None
+    year = None
+    comment = None
+    lyrics = None
+    tracknumber = None
+    trackcount = None
+    disknumber = None
+    diskcount = None
+    compilation = False
+    length = None
+    size = None
+    bitrate = None
+    is_vbr = None
+    samplerate = None
+    length = None
+    replaygain_track_gain = None    
+    replaygain_track_peak = None
+    replaygain_album_gain = None    
+    replaygain_album_peak = None
+    date_added = None
+    date_updated = None
+    date_lastplayed = None
+    playcount = 0
+    rating = None
+    def __init__(self):
+        self.tags = []
+        self.date_updated = self.date_added = time.time()
+
+    #def __hash__(self):
+	#    return hash(self.url)
+
+    def __repr__(self):
+        return "metadata(%r)" % (self.url)
+
+    def __getitem__(self, key):
+	return getattr(self, key)
+
+    def __setitem__(self, key, value):
+	return setattr(self, key, value)
+
+    # XXX to be moved somewhere else
+
+    def replaygain(self, profiles):
+       # the following code is adapted from quodlibet
+       """Return the recommended Replay Gain scale factor.
+
+       profiles is a list of Replay Gain profile names ('album',
+       'track') to try before giving up. The special profile name
+       'none' will cause no scaling to occur.
+       """
+       for profile in profiles:
+           if profile is "none":
+               return 1.0
+           try:
+               db = getattr(self, "replaygain_%s_gain" % profile)
+               peak = getattr(self, "replaygain_%s_peak" % profile)
+           except AttributeError:
+               continue
+           else:
+               if db is not None and peak is not None:
+                   scale = 10.**(db / 20)
+                   if scale * peak > 1:
+                       scale = 1.0 / peak # don't clip
+                   return min(15, scale)
+       else:
+           return 1.0
+
+#
+# factory function for song metadata
+#
+
+def metadata_from_file(relpath, basedir, 
+		       tracknrandtitlere, capitalize, stripleadingarticle, removeaccents):
+    """ create song metadata from given file with relative (to basedir) path relpath """
+    
+    path = os.path.normpath(os.path.join(basedir, relpath))
+    if not os.access(path, os.R_OK):
+        raise IOError("cannot read song")
+
+    md = song_metadata()
+
+    read_path_metadata(md, relpath, tracknrandtitlere)
+
+    try:
+        metadatadecoder = getmetadatadecoder(type)
+    except:
+        raise RuntimeError("Support for %s songs not enabled" % type)
+
+    try:
+        log.debug("reading metadata for %r" % path)
+        metadatadecoder(md, path)
+        log.debug("metadata for %r read successfully" % path)
+    except:
+        log.warning("could not read metadata for %r" % path)
+        log.debug_traceback()
+
+    regularize_metadata(md, capitalize, stripleadingarticle, removeaccents)
+    return md
+
+#
+# various helper functions for different sub tasks 
+#
+
+def read_path_metadata(md, relpath, tracknrandtitlere):
+    relpath = os.path.normpath(relpath)
+    
+    md.url = u"file://" + encoding.decode_path(relpath)
+    md.type =  metadata.gettype(os.path.splitext(relpath)[1])
+    md.size = os.stat(path).st_size
+
+    # guesses for title and tracknumber using the filename
+    match = re.match(tracknrandtitlere, os.path.basename(path))
+    if match:
+        fntracknumber = int(match.group(1))
+        fntitle = match.group(2)
+    else:
+        fntracknumber = None
+        fntitle = os.path.basename(path)
+        if fntitle.lower().endswith(".mp3") or fntitle.lower().endswith(".ogg"):
+            fntitle = fntitle[:-4]
+
+    first, second = os.path.split(os.path.dirname(relpath))
+    if first and second and not os.path.split(first)[0]:
+        fnartist = first
+        fnalbum = second
+    else:
+        fnartist = fnalbum = ""
+
+    # now convert this to unicode strings using the standard filesystem encoding
+    fntitle = encoding.decode_path(fntitle)
+    fnartist = encoding.decode_path(fnartist)
+    fnalbum = encoding.decode_path(fnalbum)
+
+    fntitle = fntitle.replace("_", " ")
+    fnalbum = fnalbum.replace("_", " ")
+    fnartist = fnartist.replace("_", " ")
+
+    if fntitle:
+	md.title = fntitle
+    if fnartist:
+	md.artist = fnartist
+    if fnalbum:
+	md.album = fnalbum
+    if fntracknumber:
+	md.tracknumber = fntracknumber
+
+    if "Compilations" in path:
+        md.compilation = True
+
+
+def regularize_metadata(md, capitalize, stripleadingarticle, removeaccents):
+    if md.title:
+	md.title = md.title.strip()
+    if md.artist:
+        md.artist = md.artist.strip()
+    if md.album:
+        md.album = md.album.strip()
+
+    if capitalize:
+        if md.title:
+            md.title = string.capwords(md.title)
+        if md.artist:
+           md.artist = string.capwords(md.artist)
+        if md.album:
+            mdalbum = string.capwords(md.album)
+
+    if stripleadingarticle and md.artist:
+        # strip leading "The " in artist names, often used inconsistently
+        if md.artist.startswith("The ") and len(md.artist)>4:
+            md.artist = md.artist[4:]
+
+    #if removeaccents:
+    #    translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
+    #                                        'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
+    #    artist = string.translate(artist, translationtable)
+    #    album = string.translate(album, translationtable)
+    #    title = string.translate(title, translationtable)
+
+    if md.album_artist is None:
+	if compilation: 
+	    md.album_artist = VARIOUS
+	else:
+	    md.album_artist = md.artist
+
+    if md.year:
+        md.tags.append("D:%d" % (10*(md.year//10)))
+
+
+#
+# various tag readers for different file formats
+#
+
 
 # mapping: file type -> (metadata, decoder class, file extension)
 _fileformats = {}
@@ -64,7 +243,7 @@ def getmetadatadecoder(type):
 
 def getextensions():
     result = []
-    for decoderclass, extension in _fileformats.values():
+    for decoder_function, extension in _fileformats.values():
         result.append(extension)
     return result
 
@@ -78,28 +257,27 @@ def gettype(extension):
 # Ogg Vorbis metadata decoder
 #
 
-class vorbismetadata(metadata):
-    def __init__(self, path):
-        vf = ogg.vorbis.VorbisFile(path)
-	# XXX to be updated
-        id3get = vf.comment().as_dict().get
-        self.title = id3get('TITLE', [""])[0]
-        self.album = id3get('ALBUM', [""])[0]
-        self.artist = id3get('ARTIST', [""])[0]
-        self.year = int(id3get('DATE', [""])[0])
-        self.genre  = id3get('GENRE', [""])[0]
-        self.tracknr = id3get('TRACKNUMBER', [""])[0]
-        self.length = vf.time_total(0)
+def read_vorbis_metadata(md, path):
+    vf = ogg.vorbis.VorbisFile(path)
+    # XXX to be updated
+    id3get = vf.comment().as_dict().get
+    self.title = id3get('TITLE', [""])[0]
+    self.album = id3get('ALBUM', [""])[0]
+    self.artist = id3get('ARTIST', [""])[0]
+    self.year = int(id3get('DATE', [""])[0])
+    self.genre  = id3get('GENRE', [""])[0]
+    self.tracknr = id3get('TRACKNUMBER', [""])[0]
+    self.length = vf.time_total(0)
 
-        # example format according to vorbisgain documentation
-        # REPLAYGAIN_TRACK_GAIN=-7.03 dB
-        # REPLAYGAIN_TRACK_PEAK=1.21822226
-        # REPLAYGAIN_ALBUM_GAIN=-6.37 dB
-        # REPLAYGAIN_ALBUM_PEAK=1.21822226
+    # example format according to vorbisgain documentation
+    # REPLAYGAIN_TRACK_GAIN=-7.03 dB
+    # REPLAYGAIN_TRACK_PEAK=1.21822226
+    # REPLAYGAIN_ALBUM_GAIN=-6.37 dB
+    # REPLAYGAIN_ALBUM_PEAK=1.21822226
 
 try:
     import ogg.vorbis
-    registerfileformat("ogg", vorbismetadata, ".ogg")
+    registerfileformat("ogg", read_vorbis_metadata, ".ogg")
     log.info("Ogg Vorbis support enabled")
 except ImportError:
     log.info("Ogg Vorbis support disabled, since ogg.vorbis module is not present")
@@ -118,171 +296,139 @@ def _splitnumbertotal(s):
 # ID3 metadata decoder (using mutagen module)
 #
 
-class mp3mutagenmetadata(metadata):
-    framemapping = { "TIT2": "title",
-                     "TALB": "album",
-                     "TPE1": "artist",
-                     "TDRC": "year",
-		     "COMM": "comment",
-		     "USLT": "lyrics" }
-    def __init__(self, path):
-        metadata.__init__(self, path)
-        mp3 = mutagen.mp3.MP3(path, ID3=ID3hack)
+_mutagen_framemapping = { "TIT2": "title",
+			  "TALB": "album",
+			  "TPE1": "artist",
+			  "TDRC": "year",
+			  "COMM": "comment",
+			  "USLT": "lyrics" }
 
-        # we definitely want the length of the MP3 file, even if no ID3 tag is present,
-        # so extract this info before anything goes wrong
-        self.length = mp3.info.length
+def read_mp3_mutagen_metadata(md, path):
 
-        self.version = mp3.info.version
-        self.layer = mp3.info.layer
-        self.samplerate = mp3.info.sample_rate
-        self.bitrate = mp3.info.bitrate
+    mp3 = mutagen.mp3.MP3(path, ID3=ID3hack)
 
-        if mp3.tags:
-            for frame in mp3.tags.values():
-                if frame.FrameID == "TCON":
-                    self.genre = " ".join(frame.genres)
-                elif frame.FrameID == "RVA2":
-                    if frame.channel == 1:
-                        if frame.desc == "album":
-                            basename = "replaygain_album_"
-                        else:
-                            # for everything else, we assume it's track gain
-                            basename = "replaygain_track_"
-                        setattr(self, basename+"gain", frame.gain)
-                        setattr(self, basename+"peak", frame.peak)
-                elif frame.FrameID == "TLEN":
-                    try:
-                        self.length = int(+frame/1000)
-                    except:
-                        pass
-                elif frame.FrameID == "TRCK":
-                    self.tracknumber, self.trackcount = _splitnumbertotal(frame.text[0])
-                elif frame.FrameID == "TPOS":
-                    self.disknumber, self.diskcount = _splitnumbertotal(frame.text[0])
-                #elif frame.FrameID == "TCMP":
-                #   self.compilation = True
-                else:
-                    name = self.framemapping.get(frame.FrameID, None)
-                    if name:
-                        text = " ".join(map(unicode, frame.text))
-                        setattr(self, name, text)
-        else:
-            log.debug("Could not read ID3 tags for song '%r'" % path)
+    # we definitely want the MP3 header data, even if no ID3 tag is present,
+    # so extract this info before anything goes wrong
+    md.length = mp3.info.length
+    md.samplerate = mp3.info.sample_rate
+    md.bitrate = mp3.info.bitrate
+
+    if mp3.tags:
+	for frame in mp3.tags.values():
+	    if frame.FrameID == "TCON":
+		genre = " ".join(frame.genres)
+		if genre:
+		    md.tags.append("G:%s" % genre)
+	    elif frame.FrameID == "RVA2":
+		if frame.channel == 1:
+		    if frame.desc == "album":
+			basename = "replaygain_album_"
+		    else:
+			# for everything else, we assume it's track gain
+			basename = "replaygain_track_"
+		    md[basename+"gain"] = frame.gain
+		    md[basename+"peak"] = frame.peak
+	    elif frame.FrameID == "TLEN":
+		try:
+		    # we overwrite the length which maybe has been defined above
+		    md.length = int(+frame/1000)
+		except:
+		    pass
+	    elif frame.FrameID == "TRCK":
+		md.tracknumber, md.trackcount = _splitnumbertotal(frame.text[0])
+	    elif frame.FrameID == "TPOS":
+		md.disknumber, md.diskcount = _splitnumbertotal(frame.text[0])
+	    #elif frame.FrameID == "TCMP":
+	    #   self.compilation = True
+	    else:
+		name = self.framemapping.get(frame.FrameID, None)
+		if name:
+		    text = " ".join(map(unicode, frame.text))
+		    md[name] = text
+    else:
+	log.debug("Could not read ID3 tags for song '%r'" % path)
 
 
 #
 # ID3 metadata decoder (using eyeD3 module)
 #
 
-class mp3eyeD3metadata(metadata):
-    def __init__(self, path):
-        metadata.__init__(self, path)
-        mp3file = eyeD3.Mp3AudioFile(path)
-        mp3info = mp3file.getTag()
+def read_mp3_eyeD3_metadata(md, path):
+    mp3file = eyeD3.Mp3AudioFile(path)
+    mp3info = mp3file.getTag()
 
-        # we definitely want the length of the MP3 file, even if no ID3 tag is present,
-        # so extract this info before anything goes wrong
-        self.length = mp3file.getPlayTime()
+    # we definitely want the length of the MP3 file, even if no ID3 tag is present,
+    # so extract this info before anything goes wrong
+    self.length = mp3file.getPlayTime()
 
-        self.is_vbr, bitrate = mp3file.getBitRate()
-        self.bitrate = bitrate * 1000
-        self.samplerate = mp3file.getSampleFreq()
+    self.is_vbr, bitrate = mp3file.getBitRate()
+    self.bitrate = bitrate * 1000
+    self.samplerate = mp3file.getSampleFreq()
 
-        if mp3info:
-            self.title = mp3info.getTitle()
-            self.title = MP3Info._strip_zero(self.title)
+    if mp3info:
+	self.title = mp3info.getTitle()
+	self.title = MP3Info._strip_zero(self.title)
 
-            self.album = mp3info.getAlbum()
-            self.album = MP3Info._strip_zero(self.album)
+	self.album = mp3info.getAlbum()
+	self.album = MP3Info._strip_zero(self.album)
 
-            self.artist = mp3info.getArtist()
-            self.artist = MP3Info._strip_zero(self.artist)
+	self.artist = mp3info.getArtist()
+	self.artist = MP3Info._strip_zero(self.artist)
 
-            self.year = mp3info.getYear()
-            if self.year:
-                self.year = int(self.year)
+	self.year = mp3info.getYear()
+	if self.year:
+	    self.year = int(self.year)
 
-            try:
-                self.genre = mp3info.getGenre()
-                if self.genre:
-                    self.genre = self.genre.getName()
-            except eyeD3.tag.GenreException, e:
-                self.genre = e.msg.split(':')[1].strip()
+	try:
+	    self.genre = mp3info.getGenre()
+	    if self.genre:
+		self.genre = self.genre.getName()
+	except eyeD3.tag.GenreException, e:
+	    self.genre = e.msg.split(':')[1].strip()
 
-            self.tracknumber, self.trackcount = mp3info.getTrackNum()
-            self.disknumber, self.diskcount = mp3info.getDiscNum()
+	self.tracknumber, self.trackcount = mp3info.getTrackNum()
+	self.disknumber, self.diskcount = mp3info.getDiscNum()
 
-            # if the playtime is also in the ID3 tag information, we
-            # try to read it from there
-            if mp3info.frames["TLEN"]:
-                length = None
-                try:
-                    length = int(int(mp3info.frames["TLEN"])/1000)
-                except:
-                    # time in seconds (?), possibly with bad decimal separator, e.g "186,333"
-                    try:
-                        length = int(float(mp3info.frames["TLEN"].replace(",", ".")))
-                    except:
-                        pass
-                if length:
-                    self.length = length
+	# if the playtime is also in the ID3 tag information, we
+	# try to read it from there
+	if mp3info.frames["TLEN"]:
+	    length = None
+	    try:
+		length = int(int(mp3info.frames["TLEN"])/1000)
+	    except:
+		# time in seconds (?), possibly with bad decimal separator, e.g "186,333"
+		try:
+		    length = int(float(mp3info.frames["TLEN"].replace(",", ".")))
+		except:
+		    pass
+	    if length:
+		self.length = length
 
-            for rva2frame in mp3info.frames["RVA2"]:
-                # since eyeD3 currently doesn't support RVA2 frames, we have to decode
-                # them on our own following mutagen
-                desc, rest = rva2frame.data.split("\x00", 1)
-                channel = ord(rest[0])
-                if channel == 1:
-                    gain = struct.unpack('>h', rest[1:3])[0]/512.0
-                    # http://bugs.xmms.org/attachment.cgi?id=113&action=view
-                    rest = rest[3:]
-                    peak = 0
-                    bits = ord(rest[0])
-                    bytes = min(4, (bits + 7) >> 3)
-                    shift = ((8 - (bits & 7)) & 7) + (4 - bytes) * 8
-                    for i in range(1, bytes+1):
-                        peak *= 256
-                        peak += ord(rest[i])
-                    peak *= 2**shift
-                    peak = (float(peak) / (2**31-1))
-                    if desc == "album":
-                        basename = "replaygain_album_"
-                    else:
-                        # for everything else, we assume it's track gain
-                        basename = "replaygain_track_"
-                    setattr(self, basename+"gain", gain)
-                    setattr(self, basename+"peak", peak)
-
-#
-# ID3 metadata decoder (using MP3Info module)
-#
-
-class mp3MP3Infometadata(metadata):
-    def __init__(self, path):
-        mp3file = open(path, "rb")
-        mp3info = MP3Info.MP3Info(mp3file)
-        self.title = mp3info.title
-        self.album = mp3info.album
-        self.artist = mp3info.artist
-        self.year = mp3info.year
-        self.genre  = mp3info.genre
-        self.tracknumber = _splitnumbertotal(mp3info.track)
-        self.version = mp3info.mpeg.version
-        self.layer = mp3info.mpeg.layer
-        self.is_vbr = mp3info.mpeg.is_vbr
-        self.bitrate = mp3info.mpeg.bitrate
-        self.samplerate = mp3info.mpeg.samplerate
-        try:
-            try:
-                self.length = int(mp3info.id3.tags["TLEN"])/1000
-            except:
-                # time in seconds (?), possibly with bad decimal separator, e.g "186,333"
-                t = mp3info.id3.tags["TLEN"].replace(",", ".")
-                self.length = int(float(t))
-        except:
-            self.length = mp3info.mpeg.length
-        mp3file.close()
+	for rva2frame in mp3info.frames["RVA2"]:
+	    # since eyeD3 currently doesn't support RVA2 frames, we have to decode
+	    # them on our own following mutagen
+	    desc, rest = rva2frame.data.split("\x00", 1)
+	    channel = ord(rest[0])
+	    if channel == 1:
+		gain = struct.unpack('>h', rest[1:3])[0]/512.0
+		# http://bugs.xmms.org/attachment.cgi?id=113&action=view
+		rest = rest[3:]
+		peak = 0
+		bits = ord(rest[0])
+		bytes = min(4, (bits + 7) >> 3)
+		shift = ((8 - (bits & 7)) & 7) + (4 - bytes) * 8
+		for i in range(1, bytes+1):
+		    peak *= 256
+		    peak += ord(rest[i])
+		peak *= 2**shift
+		peak = (float(peak) / (2**31-1))
+		if desc == "album":
+		    basename = "replaygain_album_"
+		else:
+		    # for everything else, we assume it's track gain
+		    basename = "replaygain_track_"
+		setattr(self, basename+"gain", gain)
+		setattr(self, basename+"peak", peak)
 
 try:
     import mutagen.mp3
@@ -298,53 +444,46 @@ try:
                 self[tag.HashKey].extend(tag[:])
             else: self[tag.HashKey] = tag
 
-    registerfileformat("mp3", mp3mutagenmetadata, ".mp3")
+    registerfileformat("mp3", read_mp3_mutagen_metadata, ".mp3")
     log.info("using mutagen module for id3 tag parsing")
 except ImportError:
     try:
         import eyeD3
         import MP3Info # we also need this
-        registerfileformat("mp3", mp3eyeD3metadata, ".mp3")
+        registerfileformat("mp3", read_mp3_eyeD3_metadata, ".mp3")
         log.info("using eyeD3 module for id3 tag parsing")
     except ImportError:
-        try:
-            import MP3Info
-            registerfileformat("mp3", mp3MP3Infometadata, ".mp3")
-            log.info("using integrated MP3Info module for id3 tag parsing")
-        except ImportError:
-            pass
+	log.info("MP3 support disabled, since no metadata reader module has been found")
 
 #
 # FLAC metadata decoder
 #
 
-class flacmetadata(metadata):
-    def __init__(self, path):
-        metadata.__init__(self, path)
-        chain = flac.metadata.Chain()
-        chain.read(path)
-        it = flac.metadata.Iterator()
-        it.init(chain)
-        while 1:
-            block = it.get_block()
-            if block.type == flac.metadata.VORBIS_COMMENT:
-                comment = flac.metadata.VorbisComment(block).comments
-                id3get = lambda key, default: getattr(comment, key, default)
-                self.title = id3get('TITLE', "")
-                self.album = id3get('ALBUM', "")
-                self.artist = id3get('ARTIST', "")
-                self.year = id3get('DATE', "")
-                self.genre  = id3get('GENRE', "")
-                self.tracknr = id3get('TRACKNUMBER', "")
-            elif block.type == flac.metadata.STREAMINFO:
-                streaminfo = block.data.stream_info
-                self.length = streaminfo.total_samples / streaminfo.sample_rate
-            if not it.next():
-                break
+def read_flac_metadata(md, path):
+    chain = flac.metadata.Chain()
+    chain.read(path)
+    it = flac.metadata.Iterator()
+    it.init(chain)
+    while 1:
+	block = it.get_block()
+	if block.type == flac.metadata.VORBIS_COMMENT:
+	    comment = flac.metadata.VorbisComment(block).comments
+	    id3get = lambda key, default: getattr(comment, key, default)
+	    self.title = id3get('TITLE', "")
+	    self.album = id3get('ALBUM', "")
+	    self.artist = id3get('ARTIST', "")
+	    self.year = id3get('DATE', "")
+	    self.genre  = id3get('GENRE', "")
+	    self.tracknr = id3get('TRACKNUMBER', "")
+	elif block.type == flac.metadata.STREAMINFO:
+	    streaminfo = block.data.stream_info
+	    self.length = streaminfo.total_samples / streaminfo.sample_rate
+	if not it.next():
+	    break
 
 try:
     import flac.metadata
-    registerfileformat("flac", flacmetadata, ".flac")
+    registerfileformat("flac", read_flac_metadata, ".flac")
     log.info("flac support enabled (VERY EXPERIMENTAL)")
 except ImportError:
     log.info("flac support disabled, since flac module is not present")

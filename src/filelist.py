@@ -28,18 +28,18 @@ class filelist(slist.slist):
     def __init__(self, win, songdbids):
         slist.slist.__init__(self, win, config.filelistwindow.scrollmode == "page")
 
-	def tagfilter(tag_name, inverted):
-	    tag_id = hub.request(requests.gettag_id(songdbids[0], tag_name))
-	    if tag_id:
-		return item.tagfilter(tag_id, tag_name, inverted)
+        def tagfilter(tag_name, inverted):
+            tag_id = hub.request(requests.gettag_id(songdbids[0], tag_name))
+            if tag_id:
+                return item.tagfilter(tag_id, tag_name, inverted)
             else:
-	        log.info("filter tag '%s' not known" % tag_name)
-	
+                log.info("filter tag '%s' not known" % tag_name)
+
         filters = [tagfilter("G:Podcast", True)]
-	basefilters = item.filters(tuple(filter for filter in filters if filter))
+        basefilters = item.filters(tuple(filter for filter in filters if filter))
 
         self.basedir = item.basedir(songdbids, basefilters)
-	# self.basedir = item.basedir(songdbids)
+        # self.basedir = item.basedir(songdbids)
         self.dir = [self.basedir]
         self.shistory = []
         self.readdir()
@@ -134,24 +134,24 @@ class filelist(slist.slist):
     # event handler
 
     def songschanged(self, event):
-	if isinstance( self.dir[-1], (item.songs, item.album)):
-	    self.updatedir()
-	    self.win.update()
+        if isinstance( self.dir[-1], (item.songs, item.album)):
+            self.updatedir()
+            self.win.update()
 
     def artistschanged(self, event):
-	if isinstance( self.dir[-1], item.basedir):
-	    self.updatedir()
-	    self.win.update()
+        if isinstance( self.dir[-1], item.basedir):
+            self.updatedir()
+            self.win.update()
 
     def albumschanged(self, event):
-	if isinstance(self.dir[-1], (item.albums, item.artist, item.compilations)):
-	    self.updatedir()
-	    self.win.update()
+        if isinstance(self.dir[-1], (item.albums, item.artist, item.compilations)):
+            self.updatedir()
+            self.win.update()
 
     def tagschanged(self, event):
-	if isinstance(self.dir[-1], item.tags):
-	    self.updatedir()
-	    self.win.update()
+        if isinstance(self.dir[-1], item.tags):
+            self.updatedir()
+            self.win.update()
 
     def dbplaylistchanged(self, event):
         #if (isinstance(self.dir[-1], item.artist) and
