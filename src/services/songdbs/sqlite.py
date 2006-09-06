@@ -20,6 +20,7 @@
 
 import os
 import errno
+import math
 import sys
 import random
 import time
@@ -121,21 +122,6 @@ songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
 songcolumns_all = songcolumns_woindex + songcolumns_indices
 
 #
-# weight function for random sorting
-#
-
-def random_weight(rating, date_lastplayed):
-    rating = rating or 3
-    if date_lastplayed:
-        # Simple heuristic algorithm to consider song ratings
-        # for random selection. Certainly not optimal!
-        last = max(0, (time.time()-song.date_lastplayed)/60)
-        rating -= 2 * math.exp(-last/lastplayedscale)
-        if rating < 1:
-            rating = 1
-
-    return random.random() * 2**rating
-#
 # statistical information about songdb
 #
 
@@ -223,9 +209,6 @@ class songdb(service.service):
         log.debug("dbfile: '%s'" % self.dbfile)
         self.con = sqlite.connect(self.dbfile)
         self.con.row_factory = sqlite.Row
-        # register random weight function
-
-        self.con.create_function("random_weight", 2, random_weight)
 
         dbversion = self.con.execute("PRAGMA user_version").fetchone()[0]
         log.debug("Found on-disk db version: %d" % dbversion)
@@ -636,15 +619,29 @@ class songdb(service.service):
         """return all stored ratings"""
         return []
 
-    def _getlastplayedsongs(self, filters):
+    def _getlastplayedsongs(self, sort=None, filters=None):
         """return the last played songs"""
-        if not filters:
-            return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]]
-        else:
-            songs = [self.songs[songid] for songid, playingtime in self.stats["lastplayed"]]
-            filteredsongids = [song.id for song in self._filtersongs(songs, filters)]
-            return [(self.songs[songid], playingtime) for songid, playingtime in self.stats["lastplayed"]
-                    if songid in filteredsongids]
+        joinstring = filters and filters.SQL_JOIN_string() or ""
+        wherestring = filters and filters.SQL_WHERE_string() or ""
+        orderstring = sort and sort.SQL_string() or ""
+        args = filters and filters.SQLargs() or []
+        select = """SELECT DISTINCT songs.id              AS song_id,
+                                    songs.album_id        AS album_id,
+                                    songs.artist_id       AS artist_id,
+                                    songs.album_artist_id AS album_artist_id,
+                                    playstats.date_played AS date_played
+                    FROM songs
+                    LEFT JOIN artists   ON (songs.artist_id = artists.id)
+                    LEFT JOIN albums    ON (songs.album_id = albums.id) 
+                    JOIN      playstats ON (songs.id = playstats.song_id)
+                    %s
+                    %s
+                    %s
+                    """ % (joinstring, wherestring, orderstring)
+        # log.debug(select)
+        return  [item.song(self.id, row["song_id"], row["album_id"], row["artist_id"], 
+                           row["album_artist_id"], row["date_played"])
+                 for row in self.con.execute(select, args)]
 
     def _getplaylist(self, path):
         """returns playlist entry with given path"""
@@ -826,7 +823,7 @@ class songdb(service.service):
     def getlastplayedsongs(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
-        return self._getlastplayedsongs(request.filters)
+        return self._getlastplayedsongs(request.sort, request.filters)
 
     def getplaylist(self, request):
         if self.id != request.songdbid:

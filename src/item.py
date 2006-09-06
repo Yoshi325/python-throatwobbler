@@ -23,9 +23,9 @@ import config, metadata
 import events, hub, requests
 import helper
 
-# We import the _genrandomchoice function used in the songdb module.
-# Maybe we should instead put it in a separate module
-from services.songdb import _genrandomchoice
+# # We import the _genrandomchoice function used in the songdb module.
+# # Maybe we should instead put it in a separate module
+# from services.songdb import _genrandomchoice
 
 # helper function for usage in getinfo methods, which merges information about
 # filters in third and forth columns of lines
@@ -123,6 +123,9 @@ class diritem(item):
     def isalbum(self):
         """ does self represent an album? """
         return False
+
+    def getinfo(self):
+        return _mergefilters([[self.name[1:-1], "", "", ""]], self.filters)
 
 #
 # filters
@@ -296,15 +299,15 @@ class song(item):
 
     __slots__ = ["songdbid", "id", "album_id", "artist_id", "song", "playingtime"]
 
-    def __init__(self, songdbid, id, album_id, artist_id, album_artist_id):
+    def __init__(self, songdbid, id, album_id, artist_id, album_artist_id, date_played=None):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
         self.album_id = album_id
         self.artist_id = artist_id
         self.album_artist_id = album_artist_id
+        self.date_played = date_played
         self.song = None
-        self.playingtime = None
 
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
@@ -514,7 +517,7 @@ class song(item):
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
-        return self.playingtime or self.date_lastplayed
+        return self.date_played or self.date_lastplayed
 
 class artist(diritem):
 
@@ -695,9 +698,6 @@ class totaldiritem(diritem):
         else:
             return s
 
-    def getinfo(self):
-        return _mergefilters([[self.name[1:-1], "", "", ""]], self.filters)
-
 
 class songs(totaldiritem):
 
@@ -769,19 +769,20 @@ class lastplayedsongs(diritem):
         self.filters = filters
         self.name = "[%s]" % _("Last played songs")
 
-    def cmpitem(x, y):
-        return cmp(y.getplayingtime(), x.getplayingtime())
-    cmpitem = staticmethod(cmpitem)
+    class _orderclass:
+        def cmpitem(self, x, y):
+            return cmp(y.getplayingtime(), x.getplayingtime())
+        def SQL_string(self):
+            return "ORDER BY playstats.date_played DESC LIMIT 100"
+    order = _orderclass()
 
     def getcontents(self):
-        songs = hub.request(requests.getlastplayedsongs(self.songdbid, sort=self.cmpitem, filters=self.filters))
-        return songs
+        return hub.request(requests.getlastplayedsongs(self.songdbid, sort=self.order, filters=self.filters))
 
     getcontentsrecursive = getcontentsrecursivesorted = getcontents
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getlastplayedsongs(self.songdbid, filters=self.filters, random=True))
-
 
 
 class topplayedsongs(diritem):
@@ -1002,8 +1003,9 @@ class filesystemdir(diritem):
         return items
 
     def getcontentsrecursiverandom(self):
-        songs = self.getcontentsrecursive()
-        return _genrandomchoice(songs)
+        return []
+        # songs = self.getcontentsrecursive()
+        # return _genrandomchoice(songs)
 
     def getheader(self, item):
         if self.dir==self.basedir:
@@ -1069,7 +1071,7 @@ class basedir(totaldiritem):
         #else:
         #    self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
-        #self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
+        self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
         #self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
         #if not self.filters:
@@ -1159,4 +1161,4 @@ class tag(index):
         else:
             nfilters = filters((tagfilter(id, name),))
         index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
-        
+

@@ -152,9 +152,7 @@ class getsongs(dbrequestsongs):
 
 
 class getlastplayedsongs(dbrequestsongs):
-
-    def __init__(self, songdbid, random=False, sort=False, filters=None):
-        dbrequestsongs.__init__(self, songdbid, random, sort, filters)
+    pass
 
 
 class getsongsinplaylists(dbrequestsongs):

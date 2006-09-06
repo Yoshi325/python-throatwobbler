@@ -24,65 +24,6 @@ import dbitem, item, log
 
 # helper function for the random selection of songs
 
-def _genrandomchoice(songs):
-    """ returns random selection of songs up to the maximal length
-    configured. Note that this method changes as a side-effect the
-    parameter songs"""
-
-    # consider trivial case separately
-    if not songs:
-        return []
-
-    # choose item, avoiding duplicates. Stop after a predefined
-    # total length (in seconds). Take rating of songs/albums/artists
-    # into account
-    length = 0
-    result = []
-
-    # generate an initial random sample of large enough size samplesize 
-    # to choose from
-    samplesize = min(100, len(songs))
-    sample = random.sample(songs, samplesize)
-    currenttime = time.time()
-
-    # relative percentage of songs accepted with a given rating
-    ratingdistribution = [5, 10, 20, 30, 35]
-
-    # normalize distribution
-    normfactor = float(sum(ratingdistribution))
-    ratingdistribution = [x/normfactor for x in ratingdistribution]
-
-    # scale for rating reduction: for playing times longer
-    # ago than lastplayedscale seconds, the rating is not
-    # influenced.
-    lastplayedscale = 60.0 * 60 * 24
-
-    while length < config.general.randominsertlength:
-        for song in sample:
-            rating = song.rating or 3
-            if song.date_lastplayed:
-                # Simple heuristic algorithm to consider song ratings
-                # for random selection. Certainly not optimal!
-                last = max(0, (currenttime-song.date_lastplayed)/60)
-                rating -= 2 * math.exp(-last/lastplayedscale)
-                if rating < 1:
-                    rating = 1
-            if rating == 5:
-                threshold = ratingdistribution[4]
-            else:
-                # get threshold by linear interpolation
-                intpart = int(rating)
-                rest = rating-intpart
-                threshold = (ratingdistribution[intpart-1] +
-                             (ratingdistribution[intpart] - ratingdistribution[intpart-1])*rest)
-            if random.random() <= threshold or len(sample) == 1:
-                result.append(song)
-                length += song.length
-                if length >= config.general.randominsertlength or len(result) >= samplesize:
-                    return result
-        # recreate sample without already chosen songs, if we ran out of songs
-        sample = [song for song in sample if song not in result]
-    return result
 
 #
 # a collection of statistical information
@@ -213,6 +154,72 @@ class songdbmanager(service.service):
             return result
         return newrequesthandler
 
+    def _genrandomchoice(self, songs):
+        """ returns random selection of songs up to the maximal length
+        configured. Note that this method changes as a side-effect the
+        parameter songs"""
+
+        # consider trivial case separately
+        if not songs:
+            return []
+
+        # choose item, avoiding duplicates. Stop after a predefined
+        # total length (in seconds). Take rating of songs/albums/artists
+        # into account
+        length = 0
+        result = []
+
+        # generate an initial random sample of large enough size samplesize 
+        # to choose from
+        samplesize = min(100, len(songs))
+        sample = random.sample(songs, samplesize)
+        currenttime = time.time()
+
+        # relative percentage of songs accepted with a given rating
+        ratingdistribution = [5, 10, 20, 30, 35]
+
+        # normalize distribution
+        normfactor = float(sum(ratingdistribution))
+        ratingdistribution = [x/normfactor for x in ratingdistribution]
+
+        # scale for rating reduction: for playing times longer
+        # ago than lastplayedscale seconds, the rating is not
+        # influenced.
+        lastplayedscale = 60.0 * 60 * 24
+
+        while length < config.general.randominsertlength:
+            for song in sample:
+                # we have to query the song from our databases 
+                # since otherwise this is done automatically leading to
+                # a deadlock
+                if song.song is None:
+                    song.song = self.songdbhub.request(requests.getsong(song.songdbid, song.id))
+                rating = song.rating or 3
+                if song.date_lastplayed:
+                    # Simple heuristic algorithm to consider song ratings
+                    # for random selection. Certainly not optimal!
+                    last = max(0, (currenttime-song.date_lastplayed)/60)
+                    rating -= 2 * math.exp(-last/lastplayedscale)
+                    if rating < 1:
+                        rating = 1
+                if rating == 5:
+                    threshold = ratingdistribution[4]
+                else:
+                    # get threshold by linear interpolation
+                    intpart = int(rating)
+                    rest = rating-intpart
+                    threshold = (ratingdistribution[intpart-1] +
+                                 (ratingdistribution[intpart] - ratingdistribution[intpart-1])*rest)
+                if random.random() <= threshold or len(sample) == 1:
+                    result.append(song)
+                    length += song.length
+                    if length >= config.general.randominsertlength or len(result) >= samplesize:
+                        return result
+            # recreate sample without already chosen songs, if we ran out of songs
+            sample = [song for song in sample if song not in result]
+        return result
+
+
     def selectrandom(requesthandler):
         """ method decorator which returns a random selection of the request result if requested
 
@@ -223,17 +230,11 @@ class songdbmanager(service.service):
                 return "ORDER BY random_weight(songs.rating, songs.date_lastplayed) LIMIT 10"
         randomorder = _orderclass()
         def newrequesthandler(self, request):
-            if request.random:
-                request.sort = randomorder
             songs = requesthandler(self, request)
-            return songs
-            result = []
-            length = 0
-            for song in songs:
-                result.append(song)
-                length += song.length
-                if length >= config.general.randominsertlength or len(result) >= 10:
-                    return result
+            if request.random:
+                 return self._genrandomchoice(songs)
+            else:
+                 return songs
         return newrequesthandler
 
     def sortresult(requesthandler):
