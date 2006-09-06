@@ -218,22 +218,22 @@ class songdbmanager(service.service):
 
         Note that the result has to be a list of songs.
         """
-	class _orderclass:
-	    def SQL_string(self):
-		return "ORDER BY random_weight(songs.rating, songs.date_lastplayed) LIMIT 10"
-	randomorder = _orderclass()
+        class _orderclass:
+            def SQL_string(self):
+                return "ORDER BY random_weight(songs.rating, songs.date_lastplayed) LIMIT 10"
+        randomorder = _orderclass()
         def newrequesthandler(self, request):
             if request.random:
-		request.sort = randomorder
-	    songs = requesthandler(self, request)
-	    return songs
-	    result = []
-	    length = 0
-	    for song in songs:
-		result.append(song)
-		length += song.length
-		if length >= config.general.randominsertlength or len(result) >= 10:
-		    return result
+                request.sort = randomorder
+            songs = requesthandler(self, request)
+            return songs
+            result = []
+            length = 0
+            for song in songs:
+                result.append(song)
+                length += song.length
+                if length >= config.general.randominsertlength or len(result) >= 10:
+                    return result
         return newrequesthandler
 
     def sortresult(requesthandler):
@@ -269,7 +269,7 @@ class songdbmanager(service.service):
                         del self.requestcache[key]
                 return
         # otherwise we delete the queries for the correponding database (and all compound queries)
-	log.debug("dbrequest cache: emptying cache for database %s" % event.songdbid)
+        log.debug("dbrequest cache: emptying cache for database %s" % event.songdbid)
         for key, item in self.requestcache.items():
             songdbid = item[1].songdbid
             if songdbid is None or songdbid == event.songdbid:
@@ -321,9 +321,9 @@ class songdbmanager(service.service):
         # also reset the sort function as otherwise
         # sending over the network (which requires pickling the
         # request) fails
-	# XXX we disable this at the moment
+        # XXX we disable this at the moment
         if request.songdbid is None:
-	    nrequest.sort = False
+            nrequest.sort = False
             resulthash = {}
             for songdbid in self.songdbids:
                 nrequest.songdbid = songdbid
@@ -352,7 +352,7 @@ class songdbmanager(service.service):
                 nrequest.songdbid = songdbid
                 for result in self.dbrequestlist(nrequest):
                     resulthash[result] = songdbid
-	    # sort results
+            # sort results
             return resulthash.keys()
         elif request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
@@ -377,7 +377,7 @@ class songdbmanager(service.service):
     def getnumberofsongs(self, request):
         if request.songdbid is not None and request.songdbid not in self.songdbids:
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
-	# XXX use filters in sqlite instead
+        # XXX use filters in sqlite instead
         if request.songdbid is not None and request.filters is None:
             return self.songdbhub.request(request)
         else:

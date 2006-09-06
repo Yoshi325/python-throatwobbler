@@ -55,6 +55,7 @@ class song_metadata:
     is_vbr = None
     samplerate = None
     length = None
+    rating = None
     replaygain_track_gain = None    
     replaygain_track_peak = None
     replaygain_album_gain = None    
@@ -62,8 +63,9 @@ class song_metadata:
     date_added = None
     date_updated = None
     dates_played = []
+    # the following two items are redundant but stored for efficieny reasons
+    date_lastplayed = None
     playcount = 0
-    rating = None
 
     def __init__(self):
         self.tags = []

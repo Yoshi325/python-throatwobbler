@@ -90,6 +90,7 @@ CREATE TABLE songs (
   size                  INTEGER,
   date_added            TIMESTAMP,
   date_updated          TIMESTAMP,
+  date_lastplayed       TIMESTAMP,
   playcount             INTEGER,
   rating                FLOAT
 );
@@ -113,7 +114,7 @@ songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
                        "compilation", "bitrate", "is_vbr", "samplerate", 
                        "replaygain_track_gain", "replaygain_track_peak",
                        "replaygain_album_gain", "replaygain_album_peak", 
-                       "size", "compilation", "date_added", "date_updated",
+                       "size", "compilation", "date_added", "date_updated", "date_lastplayed",
                        "playcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
@@ -428,8 +429,9 @@ class songdb(service.service):
         self._txn_begin()
         try:
             self.cur.execute("INSERT INTO playstats (song_id, date_played) VALUES (?, ?)", [song.id, date_played])
-            self.cur.execute("UPDATE songs SET playcount = playcount+1 WHERE id = ?", [song.id])
+            self.cur.execute("UPDATE songs SET playcount = playcount+1, date_lastplayed = ? WHERE id = ?", [date_played, song.id])
             song.playcount += 1
+            song.date_lastplayed = date_played
             song.dates_played.append(date_played)
         except:
             self._txn_abort()
@@ -564,8 +566,8 @@ class songdb(service.service):
                                     songs.artist_id       AS artist_id,
                                     songs.album_artist_id AS album_artist_id
                     FROM songs
-                    LEFT JOIN artists  ON (songs.artist_id = artists.id)
-                    LEFT JOIN albums   ON (songs.album_id = albums.id) 
+                    LEFT JOIN artists   ON (songs.artist_id = artists.id)
+                    LEFT JOIN albums    ON (songs.album_id = albums.id) 
                     %s
                     %s
                     %s

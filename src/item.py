@@ -309,6 +309,9 @@ class song(item):
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
 
+    def __hash__(self):
+        return hash("%r-%d" % (self.songdbid, self.id))
+
     __str__ = __repr__
 
     def __getattr__(self, attr):
@@ -511,14 +514,7 @@ class song(item):
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
-        # XXX check callers what happens if the song has been deleted in the meantime
-        if self.playingtime is None:
-            if self.dates_played:
-                return self.dates_played[-1]
-            else:
-                return None
-        else:
-            return self.playingtime
+        return self.playingtime or self.date_lastplayed
 
 class artist(diritem):
 
