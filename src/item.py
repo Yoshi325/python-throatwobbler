@@ -73,7 +73,7 @@ class diritem(item):
     """ item containing other items """
 
     def getname(self):
-        return "%s/" % self.name
+        return "[%s]/" % self.name
 
     def getid(self):
         return self.name
@@ -114,7 +114,11 @@ class diritem(item):
 
         Note that item can be None!
         """
-        pass
+        if item and item.artist and item.album:
+            s = "%s - %s" % (item.artist, item.album)
+        else:
+            s = self.name
+        return s + self.filters.getname()
 
     def isartist(self):
         """ does self represent an artist? """
@@ -125,7 +129,7 @@ class diritem(item):
         return False
 
     def getinfo(self):
-        return _mergefilters([[self.name[1:-1], "", "", ""]], self.filters)
+        return _mergefilters([[self.name, "", "", ""]], self.filters)
 
 #
 # filters
@@ -192,7 +196,7 @@ class albumfilter(hiddenfilter):
 
 class playedsongsfilter(hiddenfilter):
     def __init__(self):
-        filter.__init__(self, "played songs", None, None)
+        hiddenfilter.__init__(self, None, None)
 
     def SQL_WHERE_string(self):
         return "songs.playcount > 0"
@@ -229,8 +233,6 @@ class tagfilter(filter):
     def SQL_WHERE_string(self):
         return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
                  (self.inverted and "NOT " or "", self.tag_id) )
-
-
 
 
 class ratingfilter(filter):
@@ -533,6 +535,9 @@ class artist(diritem):
     def __repr__(self):
         return "artist(%s) in %s (filtered: %s)" % (self.name, self.songdbid, repr(self.filters))
 
+    def getname(self):
+        return "%s/" % self.name
+
     def getcontents(self):
         albums = hub.request(requests.getalbums(self.songdbid, filters=self.filters))
         return albums + [songs(self.songdbid, self.name, self.filters)]
@@ -601,6 +606,9 @@ class album(diritem):
     def getid(self):
         return self.id
 
+    def getname(self):
+        return "%s/" % self.name
+
     def getcontents(self):
         songs = hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters))
         return songs
@@ -610,13 +618,6 @@ class album(diritem):
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
-
-    def getheader(self, item):
-        if item:
-            s = "%s - %s" % (item.artist, item.album)
-        else:
-            s = self.name
-        return s + self.filters.getname()
 
     def getinfo(self):
         if self.artist == metadata.VARIOUS:
@@ -642,8 +643,6 @@ class album(diritem):
                 song._updatesong()
 
 
-
-
 class playlist(diritem):
 
     """ songs in a playlist in the corresponding database """
@@ -667,7 +666,7 @@ class playlist(diritem):
         return hub.request(requests.getsongsinplaylist(self.songdbid, self.path, random=True))
 
     def getheader(self, item):
-        if item:
+        if item and item.artist and item.album:
             return item.artist + " - " + item.album
         else:
             return self.name
@@ -687,16 +686,6 @@ class totaldiritem(diritem):
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
-
-    def getheader(self, item):
-        if item and item.artist and item.album:
-            s = item.artist + " - " + item.album
-        else:
-            s = self.getname()[1:-2]
-        if self.filters:
-            return s + self.filters.getname()
-        else:
-            return s
 
 
 class songs(totaldiritem):
@@ -745,7 +734,7 @@ class randomsonglist(totaldiritem):
 
     def __init__(self, songdbid, maxnr, filters):
         self.songdbid = songdbid
-        self.name = "[%s]" % _("Random song list")
+        self.name = _("Random song list")
         self.maxnr = maxnr
         self.filters = filters
 
@@ -767,7 +756,7 @@ class lastplayedsongs(diritem):
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
         self.filters = filters
-        self.name = "[%s]" % _("Last played songs")
+        self.name = _("Last played songs")
 
     class _orderclass:
         def cmpitem(self, x, y):
@@ -792,7 +781,7 @@ class topplayedsongs(diritem):
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
         self.filters = filters.added(playedsongsfilter())
-        self.name = "[%s]" % _("Top played songs")
+        self.name = _("Top played songs")
 
     class _orderclass:
         def cmpitem(self, x, y):
@@ -818,7 +807,7 @@ class lastaddedsongs(diritem):
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
         self.filters = filters
-        self.name = "[%s]" % _("Last added songs")
+        self.name = _("Last added songs")
 
     class _orderclass:
         def cmpitem(self, x, y):
@@ -857,10 +846,9 @@ class albums(totaldiritem):
         return albums
 
     def getheader(self, item):
-        return self.getname()[1:-2] + self.filters.getname()
-
-    def getinfo(self):
-        return _mergefilters([[self.name, "", "", ""]], self.filters)
+        if self.nralbums is None:
+            self.nralbums = len(self.getcontents())
+        return "%s (%d)" % (self.name, self.nralbums) + self.filters.getname()
 
 
 class compilations(albums):
@@ -901,9 +889,6 @@ class tags(totaldiritem):
             self.nrtags = len(self.getcontents())
         return "%s (%d)" % (self.name, self.nrtags) + self.filters.getname()
 
-    def getinfo(self):
-        return _mergefilters([[self.name, "", "", ""]], self.filters)
-
 
 class ratings(totaldiritem):
 
@@ -930,9 +915,6 @@ class ratings(totaldiritem):
         if self.nrratings is None:
             nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
         return "%s (%d)" % (_("Ratings"), self.nrratings) + self.filters.getname()
-
-    def getinfo(self):
-        return _mergefilters([[_("Ratings"), "", "", ""]], self.filters)
 
 
 class playlists(diritem):
@@ -964,9 +946,6 @@ class playlists(diritem):
         if self.nrplaylists is None:
             self.nrplaylists = len(self.getcontents())
         return "%s (%d)" % (_("Playlists"), self.nrplaylists)
-
-    def getinfo(self):
-        return [[_("Playlists"), "", "", ""]]
 
 
 class filesystemdir(diritem):
