@@ -23,6 +23,7 @@ import log
 import window
 import events, hub
 import statusbar
+import encoding
 
 from helper import formattime
 
@@ -98,8 +99,8 @@ class playerwin(window.window):
             self.paused = event.playbackinfo.ispaused()
             self.stopped = event.playbackinfo.isstopped()
             if self.song:
-                self.settitle("%s%s" % (event.playbackinfo.iscrossfading() and "-> " or "",
-                                             self.song.format(self.songformat)))
+                s = encoding.encode(self.song.format(self.songformat))
+                self.settitle("%s%s" % (event.playbackinfo.iscrossfading() and "-> " or "", s))
             else:
                 self.settitle(_("Playback Info"))
             self.time = event.playbackinfo.time
@@ -113,12 +114,12 @@ class playerwin(window.window):
                                                     self.song.title,
                                                     formattime(self.time),
                                                     formattime(self.song.length))
+                    info = encoding.encode(info)
                     self.playerinfofd.write(info)
                     self.playerinfofd.truncate(len(info))
                 except IOError, e:
                     log.error(_("error '%s' occured during write to playerinfofile") % e)
                     self.playerinfofd = None
-                    
 
     def keypressed(self, event):
         key = event.key

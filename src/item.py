@@ -501,7 +501,7 @@ class song(item):
                 except TypeError:
                     pass
 
-        return formatstring % d
+        return unicode(formatstring) % d
 
     def rate(self, rating):
         if rating:
