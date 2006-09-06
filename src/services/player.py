@@ -240,7 +240,7 @@ class genericplayer(service.service):
 
     def work(self):
         if self.isplaying():
-            if self.sendplayedevent and self.playbackinfo.song and self.playbackinfo.time > max(30, 0.8*self.playbackinfo.song.length):
+            if self.sendplayedevent and self.playbackinfo.song and self.playbackinfo.time > 0.8*self.playbackinfo.song.length:
                 song = self.playbackinfo.song
                 hub.notify(events.playsong(song.songdbid, song, time.time()-self.playbackinfo.time))
                 self.sendplayedevent = False
@@ -296,8 +296,8 @@ class genericplayer(service.service):
         if song:
             self._playsong(song, manual)
             self.playbackinfo.playing()
-        if self.playlistid:
-            self.sendplayedevent = True
+            if self.playlistid:
+                self.sendplayedevent = True
 
     def isstopped(self):
         return self.playbackinfo.state == STOP
