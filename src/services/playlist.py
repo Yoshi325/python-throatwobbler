@@ -63,7 +63,6 @@ class playlistitem:
     def markplayed(self):
         self.played = True
         self.playstarttime = time.time()
-        self.song.markplayed()
 
     def markunplayed(self):
         self.played = False
@@ -179,6 +178,7 @@ class playlist(service.service):
         if not item.hasbeenplayed():
             self.ptime += item.song.length
         self.playingitem = item
+        item.markplayed()
         self._updateplaystarttimes()
         self._logplay(item)
 
