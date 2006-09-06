@@ -1073,7 +1073,7 @@ class basedir(totaldiritem):
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
-        #self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
+        self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
         #if not self.filters:
         #    self.virtdirs.append(playlists(self.songdbid))
         if len(self.songdbids) > 1:
