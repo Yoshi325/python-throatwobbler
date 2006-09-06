@@ -161,17 +161,6 @@ class playlist(service.service):
             logfile.write("%s: %s\n" % (time.asctime(), encoding.encode(item.song.url)))
             logfile.close()
 
-    def _checkabortion(self):
-        """check whether currently playing song was aborted too early"""
-        if self.playingitem:
-            playingtime = time.time() - self.playingitem.playstarttime
-            # check whether the song has been played at least 
-            # 30 seconds or alternatively for 80 percent of its total
-            # length
-            if playingtime < min(30, 0.8*self.playingitem.song.length):
-                # if not, consider it as not having been played
-                self.playingitem.song.unplay()
-
     def _updateplaystarttimes(self):
         # TODO: take crossfading time into account
         if self.playingitem:
@@ -186,11 +175,9 @@ class playlist(service.service):
     def _playitem(self, item):
         """ check for a song abortion, register song as being played
         and update playlist information accordingly"""
-        
-        self._checkabortion()
+
         if not item.hasbeenplayed():
             self.ptime += item.song.length
-        item.markplayed()
         self.playingitem = item
         self._updateplaystarttimes()
         self._logplay(item)
@@ -290,10 +277,10 @@ class playlist(service.service):
             self._markunplayed(item)
 
     # convenience method for issuing a playlistchanged event
-    
+
     def notifyplaylistchanged(self):
         hub.notify(events.playlistchanged(self.items, self.ptime, self.ttime, self.autoplaymode, self.playingitem))
-    
+
     # statusbar input handler
 
     def saveplaylisthandler(self, name, key):
@@ -379,7 +366,6 @@ class playlist(service.service):
         # should prevent any problems.
         if event.playerid == self.playerid:
             if self.playingitem:
-                self._checkabortion()
                 self._markunplayed(self.playingitem)
                 self.playingitem = None
                 self.notifyplaylistchanged()
@@ -401,7 +387,7 @@ class playlist(service.service):
                     self.append(newitem)
                 self._playitem(newitem)
                 self._updateplaystarttimes()
-                hub.notify(events.playerplaysong(self.playerid, song))
+                hub.notify(events.playerplaysong(self.playerid, song, events.playsong(self.songdbid, song)))
                 self.notifyplaylistchanged()
 
     def playlistdeletesong(self, event):

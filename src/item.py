@@ -294,7 +294,7 @@ def _formatnumbertotal(number, total):
 
 class song(item):
 
-    __slots__ = ["songdbid", "id", "album_id", "artist_id", "song"]
+    __slots__ = ["songdbid", "id", "album_id", "artist_id", "song", "playingtime"]
 
     def __init__(self, songdbid, id, album_id, artist_id, album_artist_id):
         """ create song with given id together with its database."""
@@ -494,9 +494,6 @@ class song(item):
                     pass
 
         return formatstring % d
-
-    def markplayed(self):
-        hub.notify(events.playsong(self.songdbid, self))
 
     def rate(self, rating):
         if rating:

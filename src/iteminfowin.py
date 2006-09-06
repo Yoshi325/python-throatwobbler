@@ -137,20 +137,9 @@ class iteminfowin(window.window):
         self.update()
 
     def songchanged(self, event):
-        # needed only for songs, since these can be rated or updated
-        # when they are played note that this may update too often (if
-        # multiple songdbs are used), but who cares.
-        changed = False
-        for view, aitem in self.items.items():
-            if isinstance(aitem, item.song) and event.songdbid == aitem.songdbid and event.song == aitem:
-                aitem.song = event.song
-                changed = True
-            elif ( isinstance(aitem, services.playlist.playlistitem) and
-                   event.songdbid == aitem.song.songdbid and event.song == aitem.song):
-                aitem.song.song = event.song
-                changed = True
-        if changed:
-            self.update()
+        # here we assume that a possible change actually has also affected our
+        # item, if not we're missing it
+        self.update()
 
     def playbackinfochanged(self, event):
         playerid = event.playbackinfo.playerid

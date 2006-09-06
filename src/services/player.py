@@ -197,22 +197,25 @@ class playbackinfo:
 class genericplayer(service.service):
     def __init__(self, id, playlistid, autoplay):
         """create a new player
-        
+
         id:         the player id
         playlistid: playlist responsible for feeding player with songs. Set to None, if
                     there is no playlist for the player.
         autoplay:   should the player start automatically, if a song is in the playlist
                     and it has not been stopped explicitely by the user
-                    
+
         """
         service.service.__init__(self, "player %s" % id, daemonize=True)
         self.id = id
         self.autoplay = autoplay
         self.playlistid = playlistid
-        
+
         # if wantplay != autoplay, the user has requested a player stop and thus
         # autoplay is effectively turned off, until the player is restarted again
         self.wantplay = autoplay
+
+        # should we notify the database that the song has been played
+        self.sendplayedevent = False
 
         # the playbackinfo structure describes the current player state
         self.playbackinfo = playbackinfo(self.id)
@@ -237,6 +240,10 @@ class genericplayer(service.service):
 
     def work(self):
         if self.isplaying():
+            if self.sendplayedevent and self.playbackinfo.song and self.playbackinfo.time > min(30, 0.8*self.playbackinfo.song.length):
+                song = self.playbackinfo.song
+                hub.notify(events.playsong(song.songdbid, song))
+                self.sendplayedevent = False
             self.play()
 
         # request a new song, if none is playing and the player wants to play
@@ -245,7 +252,7 @@ class genericplayer(service.service):
 
         # process incoming events
         self.channel.process()
-        
+
         # and notify the rest of any changes in the playback status
         self.updatestatus()
         # Now the queue of all pending events has been
@@ -289,6 +296,8 @@ class genericplayer(service.service):
         if song:
             self._playsong(song, manual)
             self.playbackinfo.playing()
+        if self.playlistid:
+            self.sendplayedevent = True
 
     def isstopped(self):
         return self.playbackinfo.state == STOP
