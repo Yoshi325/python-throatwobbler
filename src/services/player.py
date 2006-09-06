@@ -240,7 +240,7 @@ class genericplayer(service.service):
 
     def work(self):
         if self.isplaying():
-            if self.sendplayedevent and self.playbackinfo.song and self.playbackinfo.time > min(30, 0.8*self.playbackinfo.song.length):
+            if self.sendplayedevent and self.playbackinfo.song and self.playbackinfo.time > max(30, 0.8*self.playbackinfo.song.length):
                 song = self.playbackinfo.song
                 hub.notify(events.playsong(song.songdbid, song))
                 self.sendplayedevent = False
