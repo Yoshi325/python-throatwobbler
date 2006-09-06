@@ -63,7 +63,7 @@ class playlistitem:
     def markplayed(self):
         self.played = True
         self.playstarttime = time.time()
-        self.song.play()
+        self.song.markplayed()
 
     def markunplayed(self):
         self.played = False

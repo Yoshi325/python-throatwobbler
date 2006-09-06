@@ -304,6 +304,7 @@ class song(item):
         self.artist_id = artist_id
         self.album_artist_id = album_artist_id
         self.song = None
+        self.playingtime = None
 
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
@@ -366,7 +367,7 @@ class song(item):
         if self.tags:
             l[3] = [_("Tags:"), u" | ".join(self.tags)]
 
-        if 0 and self.getplayingtime() is not None:
+        if self.getplayingtime() is not None:
             seconds = int((time.time()-self.getplayingtime())/60)
             days, rest = divmod(seconds, 24*60)
             hours, minutes = divmod(rest, 60)
@@ -381,7 +382,7 @@ class song(item):
             if self.rating:
                 played = played + " (%s)" % ("*"*self.rating)
             l[3] += [_("Played:"),
-                   _("#%d, %s ago") % (self.nrplayed, played)]
+                   _("#%d, %s ago") % (self.playcount, played)]
 
         else:
             if self.rating:
@@ -451,18 +452,18 @@ class song(item):
 
         l.append([_("Times played:"), str(self.playcount), "", ""])
 
-        # for played in self.lastplayed[-1:-6:-1]:
-        #     last = int((time.time()-played)/60)
-        #     days, rest = divmod(last, 24*60)
-        #     hours, minutes = divmod(rest, 60)
-        #     if days>0:
-        #         lastplayed = "%dd %dh %dm" % (days, hours, minutes)
-        #     elif hours>0:
-        #         lastplayed = "%dh %dm" % (hours, minutes)
-        #     else:
-        #         lastplayed = "%dm" % minutes
+        for played in self.dates_played[-1:-6:-1]:
+            last = int((time.time()-played)/60)
+            days, rest = divmod(last, 24*60)
+            hours, minutes = divmod(rest, 60)
+            if days>0:
+                lastplayed = "%dd %dh %dm" % (days, hours, minutes)
+            elif hours>0:
+                lastplayed = "%dh %dm" % (hours, minutes)
+            else:
+                lastplayed = "%dm" % minutes
 
-        #     l.append([_("Played:"), "%s (%s)" % (time.ctime(played), _("%s ago") % lastplayed), "", ""])
+            l.append([_("Played:"), "%s (%s)" % (time.ctime(played), _("%s ago") % lastplayed), "", ""])
 
         return l
 
@@ -494,14 +495,8 @@ class song(item):
 
         return formatstring % d
 
-    def play(self):
-        # self.song.play()
-        self._updatesong()
-
-    def unplay(self):
-        """ forget last time song has been played (e.g., because playback was not complete) """
-        # self.song.unplay()
-        self._updatesong()
+    def markplayed(self):
+        hub.notify(events.playsong(self.songdbid, self))
 
     def rate(self, rating):
         if rating:
@@ -520,8 +515,11 @@ class song(item):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
         # XXX check callers what happens if the song has been deleted in the meantime
-        if self.playingtime is None and self.song.lastplayed:
-            return self.song.lastplayed[-1]
+        if self.playingtime is None:
+            if self.dates_played:
+                return self.dates_played[-1]
+            else:
+                return None
         else:
             return self.playingtime
 

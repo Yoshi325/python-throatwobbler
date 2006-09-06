@@ -90,7 +90,6 @@ CREATE TABLE songs (
   size                  INTEGER,
   date_added            TIMESTAMP,
   date_updated          TIMESTAMP,
-  date_lastplayed       TIMESTAMP,
   playcount             INTEGER,
   rating                FLOAT
 );
@@ -114,7 +113,7 @@ songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
                        "compilation", "bitrate", "is_vbr", "samplerate", 
                        "replaygain_track_gain", "replaygain_track_peak",
                        "replaygain_album_gain", "replaygain_album_peak", 
-                       "size", "compilation", "date_added", "date_updated", "date_lastplayed", 
+                       "size", "compilation", "date_added", "date_updated",
                        "playcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
@@ -183,6 +182,7 @@ class songdb(service.service):
         self.channel.subscribe(events.addsong, self.addsong)
         self.channel.subscribe(events.updatesong, self.updatesong)
         self.channel.subscribe(events.delsong, self.delsong)
+        self.channel.subscribe(events.playsong, self.playsong)
 
         self.channel.subscribe(events.updateplaylist, self.updateplaylist)
         self.channel.subscribe(events.delplaylist, self.delplaylist)
@@ -416,9 +416,27 @@ class songdb(service.service):
         """updates entry of given song"""
         log.debug("updating song: %r" % song)
         if not isinstance(song, item.song):
+            log.error("_delsong: song has to be a item.song instance, not a %r instance" % song.__class__)
+        hub.notify(events.songchanged(self.id, song))
+
+    def _playsong(self, song):
+        """register playing of song"""
+        log.debug("playing song: %r" % song)
+        if not isinstance(song, item.song):
             log.error("_updatesong: song has to be an item.song instance, not a %r instance" % song.__class__)
             return
-        pass
+        self._txn_begin()
+        try:
+            date_played = time.time()
+            self.cur.execute("INSERT INTO playstats (song_id, date_played) VALUES (?, ?)", [song.id, date_played])
+            self.cur.execute("UPDATE songs SET playcount = playcount+1 WHERE id = ?", [song.id])
+            song.playcount += 1
+            song.dates_played.append(date_played)
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
         hub.notify(events.songchanged(self.id, song))
 
     def _registerplaylist(self, playlist):
@@ -475,6 +493,12 @@ class songdb(service.service):
                       LEFT JOIN artists ON artists.id == songs.artist_id
                       """ % ", ".join([c for c in songcolumns_all if c!="artist_id"])
 
+    _song_tags_select = """SELECT tags.name AS name FROM tags
+                           JOIN taggings ON taggings.tag_id = tags.id
+                           WHERE taggings.song_id = ?"""
+
+    _song_playstats_select = "SELECT date_played FROM playstats WHERE song_id = ?"
+
     def _getsong(self, song_id=None, song_url=None):
         """return song entry with given song_id or url"""
         if song_id is not None:
@@ -493,14 +517,6 @@ class songdb(service.service):
             select = "%s%s" % (self._song_select, wherestring)
             r = self.con.execute(select, args).fetchone()
             if r:
-                # fetch tags
-                tags = []
-                select = """SELECT tags.name AS name FROM tags
-                            JOIN taggings ON taggings.tag_id = tags.id
-                            WHERE taggings.song_id = ?"""
-                for tr in self.con.execute(select, (song_id,)):
-                    tags.append(tr["name"])
-
                 # fetch album artist
                 if r["album_artist_id"] is not None:
                     select = """SELECT name FROM artists WHERE id = ?"""
@@ -508,13 +524,25 @@ class songdb(service.service):
                 else:
                     album_artist = None
 
+                # fetch tags
+                tags = []
+                for tr in self.con.execute(self._song_tags_select, [song_id]):
+                    tags.append(tr["name"])
+
+                # fetch playstats
+                dates_played = []
+                for tr in self.con.execute(self._song_playstats_select, [song_id]):
+                    dates_played.append(tr["date_played"])
+
+                # generate and populate metadata
                 md = metadata.song_metadata()
                 for field in songcolumns_woindex:
                     md[field] = r[field]
-                md.tags = tags
                 md.album = r["album"]
                 md.artist = r["artist"]
                 md.album_artist = album_artist
+                md.tags = tags
+                md.dates_played = dates_played
                 return md
             else:
                 log.debug("Song '%r' not found in database" % args[0])
@@ -673,12 +701,19 @@ class songdb(service.service):
                 log.debug_traceback()
                 pass
 
+    def playsong(self, event):
+        if event.songdbid == self.id:
+            try:
+                self._playsong(event.song)
+            except KeyError:
+                pass
+
     def registerplaylists(self, event):
         if event.songdbid == self.id:
             for playlist in event.playlists:
                 try: self._registerplaylist(playlist)
                 except (IOError, OSError): pass
-                
+
     def delplaylist(self, event):
         if event.songdbid == self.id:
             try:

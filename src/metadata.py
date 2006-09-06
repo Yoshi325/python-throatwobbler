@@ -61,7 +61,7 @@ class song_metadata:
     replaygain_album_peak = None
     date_added = None
     date_updated = None
-    date_lastplayed = None
+    dates_played = []
     playcount = 0
     rating = None
 
