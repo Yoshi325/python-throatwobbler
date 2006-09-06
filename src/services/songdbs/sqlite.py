@@ -110,12 +110,12 @@ CREATE INDEX taggings_tag_id ON taggings(tag_id);
 """
 
 songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
-		       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-		       "compilation", "bitrate", "is_vbr", "samplerate", 
-		       "replaygain_track_gain", "replaygain_track_peak",
-		       "replaygain_album_gain", "replaygain_album_peak", 
-		       "size", "compilation", "date_added", "date_updated", "date_lastplayed", 
-		       "playcount", "rating"]
+                       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+                       "compilation", "bitrate", "is_vbr", "samplerate", 
+                       "replaygain_track_gain", "replaygain_track_peak",
+                       "replaygain_album_gain", "replaygain_album_peak", 
+                       "size", "compilation", "date_added", "date_updated", "date_lastplayed", 
+                       "playcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
 songcolumns_all = songcolumns_woindex + songcolumns_indices
@@ -127,12 +127,12 @@ songcolumns_all = songcolumns_woindex + songcolumns_indices
 def random_weight(rating, date_lastplayed):
     rating = rating or 3
     if date_lastplayed:
-	# Simple heuristic algorithm to consider song ratings
-	# for random selection. Certainly not optimal!
-	last = max(0, (time.time()-song.date_lastplayed)/60)
-	rating -= 2 * math.exp(-last/lastplayedscale)
-	if rating < 1:
-	    rating = 1
+        # Simple heuristic algorithm to consider song ratings
+        # for random selection. Certainly not optimal!
+        last = max(0, (time.time()-song.date_lastplayed)/60)
+        rating -= 2 * math.exp(-last/lastplayedscale)
+        if rating < 1:
+            rating = 1
 
     return random.random() * 2**rating
 #
@@ -222,9 +222,9 @@ class songdb(service.service):
         log.debug("dbfile: '%s'" % self.dbfile)
         self.con = sqlite.connect(self.dbfile)
         self.con.row_factory = sqlite.Row
-	# register random weight function
+        # register random weight function
 
-	self.con.create_function("random_weight", 2, random_weight)
+        self.con.create_function("random_weight", 2, random_weight)
 
         dbversion = self.con.execute("PRAGMA user_version").fetchone()[0]
         log.debug("Found on-disk db version: %d" % dbversion)
@@ -288,8 +288,8 @@ class songdb(service.service):
 
     def _checkremoveindex(self, indextable, reftable, indexnames, value):
         "remove entry from indextable if no longer referenced in reftable and return whether this has happened"
-	if value is None:
-	    return False
+        if value is None:
+            return False
         wheres = " OR ".join(["%s = ?" % indexname for indexname in indexnames])
         num = self.cur.execute("SELECT count(*) FROM %s WHERE (%s)" % (reftable, wheres),
                                [value]*len(indexnames)).fetchone()[0]
@@ -300,34 +300,34 @@ class songdb(service.service):
             return False
 
     def _addsong(self, song):
-        """add song to database"""
+        """add song metadata to database"""
         log.debug("adding song: %r" % song)
 
-        if not isinstance(song, dbitem.song):
-            log.error("addsong: song has to be a dbitem.song instance, not a %r instance" % 
+        if not isinstance(song, metadata.song_metadata):
+            log.error("addsong: song has to be a meta.song instance, not a %r instance" % 
                       song.__class__)
             return
 
         self._txn_begin()
         try:
             # query and register artist, album_artist and album
-	    if song.artist:
-		song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.artist])
-	    else:
-		song.artist_id, newartist = None, False
-	    if song.album_artist:
-		song.album_artist_id, newartist2 = self._queryregisterindex("artists", ["name"], 
-									    [song.album_artist])
-		newartist = newartist or newartist2
-		if song.album:
-		    song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
-								       [song.album_artist_id, song.album])
-		else:
-		    song.album_id, newalbum = None, False
-	    else:
-		song.album_artist_id = None
-		song.album_id = None
-		newalbum = False
+            if song.artist:
+                song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.artist])
+            else:
+                song.artist_id, newartist = None, False
+            if song.album_artist:
+                song.album_artist_id, newartist2 = self._queryregisterindex("artists", ["name"], 
+                                                                            [song.album_artist])
+                newartist = newartist or newartist2
+                if song.album:
+                    song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
+                                                                       [song.album_artist_id, song.album])
+                else:
+                    song.album_id, newalbum = None, False
+            else:
+                song.album_artist_id = None
+                song.album_id = None
+                newalbum = False
 
             # register song
             self.cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns_all),
@@ -471,8 +471,8 @@ class songdb(service.service):
 
     _song_select = """SELECT %s, artists.name AS artist, albums.name AS album 
                       FROM songs 
-                      JOIN albums ON albums.id == album_id
-                      JOIN artists ON artists.id == songs.artist_id
+                      LEFT JOIN albums ON albums.id == album_id
+                      LEFT JOIN artists ON artists.id == songs.artist_id
                       """ % ", ".join([c for c in songcolumns_all if c!="artist_id"])
 
     def _getsong(self, song_id=None, song_url=None):
@@ -487,9 +487,10 @@ class songdb(service.service):
             args = [song_url]
         else:
             raise KeyError
+        log.debug("Querying song '%r'" % args[0])
 
         try:
-	    select = "%s%s" % (self._song_select, wherestring)
+            select = "%s%s" % (self._song_select, wherestring)
             r = self.con.execute(select, args).fetchone()
             if r:
                 # fetch tags
@@ -501,18 +502,20 @@ class songdb(service.service):
                     tags.append(tr["name"])
 
                 # fetch album artist
-                select = """SELECT name FROM artists WHERE id = ?"""
-		if r["album_artist_id"] is not None:
-		    album_artist = self.con.execute(select, (r["album_artist_id"],)).fetchone()["name"]
+                if r["album_artist_id"] is not None:
+                    select = """SELECT name FROM artists WHERE id = ?"""
+                    album_artist = self.con.execute(select, (r["album_artist_id"],)).fetchone()["name"]
+                else:
+                    album_artist = None
 
                 md = metadata.song_metadata()
-		for field in songcolumns_woindex:
-		    md[field] = r[field]
-		md.tags = tags
-		md.album = r["album"]
-		md.artist = r["artist"]
-		md.album_artist = album_artist
-		return md
+                for field in songcolumns_woindex:
+                    md[field] = r[field]
+                md.tags = tags
+                md.album = r["album"]
+                md.artist = r["artist"]
+                md.album_artist = album_artist
+                return md
             else:
                 log.debug("Song '%r' not found in database" % args[0])
                 return None
@@ -534,8 +537,8 @@ class songdb(service.service):
                                     songs.artist_id       AS artist_id,
                                     songs.album_artist_id AS album_artist_id
                     FROM songs
-                    OUTER JOIN artists  ON (songs.artist_id = artists.id)
-                    OUTER JOIN albums   ON (songs.album_id = albums.id) 
+                    LEFT JOIN artists  ON (songs.artist_id = artists.id)
+                    LEFT JOIN albums   ON (songs.album_id = albums.id) 
                     %s
                     %s
                     %s
@@ -881,14 +884,14 @@ class songautoregisterer(service.service):
 
             song_url = "file://" + relpath
             song = self._request(requests.getsong(self.songdbid, song_url=song_url))
-            
+
             if song:
                 if force or song.date_updated < os.stat(path).st_mtime:
                     # the song has changed since the last update
-                    newsong = dbitem.songfromfile(relpath, self.basedir,
-                                                  self.tracknrandtitlere,
-                                                  self.tagcapitalize, self.tagstripleadingarticle, 
-                                                  self.tagremoveaccents)
+                    newsong = metadata.metadata_from_file(relpath, self.basedir,
+                                                          self.tracknrandtitlere,
+                                                          self.tagcapitalize, self.tagstripleadingarticle, 
+                                                          self.tagremoveaccents)
                     assert newsong.url == song.url, RuntimeError("song urls changed")
                 else:
                     log.debug("registerer: not scanning unchanged song '%r'" % song_url)
@@ -897,10 +900,10 @@ class songautoregisterer(service.service):
                 oldsongs.discard(song)
             else:
                 # song was not stored in database
-                newsong = dbitem.songfromfile(relpath, self.basedir,
-                                              self.tracknrandtitlere,
-                                              self.tagcapitalize, self.tagstripleadingarticle, 
-                                              self.tagremoveaccents)
+                newsong = metadata.metadata_from_file(relpath, self.basedir,
+                                                      self.tracknrandtitlere,
+                                                      self.tagcapitalize, self.tagstripleadingarticle, 
+                                                      self.tagremoveaccents)
                 self._notify(events.addsong(self.songdbid, newsong))
 
         # ... and playlists

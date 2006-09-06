@@ -135,76 +135,76 @@ class filter:
         self.indexid = indexid
 
     def __repr__(self):
-	# for dbrequest cache
+        # for dbrequest cache
         return "%r=%r" % (self.indexname, self.indexid)
 
     def SQL_JOIN_string(self):
-	return ""
+        return ""
 
     def SQL_WHERE_string(self):
-	return ""
+        return ""
 
     def SQLargs(self):
-	return []
+        return []
 
 
 class hiddenfilter(filter):
     " a filter which does not show up in the UI "
     def __init__(self, indexname, indexid):
-	filter.__init__(self, None, indexname, indexid)
+        filter.__init__(self, None, indexname, indexid)
 
 
 class compilationfilter(hiddenfilter):
     def __init__(self, iscompilation):
-	self.iscompilation = iscompilation
+        self.iscompilation = iscompilation
         hiddenfilter.__init__(self, "compilation", iscompilation)
 
     def SQL_WHERE_string(self):
-	return "%s songs.compilation" % (not self.iscompilation and "NOT" or "")
-	# return "(songs.compilation = %s)" % (self.iscompilation and "1" or "0")
+        return "%s songs.compilation" % (not self.iscompilation and "NOT" or "")
+        # return "(songs.compilation = %s)" % (self.iscompilation and "1" or "0")
 
 
 class artistfilter(hiddenfilter):
     def __init__(self, artist_id):
-	self.artist_id = artist_id
+        self.artist_id = artist_id
         hiddenfilter.__init__(self, "artist_id", artist_id)
 
     def SQL_WHERE_string(self):
-	return "artists.id = ? OR songs.album_artist_id = ?"
+        return "artists.id = ? OR songs.album_artist_id = ?"
 
     def SQLargs(self):
-	return [self.artist_id, self.artist_id]
+        return [self.artist_id, self.artist_id]
 
 
 class albumfilter(hiddenfilter):
     def __init__(self, album_id):
-	self.album_id = album_id
+        self.album_id = album_id
         hiddenfilter.__init__(self, "album_id", album_id)
 
     def SQL_WHERE_string(self):
-	return "albums.id = ?"
+        return "albums.id = ?"
 
     def SQLargs(self):
-	return [self.album_id]
+        return [self.album_id]
 
 class playedsongsfilter(hiddenfilter):
     def __init__(self):
         filter.__init__(self, "played songs", None, None)
 
     def SQL_WHERE_string(self):
-	return "songs.playcount > 0"
+        return "songs.playcount > 0"
 
 
 class searchfilter(filter):
     def __init__(self, searchstring):
-	self.searchstring = searchstring
+        self.searchstring = searchstring
         filter.__init__(self, "Search: %s" % searchstring, None, searchstring)
 
     def SQL_WHERE_string(self):
-	return "(songs.title LIKE ?) OR (albums.name LIKE ?) OR (artists.name LIKE ?)"
+        return "(songs.title LIKE ?) OR (albums.name LIKE ?) OR (artists.name LIKE ?)"
 
     def SQLargs(self):
-	return ["%%%s%%" % self.searchstring] * 3
+        return ["%%%s%%" % self.searchstring] * 3
 
 
 class tagfilter(filter):
@@ -213,19 +213,19 @@ class tagfilter(filter):
 
     def __init__(self, tag_id, tag_name, inverted=False):
         name = "%s%s=%s" % (_("Tag"), inverted and "!" or "", tag_name)
-	self.tag_id = tag_id
-	self.inverted = inverted
+        self.tag_id = tag_id
+        self.inverted = inverted
         filter.__init__(self, name, indexname="tag", indexid=tag_id)
 
     def __repr__(self):
-	return "tag%s=%s" % (self.inverted and "!" or "", self.tag_id)
+        return "tag%s=%s" % (self.inverted and "!" or "", self.tag_id)
 
     def SQL_JOIN_string(self):
-	return ""
+        return ""
 
     def SQL_WHERE_string(self):
-	return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
-		 (self.inverted and "NOT " or "", self.tag_id) )
+        return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
+                 (self.inverted and "NOT " or "", self.tag_id) )
 
 
 
@@ -244,40 +244,40 @@ class ratingfilter(filter):
 class filters(tuple):
 
     def getname(self):
-	s = ", ".join([filter.name for filter in self if filter.name])
-	if s:
-	    return " <%s>" % s
-	else:
-	    return ""
+        s = ", ".join([filter.name for filter in self if filter.name])
+        if s:
+            return " <%s>" % s
+        else:
+            return ""
 
     def added(self, filter):
-	return filters(self + (filter,))
+        return filters(self + (filter,))
 
     def removed(self, filterclass):
-	return filters(tuple([f for f in self if not isinstance(f, filterclass)]))
+        return filters(tuple([f for f in self if not isinstance(f, filterclass)]))
 
     def contains(self, filterclass):
-	for f in self:
-	    if isinstance(f, filterclass):
-		return True
-	return False
+        for f in self:
+            if isinstance(f, filterclass):
+                return True
+        return False
 
     def SQL_JOIN_string(self):
-	return "\n".join([filter.SQL_JOIN_string() for filter in self])
+        return "\n".join([filter.SQL_JOIN_string() for filter in self])
 
     def SQL_WHERE_string(self):
-	wheres = [filter.SQL_WHERE_string() for filter in self]
-	wheres = ["(%s)" % s for s in wheres if s]
-	filterstring = " AND ".join(wheres)
-	if filterstring:
-	    filterstring = "WHERE (%s)" % filterstring
-	    return filterstring
+        wheres = [filter.SQL_WHERE_string() for filter in self]
+        wheres = ["(%s)" % s for s in wheres if s]
+        filterstring = " AND ".join(wheres)
+        if filterstring:
+            filterstring = "WHERE (%s)" % filterstring
+            return filterstring
 
     def SQLargs(self):
-	result = []
-	for filter in self:
-	    result.extend(filter.SQLargs())
-	return result
+        result = []
+        for filter in self:
+            result.extend(filter.SQLargs())
+        return result
 
 #
 # specialized classes
@@ -300,9 +300,9 @@ class song(item):
         """ create song with given id together with its database."""
         self.songdbid = songdbid
         self.id = id
-	self.album_id = album_id
-	self.artist_id = artist_id
-	self.album_artist_id = album_artist_id
+        self.album_id = album_id
+        self.artist_id = artist_id
+        self.album_artist_id = album_artist_id
         self.song = None
 
     def __repr__(self):
@@ -316,11 +316,11 @@ class song(item):
             raise AttributeError
         if not self.song:
             self.song = hub.request(requests.getsong(self.songdbid, self.id))
-	# return metadata if we have been able to fetch it, otherwise return None
-	if self.song:
-	    return getattr(self.song, attr)
-	else:
-	    return None
+        # return metadata if we have been able to fetch it, otherwise return None
+        if self.song:
+            return getattr(self.song, attr)
+        else:
+            return None
 
     def _updatesong(self):
         """ notify database of song changes """
@@ -330,29 +330,41 @@ class song(item):
         return self.id
 
     def getname(self):
-	if self.title:
-	    return self.title
-	else:
-	    return "DELETED"
+        if self.title:
+            return self.title
+        else:
+            return "DELETED"
 
     def getinfo(self):
         l = [["", "", "", ""]]*4
-	# if we are unable to fetch the title, the song has been deleted in the meantime
-	if self.title is None:
-	    return l
+        # if we are unable to fetch the title, the song has been deleted in the meantime
+        if self.title is None:
+            return l
         l[0] = [_("Title:"), self.title]
         if self.tracknumber:
             l[0] += [_("Nr:"), _formatnumbertotal(self.tracknumber, self.trackcount)]
         else:
             l[0] += ["", ""]
-        l[1] = [_("Album:"),  self.album]
+        if self.album:
+             l[1] = [_("Album:"),  self.album]
+        else:
+             l[1] = [_("URL:"), self.url]
+
         if self.year:
             l[1] += [_("Year:"), str(self.year)]
         else:
             l[1] += ["", ""]
-        l[2] = [_("Artist:"), self.artist,
-              _("Time:"), helper.formattime(self.length)]
-        l[3] = [_("Tags:"), u" | ".join(self.tags)]
+
+        if self.artist:
+            l[2] = [_("Artist:"), self.artist]
+        else:
+            l[2] = ["", ""]
+        if self.length:
+            l[2] += [_("Time:"), helper.formattime(self.length)]
+        else:
+            l[2] += ["", ""]
+        if self.tags:
+            l[3] = [_("Tags:"), u" | ".join(self.tags)]
 
         if 0 and self.getplayingtime() is not None:
             seconds = int((time.time()-self.getplayingtime())/60)
@@ -380,9 +392,9 @@ class song(item):
 
     def getinfolong(self):
         l = []
-	# if we are unable to fetch the title, the song has been deleted in the meantime
-	if self.title is None:
-	    return l
+        # if we are unable to fetch the title, the song has been deleted in the meantime
+        if self.title is None:
+            return l
         directory, filename = os.path.split(self.song.url)
         l.append([_("Path:"), directory, "", ""])
         l.append([_("File name:"), filename, "", ""])
@@ -406,8 +418,10 @@ class song(item):
 
         l.append([_("File type:"), typestring, "", ""])
         l.append([_("Title:"), self.title, "", ""])
-        l.append([_("Album:"),  self.album, "", ""])
-        l.append([_("Artist:"), self.artist, "", ""])
+        if self.album:
+            l.append([_("Album:"),  self.album, "", ""])
+        if self.artist:
+            l.append([_("Artist:"), self.artist, "", ""])
         if self.song.year:
             l.append([_("Year:"), str(self.year), "", ""])
         else:
@@ -458,8 +472,8 @@ class song(item):
         of characters which are neither letters, digits, a blank or a colon.
         """
 
-	if self.title is None:
-	    return "DELETED"
+        if self.title is None:
+            return "DELETED"
         d = {}
         d.update(self.song.__dict__)
         d.update(adddict)
@@ -499,13 +513,13 @@ class song(item):
 
     def rescan(self):
         """rescan id3 information for song, keeping playing statistic, rating, etc."""
-	# XXX check whether song has been deleted
+        # XXX check whether song has been deleted
         hub.notify(events.rescansong(self.songdbid, self.song))
 
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
-	# XXX check callers what happens if the song has been deleted in the meantime
+        # XXX check callers what happens if the song has been deleted in the meantime
         if self.playingtime is None and self.song.lastplayed:
             return self.song.lastplayed[-1]
         else:
@@ -546,11 +560,11 @@ class artist(diritem):
         return self.name + self.filters.getname()
 
     def getinfo(self):
-	if self.name == metadata.VARIOUS:
-	    # this should not happen, actually
-	    artistname = _("Various")
-	else:
-	    artistname = self.name
+        if self.name == metadata.VARIOUS:
+            # this should not happen, actually
+            artistname = _("Various")
+        else:
+            artistname = self.name
         return _mergefilters([[_("Artist:"), artistname, "", ""]], self.filters)
 
     def isartist(self):
@@ -582,12 +596,12 @@ class album(diritem):
         return "album(%s) in %s" % (self.id, self.songdbid)
 
     class _orderclass:
-	def cmpitem(self, x, y):
-	    return ( x.disknumber and y.disknumber and cmp(x.disknumber, y.disknumber) or
-		     x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
-		     cmp(x.title, y.title) )
-	def SQL_string(self):
-	    return "ORDER BY songs.disknumber, songs.tracknumber, songs.title"
+        def cmpitem(self, x, y):
+            return ( x.disknumber and y.disknumber and cmp(x.disknumber, y.disknumber) or
+                     x.tracknumber and y.tracknumber and cmp(x.tracknumber, y.tracknumber) or
+                     cmp(x.title, y.title) )
+        def SQL_string(self):
+            return "ORDER BY songs.disknumber, songs.tracknumber, songs.title"
     order = _orderclass()
 
     def getid(self):
@@ -611,11 +625,11 @@ class album(diritem):
         return s + self.filters.getname()
 
     def getinfo(self):
-	if self.artist == metadata.VARIOUS:
-	    artistname = _("Various")
-	else:
-	    artistname = self.artist
-	albumname =  self.name 
+        if self.artist == metadata.VARIOUS:
+            artistname = _("Various")
+        else:
+            artistname = self.artist
+        albumname =  self.name 
         l = [[_("Artist:"), artistname, "", ""],
              [_("Album:"), albumname, "", ""]]
         return _mergefilters(l, self.filters)
@@ -671,12 +685,67 @@ class playlist(diritem):
 class totaldiritem(diritem):
 
     """ diritem which contains the total database(s) as its contents """
-    
+
     def getcontentsrecursive(self):
         return hub.request(requests.getsongs(self.songdbid, filters=self.filters))
 
+    getcontentsrecursivesorted = getcontentsrecursive
+
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
+
+    def getheader(self, item):
+        if item and item.artist and item.album:
+            s = item.artist + " - " + item.album
+        else:
+            s = self.getname()[1:-2]
+        if self.filters:
+            return s + self.filters.getname()
+        else:
+            return s
+
+    def getinfo(self):
+        return _mergefilters([[self.name[1:-1], "", "", ""]], self.filters)
+
+
+class songs(totaldiritem):
+
+    """ all songs in the corresponding database """
+
+    def __init__(self, songdbid, artist=None, filters=None):
+        self.songdbid = songdbid
+        self.name = _("Songs")
+        self.artist = artist
+        self.filters = filters
+        self.nrsongs = None
+
+    def getname(self):
+        if self.nrsongs is None:
+            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
+        return "[%s (%d)]/" % (self.name, self.nrsongs)
+
+    class _orderclass:
+        def cmpitem(self, x, y):
+            return ( cmp(x.title, y.title) or
+                     cmp(x.album, y.album) or
+                     cmp(x.path, y.path)
+                     )
+        def SQL_string(self):
+            return "ORDER BY songs.title, albums.name, songs.url"
+    order = _orderclass()
+
+    def getcontents(self):
+        songs = hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.order))
+        self.nrsongs = len(songs)
+        return songs
+
+    def getinfo(self):
+        if self.artist is not None:
+            l = [[_("Artist:"), self.artist, "", ""],
+                    [_("Songs"), "", "", ""]]
+        else:
+            l = [[_("Songs"), "", "", ""]]
+        return _mergefilters(l, self.filters)
 
 
 class randomsonglist(totaldiritem):
@@ -698,15 +767,6 @@ class randomsonglist(totaldiritem):
             else:
                 break
         return songs[:self.maxnr]
-
-    def getheader(self, item):
-        if item:
-            return item.artist + " - " + item.album
-        else:
-            return _("Random song list")
-
-    def getinfo(self):
-        return _mergefilters([[_("Random song list"), "", "", ""]], self.filters)
 
 
 class lastplayedsongs(diritem):
@@ -731,14 +791,6 @@ class lastplayedsongs(diritem):
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getlastplayedsongs(self.songdbid, filters=self.filters, random=True))
 
-    def getheader(self, item):
-        if item:
-            return item.artist + " - " + item.album
-        else:
-            return _("Last played songs")
-
-    def getinfo(self):
-        return _mergefilters([[_("Last played songs"), "", "", ""]], self.filters)
 
 
 class topplayedsongs(diritem):
@@ -752,9 +804,9 @@ class topplayedsongs(diritem):
 
     class _orderclass:
         def cmpitem(self, x, y):
-	    return cmp(y.playcount, x.playcount) or cmp(y.date_lastplayed, x.date_lastplayed)
-	def SQL_string(self):
-	    return "ORDER BY songs.playcount, songs.date_lastplayed DESC LIMIT 100"
+            return cmp(y.playcount, x.playcount) or cmp(y.date_lastplayed, x.date_lastplayed)
+        def SQL_string(self):
+            return "ORDER BY songs.playcount, songs.date_lastplayed DESC LIMIT 100"
     order = _orderclass()
 
     def getcontents(self):
@@ -765,15 +817,6 @@ class topplayedsongs(diritem):
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters, random=True))
-
-    def getheader(self, item):
-        if item:
-            return item.artist + " - " + item.album
-        else:
-            return _("Top played songs")
-
-    def getinfo(self):
-        return _mergefilters([[_("Top played songs"), "", "", ""]], self.filters)
 
 
 class lastaddedsongs(diritem):
@@ -787,9 +830,9 @@ class lastaddedsongs(diritem):
 
     class _orderclass:
         def cmpitem(self, x, y):
-	    return cmp(y.date_added, x.date_added)
-	def SQL_string(self):
-	    return "ORDER BY songs.date_added DESC LIMIT 100"
+            return cmp(y.date_added, x.date_added)
+        def SQL_string(self):
+            return "ORDER BY songs.date_added DESC LIMIT 100"
     order = _orderclass()
 
     def getcontents(self):
@@ -799,15 +842,6 @@ class lastaddedsongs(diritem):
 
     def getcontentsrecursiverandom(self):
         return hub.request(requests.getsongs(self.songdbid, sort=self.order, filters=self.filters, random=True))
-
-    def getheader(self, item):
-        if item:
-            return item.artist + " - " + item.album
-        else:
-            return _("Last added songs")
-
-    def getinfo(self):
-        return _mergefilters([[_("Last added songs"), "", "", ""]], self.filters)
 
 
 class albums(totaldiritem):
@@ -839,9 +873,9 @@ class albums(totaldiritem):
 
 class compilations(albums):
     def __init__(self, songdbid, filters):
-	filters = filters.added(compilationfilter(True))
-	albums.__init__(self, songdbid, filters)
-	self.name = _("Compilations")
+        filters = filters.added(compilationfilter(True))
+        albums.__init__(self, songdbid, filters)
+        self.name = _("Compilations")
 
 
 class tags(totaldiritem):
@@ -854,10 +888,10 @@ class tags(totaldiritem):
         self.filters = filters
         self.name = _("Tags")
         self.nrtags = None
-	self.previous_tag_ids = []
-	for filter in self.filters:
-	    if isinstance(filter, tagfilter):
-		self.previous_tag_ids.append(filter.tag_id)
+        self.previous_tag_ids = []
+        for filter in self.filters:
+            if isinstance(filter, tagfilter):
+                self.previous_tag_ids.append(filter.tag_id)
 
     def getname(self):
         if self.nrtags is None:
@@ -866,7 +900,7 @@ class tags(totaldiritem):
 
     def getcontents(self):
         tags = hub.request(requests.gettags(self.songdbid, filters=self.filters))
-	tags = [tag for tag in tags if tag.id not in self.previous_tag_ids]
+        tags = [tag for tag in tags if tag.id not in self.previous_tag_ids]
         self.nrtags = len(tags)
         return tags
 
@@ -907,62 +941,6 @@ class ratings(totaldiritem):
 
     def getinfo(self):
         return _mergefilters([[_("Ratings"), "", "", ""]], self.filters)
-
-
-class songs(diritem):
-
-    """ all songs in the corresponding database """
-
-    def __init__(self, songdbid, artist=None, filters=None):
-        self.songdbid = songdbid
-        self.name = _("Songs")
-        self.artist = artist
-        self.filters = filters
-        self.nrsongs = None
-
-    def getname(self):
-        if self.nrsongs is None:
-            self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
-        return "[%s (%d)]/" % (self.name, self.nrsongs)
-
-    class _orderclass:
-        def cmpitem(self, x, y):
-	    return ( cmp(x.title, y.title) or
-		     cmp(x.album, y.album) or
-		     cmp(x.path, y.path)
-		     )
-	def SQL_string(self):
-	    return "ORDER BY songs.title, albums.name, songs.url"
-    order = _orderclass()
-
-    def getcontents(self):
-        songs = hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.order))
-        self.nrsongs = len(songs)
-        return songs
-
-    getcontentsrecursivesorted = getcontentsrecursive = getcontents
-
-    def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongs(self.songdbid, artist=self.artist, filters=self.filters, 
-					     random=True))
-
-    def getheader(self, item):
-        if item:
-            s = item.artist + " - " + item.album
-        else:
-            s = self.getname()[1:-2]
-        if self.filters:
-            return s + self.filters.getname()
-        else:
-            return s
-
-    def getinfo(self):
-        if self.artist is not None:
-            l = [[_("Artist:"), self.artist, "", ""],
-                    [_("Songs"), "", "", ""]]
-        else:
-            l = [[_("Songs"), "", "", ""]]
-        return _mergefilters(l, self.filters)
 
 
 class playlists(diritem):
@@ -1077,7 +1055,7 @@ class basedir(totaldiritem):
         self.filters = filters # .added(tagfilter(19, "a"))
         self.maxnr = 100
         self.nrartists = None
-	self.nrsongs = None
+        self.nrsongs = None
         self._initvirtdirs()
 
     def _initvirtdirs(self):
@@ -1094,7 +1072,7 @@ class basedir(totaldiritem):
         else:
             self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
 
-	#for filter in self.filters:
+        #for filter in self.filters:
         #    if isinstance(filter, ratingfilter):
         #        break
         #else:
@@ -1117,12 +1095,12 @@ class basedir(totaldiritem):
             return _("%d databases (%d)") % (len(self.songdbids), self.nrsongs)
 
     def getcontents(self):
-	# do not show artists which only appear in compilations
-	filters = self.filters.added(compilationfilter(False))
+        # do not show artists which only appear in compilations
+        filters = self.filters.added(compilationfilter(False))
         aartists = hub.request(requests.getartists(self.songdbid, filters=filters))
-	self.nrartists = len(aartists)
-	# reset cached value
-	self.nrsongs = None
+        self.nrartists = len(aartists)
+        # reset cached value
+        self.nrsongs = None
         if config.filelistwindow.virtualdirectoriesattop:
             return self.virtdirs + aartists
         else:
@@ -1139,9 +1117,9 @@ class basedir(totaldiritem):
 
     def getheader(self, item):
         if self.nrartists is not None:
-	    nrartistsstring = _("%d artists") % self.nrartists
-	else:
-	    nrartistsstring = _("? artists") 
+            nrartistsstring = _("%d artists") % self.nrartists
+        else:
+            nrartistsstring = _("? artists") 
         if self.basedir:
             maxlen = 15
             dirname = self.basedir
@@ -1171,23 +1149,23 @@ class index(basedir):
         self.type = "index"
 
     def getname(self):
-	# XXX make this configurable (note that showing the numbers by default is rather costly)
-	if 1:
-	    return "%s/" % self.description
-	else:
-	    if self.nrsongs is None:
-		self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
-	    return "%s (%d)/" % (self.description, self.nrsongs)
+        # XXX make this configurable (note that showing the numbers by default is rather costly)
+        if 1:
+            return "%s/" % self.description
+        else:
+            if self.nrsongs is None:
+                self.nrsongs = hub.request(requests.getnumberofsongs(self.songdbid, filters=self.filters))
+            return "%s (%d)/" % (self.description, self.nrsongs)
 
     def getinfo(self):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])
 
 class tag(index):
     def __init__(self, songdbid, id, name, nfilters):
-	self.id = id
-	if nfilters is not None:
-	    nfilters = nfilters.added(tagfilter(id, name))
-	else:
-	    nfilters = filters((tagfilter(id, name),))
-	index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
-	
+        self.id = id
+        if nfilters is not None:
+            nfilters = nfilters.added(tagfilter(id, name))
+        else:
+            nfilters = filters((tagfilter(id, name),))
+        index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
+        
