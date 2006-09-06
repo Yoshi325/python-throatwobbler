@@ -194,6 +194,9 @@ class songdbmanager(service.service):
                 # a deadlock
                 if song.song is None:
                     song.song = self.songdbhub.request(requests.getsong(song.songdbid, song.id))
+                    # if the song has been deleted in the meantime, we proceed to the next one
+                    if song.song is None:
+                        continue
                 rating = song.rating or 3
                 if song.date_lastplayed:
                     # Simple heuristic algorithm to consider song ratings
@@ -225,10 +228,6 @@ class songdbmanager(service.service):
 
         Note that the result has to be a list of songs.
         """
-        class _orderclass:
-            def SQL_string(self):
-                return "ORDER BY random_weight(songs.rating, songs.date_lastplayed) LIMIT 10"
-        randomorder = _orderclass()
         def newrequesthandler(self, request):
             songs = requesthandler(self, request)
             if request.random:
