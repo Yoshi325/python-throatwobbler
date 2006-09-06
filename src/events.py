@@ -134,12 +134,13 @@ class updatesong(dbevent):
 class playsong(dbevent):
     """ register playing of song in database """
 
-    def __init__(self, songdbid, song):
+    def __init__(self, songdbid, song, date_played):
         self.songdbid = songdbid
         self.song = song
+        self.date_played = date_played
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
+        return "%s(%s, %s)->%s" % (self.__class__.__name__, self.song, self.date_played, self.songdbid)
 
 
 class delsong(dbevent):

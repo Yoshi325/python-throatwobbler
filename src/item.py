@@ -801,7 +801,7 @@ class topplayedsongs(diritem):
         def cmpitem(self, x, y):
             return cmp(y.playcount, x.playcount) or cmp(y.date_lastplayed, x.date_lastplayed)
         def SQL_string(self):
-            return "ORDER BY songs.playcount, songs.date_lastplayed DESC LIMIT 100"
+            return "ORDER BY songs.playcount DESC, songs.date_lastplayed DESC LIMIT 100"
     order = _orderclass()
 
     def getcontents(self):

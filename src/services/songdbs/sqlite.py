@@ -419,7 +419,7 @@ class songdb(service.service):
             log.error("_delsong: song has to be a item.song instance, not a %r instance" % song.__class__)
         hub.notify(events.songchanged(self.id, song))
 
-    def _playsong(self, song):
+    def _playsong(self, song, date_played):
         """register playing of song"""
         log.debug("playing song: %r" % song)
         if not isinstance(song, item.song):
@@ -427,7 +427,6 @@ class songdb(service.service):
             return
         self._txn_begin()
         try:
-            date_played = time.time()
             self.cur.execute("INSERT INTO playstats (song_id, date_played) VALUES (?, ?)", [song.id, date_played])
             self.cur.execute("UPDATE songs SET playcount = playcount+1 WHERE id = ?", [song.id])
             song.playcount += 1
@@ -704,7 +703,7 @@ class songdb(service.service):
     def playsong(self, event):
         if event.songdbid == self.id:
             try:
-                self._playsong(event.song)
+                self._playsong(event.song, event.date_played)
             except KeyError:
                 pass
 
