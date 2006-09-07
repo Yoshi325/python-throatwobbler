@@ -167,12 +167,15 @@ class filelistwin(window.window):
                     self.items.selectbyregexp(self.searchstring, includeselected=False)
             elif key in self.keybindings["rescan"]:
                 self.items.rescanselection()
+                self.items.selectrelative(+1)
             elif ord("a")<=key-1024<=ord("z") or ord("A")<=key-1024<=ord("Z") :
                 self.items.selectbyletter(chr(key-1024))
             elif ord("0")<=key<=ord("5"):
                 self.items.rateselection(key-ord("1")+1)
+                self.items.selectrelative(+1)
             elif key == ord("d"):
                 self.items.addtagselection("U:Muzak")
+                self.items.selectrelative(+1)
             elif key == ord("D"):
                 self.items.removetagselection("U:Muzak")
             else:
