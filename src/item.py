@@ -885,10 +885,11 @@ class tags(totaldiritem):
         self.filters = filters
         self.name = _("Tags")
         self.nrtags = None
-        self.previous_tag_ids = []
+        self.exclude_tag_ids = []
         for filter in self.filters:
             if isinstance(filter, tagfilter):
-                self.previous_tag_ids.append(filter.tag_id)
+                if not filter.inverted:
+                    self.exclude_tag_ids.append(filter.tag_id)
 
     def getname(self):
         if self.nrtags is None:
@@ -897,7 +898,7 @@ class tags(totaldiritem):
 
     def getcontents(self):
         tags = hub.request(requests.gettags(self.songdbid, filters=self.filters))
-        tags = [tag for tag in tags if tag.id not in self.previous_tag_ids]
+        tags = [tag for tag in tags if tag.id not in self.exclude_tag_ids]
         self.nrtags = len(tags)
         return tags
 
