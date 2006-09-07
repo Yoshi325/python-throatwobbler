@@ -233,6 +233,8 @@ class configcolor(configitem):
 class configkeys(configitem):
 
     def _check(self, s):
+        if not s:
+           return
         for key in s.split(" "):
             keyorig = key
             if key[:5].lower()=="ctrl-":
@@ -395,6 +397,12 @@ class database(configsection):
         autoregisterer = configboolean("on")
         playingstatslength = configint("100")
         networklocation = confignetworklocation("localhost:1972")
+
+class tag(configsection):
+    class __template__(configsection):
+        name = configstring("")
+        key = configkeys("")
+
 
 class mixer(configsection):
     device = configpath("/dev/mixer")
@@ -682,7 +690,7 @@ class keybindings(configsection):
 # register known configuration sections
 #
 
-sections = ['mixerwindow', 'helpwindow', 'filelistwindow', 'database', 'iteminfowindow',
+sections = ['mixerwindow', 'helpwindow', 'filelistwindow', 'database', 'tag', 'iteminfowindow',
             'logwindow', 'statswindow', 'iteminfolongwindow', 'mixer', 'colors', 'playerwindow', 'playlistwindow',
             'general', 'inputwindow', 'network', 'player', 'keybindings']
 

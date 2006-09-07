@@ -35,7 +35,7 @@ class filelist(slist.slist):
             else:
                 log.info("filter tag '%s' not known" % tag_name)
 
-        filters = [tagfilter("G:Podcast", True)]
+        filters = [tagfilter("G:Podcast", True), tagfilter("U:Muzak", True)]
         basefilters = item.filters(tuple(filter for filter in filters if filter))
 
         self.basedir = item.basedir(songdbids, basefilters)
@@ -48,6 +48,7 @@ class filelist(slist.slist):
         self.win.channel.subscribe(events.artistschanged, self.artistschanged)
         self.win.channel.subscribe(events.albumschanged, self.albumschanged)
         self.win.channel.subscribe(events.tagschanged, self.tagschanged)
+        self.win.channel.subscribe(events.songchanged, self.songchanged)
         self.win.channel.subscribe(events.dbplaylistchanged, self.dbplaylistchanged)
         self.win.channel.subscribe(events.filelistjumptosong, self.filelistjumptosong)
 
@@ -112,6 +113,22 @@ class filelist(slist.slist):
             isinstance(self.getselected(), item.artist)):
             self.getselected().rate(rating)
 
+    def addtagselection(self, tag):
+        if self.isdirselected():
+            songs = self.getselected().getcontentsrecursive()
+        elif self.issongselected():
+            songs = [self.getselected()]
+        for song in songs:
+            song.addtag(tag)
+
+    def removetagselection(self, tag):
+        if self.isdirselected():
+            songs = self.getselected().getcontentsrecursive()
+        elif self.issongselected():
+            songs = [self.getselected()]
+        for song in songs:
+            song.removetag(tag)
+
     def rescanselection(self):
         if self.isdirselected():
             # instead of rescanning of a whole filesystem we start the autoregisterer
@@ -150,6 +167,11 @@ class filelist(slist.slist):
 
     def tagschanged(self, event):
         if isinstance(self.dir[-1], item.tags):
+            self.updatedir()
+            self.win.update()
+
+    def songchanged(self, event):
+        if isinstance( self.dir[-1], (item.songs, item.album, item.topplayedsongs, item.lastplayedsongs)):
             self.updatedir()
             self.win.update()
 

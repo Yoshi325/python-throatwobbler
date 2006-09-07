@@ -333,7 +333,7 @@ class song(item):
 
     def _updatesong(self):
         """ notify database of song changes """
-        hub.notify(events.updatesong(self.songdbid, None, self))
+        hub.notify(events.updatesong(self.songdbid, self))
 
     def getid(self):
         return self.id
@@ -504,12 +504,29 @@ class song(item):
         return unicode(formatstring) % d
 
     def rate(self, rating):
-        if rating:
-            self.song.rating = rating
-        else:
-            self.song.rating = None
-        self.song.ratingsource = 0
-        self._updatesong()
+        # just to fetch song metadata
+        oldrating = self.song.rating
+        # if this was sucessful we can rate the song
+        if self.song:
+            if rating:
+                self.song.rating = rating
+            else:
+                self.song.rating = None
+            self._updatesong()
+
+    def addtag(self, tag):
+        tags = self.tags
+        if tags is not None and tag not in tags:
+            tags.append(tag)
+            self.tags = tags
+            self._updatesong()
+
+    def removetag(self, tag):
+        tags = self.tags
+        if tags is not None and tag in tags:
+            tags.remove(tag)
+            self.tags = tags
+            self._updatesong()
 
     def rescan(self):
         """rescan id3 information for song, keeping playing statistic, rating, etc."""

@@ -397,11 +397,94 @@ class songdb(service.service):
                 hub.notify(events.tagschanged(self.id))
         # XXX send event?
 
-    def _updatesong(self, oldsong, newsong):
-        """updates entry of given song"""
-        log.debug("updating song: %r" % song)
+    _song_update = ( "INSERT OR REPLACE INTO songs (id, %s) VALUES (?, %s)" % 
+                     (",".join(songcolumns_all), ",".join(["?"] * len(songcolumns_all))) )
+
+    def _updatesong(self, song):
+        """updates entry of song"""
+        log.debug("updating song %r" % song)
         if not isinstance(song, item.song):
-            log.error("_delsong: song has to be a item.song instance, not a %r instance" % song.__class__)
+            log.error("_updatesong: song has to be a item.song instance, not a %r instance" %
+                      newsong.__class__)
+            return
+        if not song.song:
+            log.error("_updatesong: song doesn't contain song metadata")
+            return
+        oldsong = self._getsong(song_id=song.id)
+
+        self._txn_begin()
+        try:
+            # flags for changes of corresponding tables
+            changedartists = False
+            changedalbums = False
+            changedtags = False
+            # register new artists, album_artists and albums if necessary
+            if oldsong.artist != song.artist:
+                if song.artist:
+                    song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.artist])
+                    changedartists |= newartist
+                else:
+                    song.artist_id = None
+            if oldsong.album_artist != song.album_artist:
+                if song.album_artist:
+                    song.artist_id, newartist = self._queryregisterindex("artists", ["name"], [song.album_artist])
+                    changedartists |= newartist
+                    if song.album:
+                        song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
+                                                                           [song.album_artist_id, song.album])
+                        changedalbums |= newalbum
+                    else:
+                        song.album_id = None
+                else:
+                    song.album_artist_id = None
+                    song.album_id = None
+            elif oldsong.album != song.album and song.album:
+                # only the album name changed
+                song.album_id, newalbum = self._queryregisterindex("albums", ["artist_id", "name"], 
+                                                                   [song.album_artist_id, song.album])
+                changedalbums |= newalbum
+
+            # update songs table
+            self.cur.execute(self._song_update, [song.id]+[getattr(song, columnname) for columnname in songcolumns_all])
+
+            # delete old artists, album_artists and albums if necessary
+            # we have to do this after the songs table has been updated, otherwise we
+            # cannot detect whether we have to remove an album/artist or not
+            if oldsong.album != song.album:
+                changedalbums |= self._checkremoveindex("albums", "songs", ["album_id"], song.album_id)
+            if oldsong.artist != song.artist:
+                changedartists |= self._checkremoveindex("artists", "songs", ["album_artist_id", "artist_id"],
+                                                         oldsong.artist_id)
+            if oldsong.album_artist != song.album_artist:
+                changedartists |= self._checkremoveindex("artists", "songs", ["album_artist_id", "artist_id"],
+                                                         oldsong.album_artist_id)
+
+            # update tag information if necessary
+            if oldsong.tags != song.tags:
+                # check for new tags
+                for tag in song.tags:
+                    if tag not in oldsong.tags:
+                        tag_id, newtag = self._queryregisterindex("tags", ["name"], [tag])
+                        changedtags |= newtag
+                        self.cur.execute("INSERT INTO taggings (song_id, tag_id) VALUES (?, ?)", 
+                                         (song.id, tag_id))
+                # check for removed tags
+                for tag in oldsong.tags:
+                    if tag not in song.tags:
+                        tag_id = self._queryregisterindex("tags", ["name"], [tag])[0]
+                        self.cur.execute("DELETE FROM taggings WHERE (tag_id = ? AND song_id = ?)", [tag_id, song.id])
+                        changedtags |= self._checkremoveindex("tags", "taggings", ["tag_id"], tag_id)
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
+            if changedartists:
+                hub.notify(events.artistschanged(self.id))
+            if changedalbums:
+                hub.notify(events.albumschanged(self.id))
+            if changedtags:
+                hub.notify(events.tagschanged(self.id))
         hub.notify(events.songchanged(self.id, song))
 
     def _playsong(self, song, date_played):
@@ -688,8 +771,9 @@ class songdb(service.service):
     def updatesong(self, event):
         if event.songdbid == self.id:
             try:
-                self._updatesong(event.oldsong, event.newsong)
-            except KeyError:
+                self._updatesong(event.song)
+            except:
+                log.debug_traceback()
                 pass
 
     def delsong(self, event):

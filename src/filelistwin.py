@@ -171,6 +171,10 @@ class filelistwin(window.window):
                 self.items.selectbyletter(chr(key-1024))
             elif ord("0")<=key<=ord("5"):
                 self.items.rateselection(key-ord("1")+1)
+            elif key == ord("d"):
+                self.items.addtagselection("U:Muzak")
+            elif key == ord("D"):
+                self.items.removetagselection("U:Muzak")
             else:
                 return
 
