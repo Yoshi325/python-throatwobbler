@@ -99,8 +99,7 @@ class playerwin(window.window):
             self.paused = event.playbackinfo.ispaused()
             self.stopped = event.playbackinfo.isstopped()
             if self.song:
-                s = encoding.encode(self.song.format(self.songformat))
-                self.settitle("%s%s" % (event.playbackinfo.iscrossfading() and "-> " or "", s))
+                self.settitle(u"%s%s" % (event.playbackinfo.iscrossfading() and "-> " or "", self.song.format(self.songformat)))
             else:
                 self.settitle(_("Playback Info"))
             self.time = event.playbackinfo.time
