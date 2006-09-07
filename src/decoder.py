@@ -24,6 +24,7 @@ import os.path
 import hub, requests
 import log
 import pcm
+import encoding
 
 #
 # decoder class and simple decoder registry
@@ -69,6 +70,7 @@ def getdecoder(type):
 
 class mp3decoder(decoder):
     def __init__(self, path):
+        assert isinstance(path, str), "path has to be a string"
         self.file = mad.MadFile(path)
 
     def samplerate(self):
@@ -231,14 +233,15 @@ class decodedsong:
             log.error("No decoder for song type '%s' registered "% self.song.type)
             raise RuntimeError("No decoder for song type '%s' registered "% self.song.type)
 
-	if self.song.url.startswith("file://"):
-	    dbstats = hub.request(requests.getdatabasestats(song.songdbid))
-	    if not dbstats.basedir:
-		log.error("Currently only support for locally stored songs available")
-		raise RuntimeError("Currently only support for locally stored songs available")
-	    path = os.path.join(dbstats.basedir, song.url[7:])
-	    self.decodedfile = decoder(path)
-	else:
+        url = encoding.encode_path(self.song.url)
+        if url.startswith("file://"):
+            dbstats = hub.request(requests.getdatabasestats(song.songdbid))
+            if not dbstats.basedir:
+                log.error("Currently only support for locally stored songs available")
+                raise RuntimeError("Currently only support for locally stored songs available")
+            path = os.path.join(dbstats.basedir, url[7:])
+            self.decodedfile = decoder(path)
+        else:
             log.error("Currently only support for locally stored songs available")
             raise RuntimeError("Currently only support for locally stored songs available")
 
@@ -247,12 +250,12 @@ class decodedsong:
         # for some VBR songs.
         self.ttime = self.decodedfile.ttime()
 
-	# sometimes the mad library seems to report a wrong sample rate,
-	# so use the one stored in the database
-	if self.song.samplerate:
-	    self.samplerate = self.song.samplerate
-	else:
-	    self.samplerate = self.decodedfile.samplerate()
+        # sometimes the mad library seems to report a wrong sample rate,
+        # so use the one stored in the database
+        if self.song.samplerate:
+            self.samplerate = self.song.samplerate
+        else:
+            self.samplerate = self.decodedfile.samplerate()
 
         self.buff = self.last_l = self.last_r = None
         self.buffpos = 0

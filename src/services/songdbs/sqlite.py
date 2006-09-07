@@ -34,6 +34,7 @@ import metadata
 import dbitem
 import item
 import service
+import encoding
 
 
 create_tables = """
@@ -915,7 +916,7 @@ class songautoregisterer(service.service):
             else:
                relpath = path[len(self.basedir)+1:]
 
-            song_url = "file://" + relpath
+            song_url = u"file://" + encoding.decode_path(relpath)
             song = self._request(requests.getsong(self.songdbid, song_url=song_url))
 
             if song:
