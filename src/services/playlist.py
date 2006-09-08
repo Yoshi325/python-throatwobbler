@@ -387,7 +387,7 @@ class playlist(service.service):
                     self.append(newitem)
                 self._playitem(newitem)
                 self._updateplaystarttimes()
-                hub.notify(events.playerplaysong(self.playerid, song, events.playsong(self.songdbid, song)))
+                hub.notify(events.playerplaysong(self.playerid, song))
                 self.notifyplaylistchanged()
 
     def playlistdeletesong(self, event):
