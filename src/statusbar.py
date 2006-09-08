@@ -21,6 +21,7 @@ import config
 import help
 import window
 import events
+import encoding
 
 # indicator which can be used to signalise that the statusbar
 # has to be terminated here
@@ -86,4 +87,4 @@ class statusbar(window.window):
         for element in self.content[0]+separator+self.content[1]+separator+self.content[2]:
             if element==terminate[0]:
                 break
-            self.addstr(element[0], element[1])
+            self.addstr(encoding.encode(element[0]), element[1])
