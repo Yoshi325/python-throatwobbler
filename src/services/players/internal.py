@@ -393,9 +393,7 @@ class player(genericplayer):
                 # however, the user has requested the song change (via
                 # playerforward), we do want crossfading.
                 if not manual and len(self.decodedsongs) == 2:
-                    song1 = self.decodedsongs[0].song
-                    song2 = self.decodedsongs[1].song
-                    if song1.succeedsonalbum(song2):
+                    if self.decodesongs[0].succeedsonalbum(self.decodedsongs[1]):
                         self.songtransitionmode = "gapkill"
                         log.debug("internal player: don't crossfade successive songs.")
         except (IOError, RuntimeError):
