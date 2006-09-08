@@ -45,6 +45,8 @@ class playlistitem:
         self.song = song
         self.played = played
         self.playstarttime = playstarttime
+        # has the playing of the song registered in the database
+        self.playingregistered = False
         self.id = _counter
         _counter += 1
 
@@ -387,7 +389,7 @@ class playlist(service.service):
                     self.append(newitem)
                 self._playitem(newitem)
                 self._updateplaystarttimes()
-                hub.notify(events.playerplaysong(self.playerid, song))
+                hub.notify(events.playerplaysong(self.playerid, newitem))
                 self.notifyplaylistchanged()
 
     def playlistdeletesong(self, event):
@@ -450,7 +452,7 @@ class playlist(service.service):
         i = self._locatesong(event.id)
         self._playitem(self.items[i])
         self.notifyplaylistchanged()
-        hub.notify(events.playerplaysong(self.playerid, self.items[i].song))
+        hub.notify(events.playerplaysong(self.playerid, self.items[i]))
 
     def songchanged(self, event):
         # check whether one of our playlist items is affected by the change
@@ -487,10 +489,7 @@ class playlist(service.service):
         else:
             nextitem = self._playprevious()
         self.notifyplaylistchanged()
-        if nextitem:
-            return nextitem.song
-        else:
-            return None
+        return nextitem
 
     def playlistgetcontents(self, request):
         return self.items, self.ptime, self.ttime, self.autoplaymode, self.playingitem

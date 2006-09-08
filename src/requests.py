@@ -226,13 +226,13 @@ class getsongdbmanagerstats(request):
 #
 
 class requestnextsong(request):
-    """ request a song from playlistid. Go back in playlist if previous is set """
+    """ request a playlistitem from playlistid. Go back in playlist if previous is set """
     def __init__(self, playlistid, previous=0):
         self.playlistid = playlistid
         self.previous = previous
 
     def __repr__(self):
-        return "%r->%r,%r" % (self.__class__.__name__, `self.playlistid`, `self.previous`)
+        return "%r->%r,%r" % (self.__class__.__name__, self.playlistid, self.previous)
 
 
 class getplaybackinfo(request):

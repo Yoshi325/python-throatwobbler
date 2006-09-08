@@ -221,19 +221,17 @@ class decodedsong:
 
     """
 
-    def __init__(self, song, outrate, replaygainprofiles):
-        self.song = song
+    def __init__(self, song, outrate):
         self.outrate = outrate
         self.default_rate = outrate
-        self.replaygain = song.replaygain(replaygainprofiles)
 
         try:
-            decoder = getdecoder(self.song.type)
+            decoder = getdecoder(song.type)
         except:
-            log.error("No decoder for song type '%s' registered "% self.song.type)
-            raise RuntimeError("No decoder for song type '%s' registered "% self.song.type)
+            log.error("No decoder for song type '%s' registered "% song.type)
+            raise RuntimeError("No decoder for song type '%s' registered "% song.type)
 
-        url = encoding.encode_path(self.song.url)
+        url = encoding.encode_path(song.url)
         if url.startswith("file://"):
             dbstats = hub.request(requests.getdatabasestats(song.songdbid))
             if not dbstats.basedir:
@@ -252,8 +250,8 @@ class decodedsong:
 
         # sometimes the mad library seems to report a wrong sample rate,
         # so use the one stored in the database
-        if self.song.samplerate:
-            self.samplerate = self.song.samplerate
+        if song.samplerate:
+            self.samplerate = song.samplerate
         else:
             self.samplerate = self.decodedfile.samplerate()
 

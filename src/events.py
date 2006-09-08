@@ -351,14 +351,14 @@ class playerstop(playerevent):
 
 
 class playerplaysong(playerevent):
-    """ play song on player """
+    """ play song or playlistitem on player """
 
-    def __init__(self, playerid, song):
+    def __init__(self, playerid, playlistitemorsong):
         self.playerid = playerid
-        self.song = song
+        self.playlistitemorsong = playlistitemorsong
 
     def __str__(self):
-        return "%s(%s->%s)" % (self.__class__.__name__, self.song, self.playerid)
+        return "%s(%s->%s)" % (self.__class__.__name__, self.playlistitemorsong, self.playerid)
 
 
 class playerratecurrentsong(playerevent):

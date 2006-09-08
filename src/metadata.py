@@ -56,9 +56,9 @@ class song_metadata:
     samplerate = None
     length = None
     rating = None
-    replaygain_track_gain = None    
+    replaygain_track_gain = None
     replaygain_track_peak = None
-    replaygain_album_gain = None    
+    replaygain_album_gain = None
     replaygain_album_peak = None
     date_added = None
     date_updated = None
@@ -71,9 +71,6 @@ class song_metadata:
         self.tags = []
         self.date_updated = self.date_added = time.time()
 
-    #def __hash__(self):
-        #    return hash(self.url)
-
     def __repr__(self):
         return "metadata(%r)" % (self.url)
 
@@ -82,33 +79,6 @@ class song_metadata:
 
     def __setitem__(self, key, value):
         return setattr(self, key, value)
-
-    # XXX to be moved somewhere else
-
-    def replaygain(self, profiles):
-       # the following code is adapted from quodlibet
-       """Return the recommended Replay Gain scale factor.
-
-       profiles is a list of Replay Gain profile names ('album',
-       'track') to try before giving up. The special profile name
-       'none' will cause no scaling to occur.
-       """
-       for profile in profiles:
-           if profile is "none":
-               return 1.0
-           try:
-               db = getattr(self, "replaygain_%s_gain" % profile)
-               peak = getattr(self, "replaygain_%s_peak" % profile)
-           except AttributeError:
-               continue
-           else:
-               if db is not None and peak is not None:
-                   scale = 10.**(db / 20)
-                   if scale * peak > 1:
-                       scale = 1.0 / peak # don't clip
-                   return min(15, scale)
-       else:
-           return 1.0
 
 #
 # factory function for song metadata
