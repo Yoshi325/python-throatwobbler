@@ -200,7 +200,7 @@ class decodedsong:
     def __repr__(self):
         return "decodedsong(%r)" % repr(self.song)
 
-    def succeedsonalbum(otherdecodedsong):
+    def succeedsonalbum(self, otherdecodedsong):
         " checks whether otherdeocedsong follows self on the same album "
         return (self.song.artist      and self.song.artist == otherdecodedsong.song.artist and
                 self.song.album       and self.song.album == otherdecodedsong.song.album and
