@@ -333,8 +333,13 @@ class song(item):
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
 
+    # the following two methods have to be defined because we use song as a
+    # member of a set in the autoregisterer
     def __hash__(self):
         return hash("%r-%d" % (self.songdbid, self.id))
+
+    def __eq__(self, other):
+        return isinstance(other, song) and self.songdbid, self.id == other.songdbid, other.id
 
     __str__ = __repr__
 
