@@ -56,6 +56,11 @@ class filelistwin(window.window):
         self.channel.subscribe(events.mouseevent, self.mouseevent)
         self.channel.subscribe(events.focuschanged, self.focuschanged)
 
+    def sendmessage(self, message):
+        hub.notify(events.statusbar_showmessage(message))
+        # allow message to be processed
+        self.channel.process()
+
     def updatestatusbar(self):
         sbar = []
         if len(self.items.shistory)>0:

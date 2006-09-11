@@ -45,7 +45,7 @@ class mainscreen:
         self.channel = hub.newchannel()
         self.keybindings = config.keybindings.general
         self.done = False
-        
+
         self.statusbar = statusbar.statusbar(screen, self.h-1, self.w, self.channel)
 
         # first we setup the input window in order to have it as first window

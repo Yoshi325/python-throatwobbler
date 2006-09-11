@@ -110,13 +110,13 @@ class filelist(slist.slist):
     def rateselection(self, rating):
         if self.isdirselected():
             if not isinstance(self.getselected(), (item.artist, item.album)):
-                hub.notify(events.statusbar_showmessage(_("Not rating virtual directories!")))
+                self.win.sendmessage(_("Not rating virtual directories!"))
                 return False
             songs = self.getselected().getcontentsrecursive()
             if rating:
-                hub.notify(events.statusbar_showmessage(_("Rating %d song(s) with %d star(s)...") % (len(songs), rating)))
+                self.win.sendmessage(_("Rating %d song(s) with %d star(s)...") % (len(songs), rating))
             else:
-                hub.notify(events.statusbar_showmessage(_("Removing rating of %d song(s)...") % len(songs)))
+                self.win.sendmessage(_("Removing rating of %d song(s)...") % len(songs))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
@@ -126,10 +126,10 @@ class filelist(slist.slist):
     def addtagselection(self, tag):
         if self.isdirselected():
             if not isinstance(self.getselected(), (item.artist, item.album)):
-                hub.notify(events.statusbar_showmessage(_("Not tagging virtual directories!")))
+                self.win.sendmessage(_("Not tagging virtual directories!"))
                 return False
             songs = self.getselected().getcontentsrecursive()
-            hub.notify(events.statusbar_showmessage(_("Tagging %d song(s) with tag '%s'...") % (len(songs), tag)))
+            self.win.sendmessage(_("Tagging %d song(s) with tag '%s'...") % (len(songs), tag))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
@@ -139,10 +139,10 @@ class filelist(slist.slist):
     def removetagselection(self, tag):
         if self.isdirselected():
             if not isinstance(self.getselected(), (item.artist, item.album)):
-                hub.notify(events.statusbar_showmessage(_("Not untagging virtual directories!")))
+                self.win.sendmessage(_("Not untagging virtual directories!"))
                 return False
             songs = self.getselected().getcontentsrecursive()
-            hub.notify(events.statusbar_showmessage(_("Removing tag '%s' from %d song(s)...") % (tag, len(songs))))
+            self.win.sendmessage(_("Removing tag '%s' from %d song(s)...") % (tag, len(songs)))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
@@ -160,7 +160,7 @@ class filelist(slist.slist):
                 # Note that we have to ensure that only dbitem.song (and not item.song) instances
                 # are sent to the db
                 songs = self.getselected().getcontentsrecursive()
-                hub.notify(events.statusbar_showmessage(_("Rescanning %d song(s)...") % len(songs)))
+                self.win.sendmessage(_("Rescanning %d song(s)...") % len(songs))
                 dsongs = {}
                 for song in songs:
                     dsongs.setdefault(song.songdbid, []).append(song.song)

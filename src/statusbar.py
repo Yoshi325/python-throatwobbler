@@ -17,6 +17,7 @@
 # along with PyTone; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import curses
 import config
 import hub, events
 import help
@@ -90,6 +91,10 @@ class statusbar(window.window):
             # make message disappear after a certain time
             hub.notify(events.sendeventin(self.removemessageevent, 2, replace=1))
         self.update()
+
+        # we want to get a message out immediately, so we force its output
+        curses.panel.update_panels()
+        curses.doupdate()
 
     # update method
 
