@@ -339,7 +339,7 @@ class song(item):
         return hash("%r-%d" % (self.songdbid, self.id))
 
     def __eq__(self, other):
-        return isinstance(other, song) and self.songdbid, self.id == other.songdbid, other.id
+        return isinstance(other, song) and (self.songdbid, self.id == other.songdbid, other.id)
 
     __str__ = __repr__
 
