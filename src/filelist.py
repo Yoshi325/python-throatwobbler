@@ -38,7 +38,7 @@ class filelist(slist.slist):
         filters = [tagfilter("G:Podcast", True), tagfilter("U:Muzak", True)]
         basefilters = item.filters(tuple(filter for filter in filters if filter))
 
-        self.basedir = item.basedir(songdbids, basefilters)
+        self.basedir = item.basedir(songdbids, basefilters, rootdir=True)
         # self.basedir = item.basedir(songdbids)
         self.dir = [self.basedir]
         self.shistory = []

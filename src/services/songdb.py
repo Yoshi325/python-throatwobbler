@@ -192,8 +192,8 @@ class songdbmanager(service.service):
                 # we have to query the song from our databases 
                 # since otherwise this is done automatically leading to
                 # a deadlock
-                if song.song is None:
-                    song.song = self.songdbhub.request(requests.getsong(song.songdbid, song.id))
+                if song.song_metadata is None:
+                    song.song_metadata = self.songdbhub.request(requests.getsong_metadata(song.songdbid, song.id))
                     # if the song has been deleted in the meantime, we proceed to the next one
                     if song.song is None:
                         continue
@@ -253,19 +253,19 @@ class songdbmanager(service.service):
         if isinstance(event, (events.checkpointdb, events.autoregistersongs)):
             return
         if isinstance(event, events.updatesong):
-            oldsong = self.songdbhub.request(requests.getsong(event.songdbid, event.song.id))
-            newsong = event.song
+            oldsong_metadata = self.songdbhub.request(requests.getsong_metadata(event.songdbid, event.song.id))
+            newsong_metadata = event.song.song_metadata
             # The following is an optimization for an updatesong event which occurs rather often
             # Not very pretty, but for the moment enough
-            if ( oldsong.album == newsong.album and
-                 oldsong.artist == newsong.artist and
-                 oldsong.tags == newsong.tags and
-                 oldsong.rating == newsong.rating ):
+            if ( oldsong_metadata.album == newsong_metadata.album and
+                 oldsong_metadata.artist == newsong_metadata.artist and
+                 oldsong_metadata.tags == newsong_metadata.tags and
+                 oldsong_metadata.rating == newsong_metadata.rating ):
                 # only the playing information was changed, so we just
                 # delete the relevant cache results
 
                 for key, item in self.requestcache.items():
-                    if isinstance(item[1], (requests.gettopplayedsongs, requests.getlastplayedsongs)):
+                    if isinstance(item[1], (requests.getsongs)):
                         del self.requestcache[key]
                 return
         # otherwise we delete the queries for the correponding database (and all compound queries)

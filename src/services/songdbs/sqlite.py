@@ -181,7 +181,7 @@ class songdb(service.service):
 
         # we are a database service provider...
         self.channel.supply(requests.getdatabasestats, self.getdatabasestats)
-        self.channel.supply(requests.getsong, self.getsong)
+        self.channel.supply(requests.getsong_metadata, self.getsong_metadata)
         self.channel.supply(requests.getartists, self.getartists)
         self.channel.supply(requests.getalbums, self.getalbums)
         self.channel.supply(requests.gettag_id, self.gettag_id)
@@ -407,10 +407,10 @@ class songdb(service.service):
             log.error("_updatesong: song has to be a item.song instance, not a %r instance" %
                       newsong.__class__)
             return
-        if not song.song:
+        if not song.song_metadata:
             log.error("_updatesong: song doesn't contain song metadata")
             return
-        oldsong = self._getsong(song_id=song.id)
+        oldsong = self._getsong_metadata(song.id)
 
         self._txn_begin()
         try:
@@ -559,6 +559,7 @@ class songdb(service.service):
                       FROM songs 
                       LEFT JOIN albums ON albums.id == album_id
                       LEFT JOIN artists ON artists.id == songs.artist_id
+                      WHERE songs.id = ?
                       """ % ", ".join([c for c in songcolumns_all if c!="artist_id"])
 
     _song_tags_select = """SELECT tags.name AS name FROM tags
@@ -567,23 +568,11 @@ class songdb(service.service):
 
     _song_playstats_select = "SELECT date_played FROM playstats WHERE song_id = ?"
 
-    def _getsong(self, song_id=None, song_url=None):
-        """return song entry with given song_id or url"""
-        if song_id is not None:
-            if song_url is not None:
-                raise KeyError
-            wherestring = "WHERE songs.id = ?"
-            args = [song_id]
-        elif song_url is not None:
-            wherestring = "WHERE songs.url = ?"
-            args = [song_url]
-        else:
-            raise KeyError
-        log.debug("Querying song '%r'" % args[0])
-
+    def _getsong_metadata(self, song_id):
+        """return song entry with given song_id"""
+        log.debug("Querying song metadata for id=%r" % song_id)
         try:
-            select = "%s%s" % (self._song_select, wherestring)
-            r = self.con.execute(select, args).fetchone()
+            r = self.con.execute(self._song_select, [song_id]).fetchone()
             if r:
                 # fetch album artist
                 if r["album_artist_id"] is not None:
@@ -627,7 +616,7 @@ class songdb(service.service):
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
         orderstring = sort and sort.SQL_string() or ""
-        args = filters and filters.SQLargs() or []
+        args = filters and filters.SQL_args() or []
         select = """SELECT DISTINCT songs.id              AS song_id, 
                                     songs.album_id        AS album_id, 
                                     songs.artist_id       AS artist_id,
@@ -648,7 +637,7 @@ class songdb(service.service):
         log.debug(filters.getname())
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
-        args = filters and filters.SQLargs() or []
+        args = filters and filters.SQL_args() or []
         select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
                     FROM artists 
                     JOIN songs    ON (songs.artist_id = artists.id)
@@ -664,7 +653,7 @@ class songdb(service.service):
         """return albums filtered according to filters"""
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
-        args = filters and filters.SQLargs() or []
+        args = filters and filters.SQL_args() or []
         # Hackish, but effective to allow collections show up in artists view
         if filters.contains(item.artistfilter):
             artist_id_column = "artist_id"
@@ -686,7 +675,7 @@ class songdb(service.service):
         """return tags filtered according to filters"""
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
-        args = filters and filters.SQLargs() or []
+        args = filters and filters.SQL_args() or []
         select ="""SELECT DISTINCT tags.id AS tag_id, tags.name AS tag_name
                    FROM tags
                    JOIN taggings ON (taggings.tag_id = tags.id)
@@ -708,7 +697,7 @@ class songdb(service.service):
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
         orderstring = sort and sort.SQL_string() or ""
-        args = filters and filters.SQLargs() or []
+        args = filters and filters.SQL_args() or []
         select = """SELECT DISTINCT songs.id              AS song_id,
                                     songs.album_id        AS album_id,
                                     songs.artist_id       AS artist_id,
@@ -851,11 +840,11 @@ class songdb(service.service):
             raise hub.DenyRequest
         return self.con.execute("SELECT count(*) FROM artists").fetchone()[0]
 
-    def getsong(self, request):
+    def getsong_metadata(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         try:
-            return self._getsong(song_id=request.song_id, song_url=request.song_url)
+            return self._getsong_metadata(song_id=request.song_id)
         except KeyError:
             return None
 
@@ -952,6 +941,8 @@ class songautoregisterer(service.service):
 
         self.channel.subscribe(events.autoregistersongs, self.autoregistersongs)
         self.channel.subscribe(events.rescansongs, self.rescansongs)
+        self.channel.subscribe(events.rescansongs, self.rescansongs)
+        self.channel.supply(requests.autoregisterer_queryregistersong, self.autoregisterer_queryregistersong)
 
     def _notify(self, event):
         """ wait until db is not busy and send event """
@@ -964,6 +955,52 @@ class songautoregisterer(service.service):
         while self.dbbusymethod():
             time.sleep(0.1)
         return hub.request(request, -100)
+
+    def _registerorupdatesong(self, path, force):
+        """ register or update song in database and return it
+
+        If force is set, the mtime of the song file is ignored.
+        """
+        if not path.startswith(self.basedir):
+            log.error("Path of song not in basedir of database")
+            return None
+
+        # generate url corresponding to song
+        if self.basedir.endswith("/"):
+           relpath = path[len(self.basedir):]
+        else:
+           relpath = path[len(self.basedir)+1:]
+
+        song_url = u"file://" + encoding.decode_path(relpath)
+        urlfilter = item.filters((item.urlfilter(song_url),))
+        songs = self._request(requests.getsongs(self.songdbid, filters=urlfilter))
+
+        if songs:
+            # there is exactly one resulting song
+            song = songs[0]
+            song_metadata = self._request(requests.getsong_metadata(self.songdbid, song.id))
+            if force or song_metadata.date_updated < os.stat(path).st_mtime:
+                # the song has changed since the last update
+                newsong_metadata = metadata.metadata_from_file(relpath, self.basedir,
+                                                               self.tracknrandtitlere,
+                                                               self.tagcapitalize, self.tagstripleadingarticle, 
+                                                               self.tagremoveaccents)
+                assert newsong_metadata.url == song_metadata.url, RuntimeError("song urls changed")
+                # update metadata in song
+                song.song_metadata = newsong_metadata
+                self._notify(events.updatesong(self.songdbid, song))
+            else:
+                log.debug("registerer: not scanning unchanged song '%r'" % song_url)
+        else:
+            # song was not stored in database
+            newsong_metadata = metadata.metadata_from_file(relpath, self.basedir,
+                                                           self.tracknrandtitlere,
+                                                           self.tagcapitalize, self.tagstripleadingarticle, 
+                                                           self.tagremoveaccents)
+            self._notify(events.addsong(self.songdbid, newsong_metadata))
+            # fetch new song from database
+            song = self._request(requests.getsongs(self.songdbid, filters=urlfilter))[0]
+        return song
 
     def registerdirtree(self, dir, oldsongs, force):
         """ scan for songs and playlists in dir and its subdirectories, 
@@ -994,36 +1031,9 @@ class songautoregisterer(service.service):
         # now register songs...
         songs = []
         for path in songpaths:
-            # generate url corresponding to song
-            if self.basedir.endswith("/"):
-               relpath = path[len(self.basedir):]
-            else:
-               relpath = path[len(self.basedir)+1:]
-
-            song_url = u"file://" + encoding.decode_path(relpath)
-            song = self._request(requests.getsong(self.songdbid, song_url=song_url))
-
-            if song:
-                if force or song.date_updated < os.stat(path).st_mtime:
-                    # the song has changed since the last update
-                    newsong = metadata.metadata_from_file(relpath, self.basedir,
-                                                          self.tracknrandtitlere,
-                                                          self.tagcapitalize, self.tagstripleadingarticle, 
-                                                          self.tagremoveaccents)
-                    assert newsong.url == song.url, RuntimeError("song urls changed")
-                else:
-                    log.debug("registerer: not scanning unchanged song '%r'" % song_url)
-
-                # remove song from list of songs to be checked
-                oldsongs.discard(song)
-            else:
-                # song was not stored in database
-                newsong = metadata.metadata_from_file(relpath, self.basedir,
-                                                      self.tracknrandtitlere,
-                                                      self.tagcapitalize, self.tagstripleadingarticle, 
-                                                      self.tagremoveaccents)
-                self._notify(events.addsong(self.songdbid, newsong))
-
+            song = self._registerorupdatesong(self, path, force)
+            # remove song from list of songs to be checked (if present)
+            oldsongs.discard(song)
         # ... and playlists
         # XXX to be done
         playlists = [dbitem.playlist(path) for path in playlistpaths]
@@ -1091,3 +1101,6 @@ class songautoregisterer(service.service):
                 self.rescansong(song)
             log.info(_("database %r: finished rescanning %d songs") % (self.songdbid, len(event.songs)))
 
+    def autoregisterer_queryregistersong(self, request):
+        if self.songdbid == request.songdbid:
+            return self._registerorupdatesong(request.path, force=True)

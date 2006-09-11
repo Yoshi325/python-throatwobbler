@@ -21,6 +21,7 @@
 import os.path, string, time
 import config, metadata
 import events, hub, requests
+import encoding
 import helper
 
 #
@@ -43,7 +44,7 @@ class filter:
     def SQL_WHERE_string(self):
         return ""
 
-    def SQLargs(self):
+    def SQL_args(self):
         return []
 
 
@@ -52,6 +53,16 @@ class hiddenfilter(filter):
     def __init__(self, indexname, indexid):
         filter.__init__(self, None, indexname, indexid)
 
+class urlfilter(hiddenfilter):
+    def __init__(self, url):
+        self.url = url
+        hiddenfilter.__init__(self, "url", url)
+
+    def SQL_WHERE_string(self):
+        return "songs.url = ?"
+
+    def SQL_args(self):
+        return [self.url]
 
 class compilationfilter(hiddenfilter):
     def __init__(self, iscompilation):
@@ -71,7 +82,7 @@ class artistfilter(hiddenfilter):
     def SQL_WHERE_string(self):
         return "artists.id = ? OR songs.album_artist_id = ?"
 
-    def SQLargs(self):
+    def SQL_args(self):
         return [self.artist_id, self.artist_id]
 
 
@@ -83,7 +94,7 @@ class albumfilter(hiddenfilter):
     def SQL_WHERE_string(self):
         return "albums.id = ?"
 
-    def SQLargs(self):
+    def SQL_args(self):
         return [self.album_id]
 
 class playedsongsfilter(hiddenfilter):
@@ -102,7 +113,7 @@ class searchfilter(filter):
     def SQL_WHERE_string(self):
         return "(songs.title LIKE ?) OR (albums.name LIKE ?) OR (artists.name LIKE ?)"
 
-    def SQLargs(self):
+    def SQL_args(self):
         return ["%%%s%%" % self.searchstring] * 3
 
 
@@ -148,7 +159,7 @@ class ratingfilter(filter):
         else:
             return "songs.rating IS NULL"
 
-    def SQLargs(self):
+    def SQL_args(self):
         if self.rating:
             return [self.rating]
         else:
@@ -187,10 +198,10 @@ class filters(tuple):
             filterstring = "WHERE (%s)" % filterstring
             return filterstring
 
-    def SQLargs(self):
+    def SQL_args(self):
         result = []
         for filter in self:
-            result.extend(filter.SQLargs())
+            result.extend(filter.SQL_args())
         return result
 
 # helper function for usage in getinfo methods, which merges information about
@@ -317,7 +328,7 @@ class song(item):
         self.artist_id = artist_id
         self.album_artist_id = album_artist_id
         self.date_played = date_played
-        self.song = None
+        self.song_metadata = None
 
     def __repr__(self):
         return "song(%s) in %s database" % (self.id, self.songdbid)
@@ -331,15 +342,15 @@ class song(item):
         # Python tries to call __setstate__ upon unpickling -- prevent this
         if attr=="__setstate__":
             raise AttributeError
-        if not self.song:
-            self.song = hub.request(requests.getsong(self.songdbid, self.id))
+        if not self.song_metadata:
+            self.song_metadata = hub.request(requests.getsong_metadata(self.songdbid, self.id))
         # return metadata if we have been able to fetch it, otherwise return None
-        if self.song:
-            return getattr(self.song, attr)
+        if self.song_metadata:
+            return getattr(self.song_metadata, attr)
         else:
             return None
 
-    def _updatesong(self):
+    def _updatesong_metadata(self):
         """ notify database of song changes """
         hub.notify(events.updatesong(self.songdbid, self))
 
@@ -411,13 +422,13 @@ class song(item):
         # if we are unable to fetch the title, the song has been deleted in the meantime
         if self.title is None:
             return l
-        directory, filename = os.path.split(self.song.url)
+        directory, filename = os.path.split(self.url)
         l.append([_("Path:"), directory, "", ""])
         l.append([_("File name:"), filename, "", ""])
         if self.size:
             if self.size > 1024*1024:
                 sizestring = "%.1f MB" % (self.size / 1024.0 / 1024)
-            elif self.song.size > 1024:
+            elif self.size > 1024:
                 sizestring = "%.1f kB" % (self.size / 1024.0)
             else:
                 sizestring = "%d B" % self.size
@@ -425,7 +436,7 @@ class song(item):
             sizestring = ""
         l.append([_("Size:"), sizestring, "", ""])
         typestring = self.type.upper()
-        if self.song.bitrate is not None:
+        if self.bitrate is not None:
             typestring = "%s %dkbps" % (typestring, self.bitrate/1000)
             if self.is_vbr:
                 typestring = typestring + "VBR"
@@ -438,7 +449,7 @@ class song(item):
             l.append([_("Album:"),  self.album, "", ""])
         if self.artist:
             l.append([_("Artist:"), self.artist, "", ""])
-        if self.song.year:
+        if self.year:
             l.append([_("Year:"), str(self.year), "", ""])
         else:
             l.append([_("Year:"), "", "", ""])
@@ -491,7 +502,7 @@ class song(item):
         if self.title is None:
             return "DELETED"
         d = {}
-        d.update(self.song.__dict__)
+        d.update(self.song_metadata.__dict__)
         d.update(adddict)
         d["minutes"], d["seconds"] = divmod(d["length"], 60)
         d["length"] = "%d:%02d" % (d["minutes"], d["seconds"])
@@ -514,31 +525,31 @@ class song(item):
         # just to fetch song metadata
         oldrating = self.rating
         # if this was sucessful we can rate the song
-        if self.song:
+        if self.song_metadata:
             if rating:
-                self.song.rating = rating
+                self.song_metadata.rating = rating
             else:
-                self.song.rating = None
-            self._updatesong()
+                self.song_metadata.rating = None
+            self._updatesong_metadata()
 
     def addtag(self, tag):
         tags = self.tags
         if tags is not None and tag not in tags:
             tags.append(tag)
             self.tags = tags
-            self._updatesong()
+            self._updatesong_metadata()
 
     def removetag(self, tag):
         tags = self.tags
         if tags is not None and tag in tags:
             tags.remove(tag)
             self.tags = tags
-            self._updatesong()
+            self._updatesong_metadata()
 
     def rescan(self):
         """rescan id3 information for song, keeping playing statistic, rating, etc."""
         # XXX check whether song has been deleted
-        hub.notify(events.rescansong(self.songdbid, self.song))
+        hub.notify(events.rescansong(self.songdbid, self.song_metadata))
 
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
@@ -971,9 +982,15 @@ class filesystemdir(diritem):
         self.dir = dir
 
         if self.dir==self.basedir:
-            self.name = "[%s]" % _("Filesystem")
+            self.name =  _("Filesystem")
         else:
-            self.name = self.dir[len(self.basedir):].split("/")[-1]
+            self.name = encoding.decode_path(self.dir[len(self.basedir):].split("/")[-1])
+
+    def getname(self):
+        if self.isbasedir():
+            return "[%s]/" % _("Filesystem")
+        else:
+            return "%s/" % self.name
 
     def getcontents(self):
         items = []
@@ -986,12 +1003,13 @@ class filesystemdir(diritem):
                         newitem = filesystemdir(self.songdbid, self.basedir, path)
                         items.append(newitem)
                     elif extension in metadata.getextensions() and os.access(path, os.R_OK):
-                        newsong = hub.request(requests.queryregistersong(self.songdbid, path))
-                        items.append(newsong)
+                        song = hub.request(requests.autoregisterer_queryregistersong(self.songdbid, path))
+                        if song:
+                            items.append(song)
                 except (IOError, OSError) : pass
         except OSError:
             return None
-        items.sort(self.cmpitem)
+        items.sort(cmp=lambda x, y: cmp(x.getname(), y.getname()))
         return items
 
     def getcontentsrecursiverandom(self):
@@ -1000,13 +1018,13 @@ class filesystemdir(diritem):
         # return _genrandomchoice(songs)
 
     def getheader(self, item):
-        if self.dir==self.basedir:
+        if self.isbasedir():
             return _("Filesystem")
         else:
             return self.name
 
     def getinfo(self):
-        return [["%s:" % _("Filesystem"), self.dir, "", ""]]
+        return [["%s:" % _("Filesystem"), encoding.decode_path(self.dir), "", ""]]
 
     def isbasedir(self):
         """ return whether the filesystemdir is the basedir of a song database """
@@ -1018,7 +1036,7 @@ class basedir(totaldiritem):
 
     """ base dir of database view"""
 
-    def __init__(self, songdbids, filters=filters(())):
+    def __init__(self, songdbids, filters=filters(()), rootdir=False):
         # XXX: as a really dirty hack, we cache the result of getdatabasestats for
         # all databases because we cannot call this request safely later on
         # (we might be handling another request which calls the basedir constructor)
@@ -1039,6 +1057,7 @@ class basedir(totaldiritem):
             self.basedir = None
         self.id = "basedir"
         self.filters = filters # .added(tagfilter(19, "a"))
+        self.rootdir = rootdir
         self.maxnr = 100
         self.nrartists = None
         self.nrsongs = None
@@ -1047,8 +1066,8 @@ class basedir(totaldiritem):
     def _initvirtdirs(self):
         self.virtdirs = []
         self.virtdirs.append(compilations(self.songdbid, filters=self.filters))
-        # if self.type == "local" and not self.filters:
-        #     self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
+        if self.type == "local" and self.rootdir:
+            self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
         self.virtdirs.append(songs(self.songdbid, filters=self.filters))
         self.virtdirs.append(albums(self.songdbid, filters=self.filters))
 

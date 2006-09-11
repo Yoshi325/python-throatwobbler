@@ -100,18 +100,14 @@ class addsong(dbrequestsingle):
         return "%r(%r)->%r" % (self.__class__.__name__, self.song, self.songdbid)
 
 
-class getsong(dbrequestsingle):
-    """get song from database songdbid corresponding to either song_id or song_url
-
-    Exactly one of song_id or song_url has to be not None.
-    """
+class getsong_metadata(dbrequestsingle):
+    """fetch song metadata from database songdbid corresponding to song_id""" 
     def __init__(self, songdbid, song_id=None, song_url=None):
         self.songdbid = songdbid
         self.song_id = song_id
-	self.song_url = song_url
 
     def __repr__(self):
-        return "%r(%r,%r)->%r" % (self.__class__.__name__, self.song_id, self.song_url, self.songdbid)
+        return "%r(%r)->%r" % (self.__class__.__name__, self.song_id, self.songdbid)
 
 
 class gettag_id(dbrequestsingle):
@@ -198,7 +194,7 @@ class dbrequestnumber(dbrequest):
         self.filters = filters
 
     def __repr__(self):
-        return ( "%r(%r))->%r" % (self.__class__.__name__, self.filters, self.songdbid))
+        return ( "%r(%r)->%r" % (self.__class__.__name__, self.filters, self.songdbid))
 
 
 class getnumberofalbums(dbrequestnumber):
@@ -212,6 +208,16 @@ class getnumberoftags(dbrequestnumber):
 
 class getnumberofratings(dbrequestnumber):
     pass
+
+# autoregisterer request
+
+class autoregisterer_queryregistersong(dbrequest):
+    def __init__(self, songdbid, path):
+        self.songdbid = songdbid
+        self.path = path
+
+    def __repr__(self):
+        return "%r(%r)->%r" % (self.__class__.__name__, self.path, self.songdbid)
 
 # songdbmanager
 
