@@ -195,7 +195,7 @@ class songdbmanager(service.service):
                 if song.song_metadata is None:
                     song.song_metadata = self.songdbhub.request(requests.getsong_metadata(song.songdbid, song.id))
                     # if the song has been deleted in the meantime, we proceed to the next one
-                    if song.song is None:
+                    if song.song_metadata is None:
                         continue
                 rating = song.rating or 3
                 if song.date_lastplayed:
