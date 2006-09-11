@@ -237,7 +237,24 @@ class ratingfilter(filter):
             name = "%s=%s" % (_("Rating"), "*" * rating)
         else:
             name = "%s=%s" % (_("Rating"), _("Not rated"))
+        self.rating = rating
         filter.__init__(self, name, indexname="rating", indexid=rating)
+
+    def SQL_JOIN_string(self):
+        return ""
+
+    def SQL_WHERE_string(self):
+        if self.rating:
+            return "songs.rating = ?"
+        else:
+            return "songs.rating IS NULL"
+
+    def SQLargs(self):
+        if self.rating:
+            return [self.rating]
+        else:
+            return []
+
 
 class filters(tuple):
 
@@ -893,22 +910,23 @@ class ratings(totaldiritem):
         self.songdbids = songdbids
         self.filters = filters
         self.name = _("Ratings")
-        self.nrratings = None
+        self.nrratings = 6
 
     def getname(self):
         if self.nrratings is None:
-            self.nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
-        return "[%s (%d)]/" % (_("Ratings"), self.nrratings)
+            self.nrratings = len(self.getcontents())
+        return "[%s (%d)]/" % (self.name, self.nrratings)
 
     def getcontents(self):
-        ratings = hub.request(requests.getratings(self.songdbid, filters=self.filters))
+        ratings = [rating(self.songdbid, r, self.filters) for r in range(1, 6)]
+        ratings.append(rating(self.songdbid, None, self.filters))
         self.nrratings = len(ratings)
         return ratings
 
     def getheader(self, item):
         if self.nrratings is None:
-            nrratings = hub.request(requests.getnumberofratings(self.songdbid, filters=self.filters))
-        return "%s (%d)" % (_("Ratings"), self.nrratings) + self.filters.getname()
+            nrratings = len(self.getcontents())
+        return "%s (%d)" % (self.name, self.nrratings) + self.filters.getname()
 
 
 class playlists(diritem):
@@ -1041,11 +1059,11 @@ class basedir(totaldiritem):
         else:
             self.virtdirs.append(tags(self.songdbid, self.songdbids, filters=self.filters))
 
-        #for filter in self.filters:
-        #    if isinstance(filter, ratingfilter):
-        #        break
-        #else:
-        #    self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
+        for filter in self.filters:
+            if isinstance(filter, ratingfilter):
+                break
+        else:
+            self.virtdirs.append(ratings(self.songdbid, self.songdbids, filters=self.filters))
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
@@ -1138,3 +1156,16 @@ class tag(index):
         index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
         self.id = id
 
+
+class rating(index):
+    def __init__(self, songdbid, r, nfilters):
+        if nfilters is not None:
+            nfilters = nfilters.added(ratingfilter(r))
+        else:
+            nfilters = filters((ratingfilter(r),))
+        if r is None:
+            description = _("Not rated")
+        else:
+            description = "*" * r
+        index.__init__(self, [songdbid], _("Rating:"), description, nfilters)
+        self.id = r
