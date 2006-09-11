@@ -94,7 +94,7 @@ CREATE TABLE songs (
   date_updated          TIMESTAMP,
   date_lastplayed       TIMESTAMP,
   playcount             INTEGER,
-  rating                FLOAT
+  rating                INTEGER
 );
 
 CREATE INDEX album_id ON albums(name);

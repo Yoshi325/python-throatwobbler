@@ -33,12 +33,12 @@ class filelistwin(window.window):
         self.channel = channel
         self.keybindings = config.keybindings.filelistwindow
         self.songdbids = songdbids
-        
+
         # last search string
         self.searchstring = None
         # list of selections during incremental search
         self.searchpositions = []
-        
+
         # last song added to playlist
         self.lastadded = None
 
@@ -49,7 +49,7 @@ class filelistwin(window.window):
                                config.colors.filelistwindow,
                                "MP3s",
                                border, config.filelistwindow.scrollbar)
-        
+
         self.items = filelist.filelist(self, self.songdbids)
 
         self.channel.subscribe(events.keypressed, self.keypressed)
@@ -100,7 +100,7 @@ class filelistwin(window.window):
             # searchstring input window
         hub.notify(events.selectionchanged(self.items.getselected()))
         self.update()
-        
+
     def isclickonstring(self, y, x):
         """ check whether a click was on a string or not """
         while x < self.ix+self.iw:
@@ -171,19 +171,20 @@ class filelistwin(window.window):
             elif ord("a")<=key-1024<=ord("z") or ord("A")<=key-1024<=ord("Z") :
                 self.items.selectbyletter(chr(key-1024))
             elif ord("0")<=key<=ord("5"):
-                self.items.rateselection(key-ord("1")+1)
-                self.items.selectrelative(+1)
+                if self.items.rateselection(key-ord("1")+1):
+                    self.items.selectrelative(+1)
             elif key == ord("d"):
-                self.items.addtagselection("U:Muzak")
-                self.items.selectrelative(+1)
+                if self.items.addtagselection("U:Muzak"):
+                    self.items.selectrelative(+1)
             elif key == ord("D"):
-                self.items.removetagselection("U:Muzak")
+                if self.items.removetagselection("U:Muzak"):
+                    self.items.selectrelative(+1)
             else:
                 return
 
-            if self.items.selected!=self.lastadded:
+            if self.items.selected != self.lastadded:
                 self.lastadded = None
-        
+
             self.update()
             raise hub.TerminateEventProcessing
 
@@ -199,7 +200,7 @@ class filelistwin(window.window):
                     if y==self.iy+1:
                         self.items.selectprev()
                     elif y==self.iy+self.ih-2:
-                        self.items.selectnext()                    
+                        self.items.selectnext()
                     elif self.iy<y<scrollbarbegin:
                         self.items.selectprevpage()
                     elif scrollbarbegin+scrollbarheight<=y<self.iy+self.ih-2:
@@ -222,7 +223,7 @@ class filelistwin(window.window):
                 self.items.dirup()
             else:
                 return
-            
+
             self.update()
             raise hub.TerminateEventProcessing
 
@@ -231,7 +232,7 @@ class filelistwin(window.window):
             self.lastadded = None
             hub.notify(events.selectionchanged(self.items.getselected()))
         self.update()
-        
+
     # window update method
 
     def update(self):
@@ -242,7 +243,7 @@ class filelistwin(window.window):
             self.updatestatusbar()
 
         showselectionbar = self.hasfocus() or self.searchpositions
-        
+
         for i in range(self.items.top, self.items.top+self.ih):
             attr = curses.A_NORMAL
             if i<len(self.items):
@@ -253,7 +254,7 @@ class filelistwin(window.window):
                         attr = self.colors.selected_song
                     else:
                         attr = self.colors.song
-                elif aitem.isartist() or aitem.isalbum():
+                elif isinstance(aitem, (item.artist, item.album)):
                     if i==self.items.selected and showselectionbar:
                         attr = self.colors.selected_artist_album
                     else:
@@ -269,10 +270,10 @@ class filelistwin(window.window):
             self.addstr(i-self.items.top+self.iy, self.ix, name.ljust(self.iw)[:self.iw], attr)
 
         self.updatescrollbar()
-        
+
         # move cursor to the right position in order to make it more
         # easy for users of Braille displays to track the current
         # position/selection
-	if self.hasfocus() and self.items.selected is not None:
-	    self.win.move(self.items.selected-self.items.top+1, 1)
+        if self.hasfocus() and self.items.selected is not None:
+            self.win.move(self.items.selected-self.items.top+1, 1)
 

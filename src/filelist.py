@@ -75,7 +75,7 @@ class filelist(slist.slist):
         # In the case of the selected item having been an artist check
         # whether only one album is present. If yes directly jump to
         # this album.
-        if config.filelistwindow.skipsinglealbums and self.dir[-1].isartist() and len(self) <= 2:
+        if config.filelistwindow.skipsinglealbums and isinstance(self.dir[-1], item.artist) and len(self) <= 2:
             self.dir = self.getselectedsubdir()
             self.readdir()
 
@@ -108,28 +108,46 @@ class filelist(slist.slist):
             hub.notify(events.playlistaddsongs([self.getselected()]))
 
     def rateselection(self, rating):
-        if (isinstance(self.getselected(), item.song) or
-            isinstance(self.getselected(), item.album) or
-            isinstance(self.getselected(), item.artist)):
-            self.getselected().rate(rating)
+        if self.isdirselected():
+            if not isinstance(self.getselected(), (item.artist, item.album)):
+                hub.notify(events.statusbar_showmessage(_("Not rating virtual directories!")))
+                return False
+            songs = self.getselected().getcontentsrecursive()
+            if rating:
+                hub.notify(events.statusbar_showmessage(_("Rating %d song(s) with %d star(s)...") % (len(songs), rating)))
+            else:
+                hub.notify(events.statusbar_showmessage(_("Removing rating of %d song(s)...") % len(songs)))
+        elif self.issongselected():
+            songs = [self.getselected()]
+        for song in songs:
+            song.rate(rating)
+        return True
 
     def addtagselection(self, tag):
         if self.isdirselected():
+            if not isinstance(self.getselected(), (item.artist, item.album)):
+                hub.notify(events.statusbar_showmessage(_("Not tagging virtual directories!")))
+                return False
             songs = self.getselected().getcontentsrecursive()
             hub.notify(events.statusbar_showmessage(_("Tagging %d song(s) with tag '%s'...") % (len(songs), tag)))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
             song.addtag(tag)
+        return True
 
     def removetagselection(self, tag):
         if self.isdirselected():
+            if not isinstance(self.getselected(), (item.artist, item.album)):
+                hub.notify(events.statusbar_showmessage(_("Not untagging virtual directories!")))
+                return False
             songs = self.getselected().getcontentsrecursive()
             hub.notify(events.statusbar_showmessage(_("Removing tag '%s' from %d song(s)...") % (tag, len(songs))))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
             song.removetag(tag)
+        return True
 
     def rescanselection(self):
         if self.isdirselected():
@@ -193,11 +211,12 @@ class filelist(slist.slist):
         self.shistory = []
         self.dir = [self.basedir]
         self.readdir()
-        if self.selectbyid(event.song.artist_id):
+        # either we are able to locate the artist or we should look under compilations
+        if self.selectbyid(event.song.artist_id) or self.selectbyid("compilations"):
             self.dirdown()
             # We might have skipped the album when there is only a single one of
             # the given artist.
-            if not self.dir[-1].isalbum():
+            if not isinstance(self.dir[-1], item.album):
                 if self.selectbyid(event.song.album_id):
                     self.dirdown()
                 self.selectbyid(event.song.id)

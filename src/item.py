@@ -45,10 +45,11 @@ class item(object):
     """ base class for various items presentend in the database and
     playlist windows."""
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, id):
         """ each item has to be bound to a specific database
         identified by songdbid """
         self.songdbid = songdbid
+        self.id = id
 
     def getid(self):
         """ return unique id of item in context """
@@ -119,14 +120,6 @@ class diritem(item):
         else:
             s = self.name
         return s + self.filters.getname()
-
-    def isartist(self):
-        """ does self represent an artist? """
-        return False
-
-    def isalbum(self):
-        """ does self represent an album? """
-        return False
 
     def getinfo(self):
         return _mergefilters([[self.name, "", "", ""]], self.filters)
@@ -391,10 +384,9 @@ class song(item):
                 played = played + " (%s)" % ("*"*self.rating)
             l[3] += [_("Played:"),
                    _("#%d, %s ago") % (self.playcount, played)]
-
         else:
-            if self.rating and 0:
-                l[3] += [_("Rating:"), "*"*self.rating]
+            if self.rating:
+                l[3] += [_("Rating:"), "*" * self.rating]
             else:
                 l[3] += ["", ""]
         return l
@@ -505,7 +497,7 @@ class song(item):
 
     def rate(self, rating):
         # just to fetch song metadata
-        oldrating = self.song.rating
+        oldrating = self.rating
         # if this was sucessful we can rate the song
         if self.song:
             if rating:
@@ -583,19 +575,6 @@ class artist(diritem):
             artistname = self.name
         return _mergefilters([[_("Artist:"), artistname, "", ""]], self.filters)
 
-    def isartist(self):
-        return True
-
-    def rate(self, rating):
-        for song in self.getcontentsrecursive():
-            if song.ratingsource is None or song.ratingsource == 2:
-                if rating:
-                    song.song.rating = rating
-                else:
-                    song.song.rating = None
-                song.song.ratingsource = 2
-                song._updatesong()
-
 
 class album(diritem):
 
@@ -646,26 +625,14 @@ class album(diritem):
              [_("Album:"), albumname, "", ""]]
         return _mergefilters(l, self.filters)
 
-    def isalbum(self):
-        return True
-
-    def rate(self, rating):
-        for song in self.getcontentsrecursive():
-            if song.ratingsource is None or song.ratingsource >= 1:
-                if rating:
-                    song.song.rating = rating
-                else:
-                    song.song.rating = None
-                song.song.ratingsource = 1
-                song._updatesong()
-
 
 class playlist(diritem):
 
     """ songs in a playlist in the corresponding database """
 
-    def __init__(self, songdbid, path, name, songs):
+    def __init__(self, songdbid, id, path, name, songs):
         self.songdbid = songdbid
+        self.id = id
         self.path = path
         self.name = name
         self.songs = songs
@@ -711,6 +678,7 @@ class songs(totaldiritem):
 
     def __init__(self, songdbid, artist=None, filters=None):
         self.songdbid = songdbid
+        self.id = "songs"
         self.name = _("Songs")
         self.artist = artist
         self.filters = filters
@@ -745,12 +713,13 @@ class songs(totaldiritem):
         return _mergefilters(l, self.filters)
 
 
-class randomsonglist(totaldiritem):
+class randomsongs(totaldiritem):
 
     """ random list of songs out of  the corresponding database """
 
     def __init__(self, songdbid, maxnr, filters):
         self.songdbid = songdbid
+        self.id = "randomsongs"
         self.name = _("Random song list")
         self.maxnr = maxnr
         self.filters = filters
@@ -772,6 +741,7 @@ class lastplayedsongs(diritem):
 
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.id = "lastplayedsongs"
         self.filters = filters
         self.name = _("Last played songs")
 
@@ -797,6 +767,7 @@ class topplayedsongs(diritem):
 
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.id = "topplayedsongs"
         self.filters = filters.added(playedsongsfilter())
         self.name = _("Top played songs")
 
@@ -823,6 +794,7 @@ class lastaddedsongs(diritem):
 
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.id = "lastaddedsongs"
         self.filters = filters
         self.name = _("Last added songs")
 
@@ -848,6 +820,7 @@ class albums(totaldiritem):
 
     def __init__(self, songdbid, filters):
         self.songdbid = songdbid
+        self.id = "albums"
         self.filters = filters
         self.name = _("Albums")
         self.nralbums = None
@@ -872,6 +845,7 @@ class compilations(albums):
     def __init__(self, songdbid, filters):
         filters = filters.added(compilationfilter(True))
         albums.__init__(self, songdbid, filters)
+        self.id = "compilations"
         self.name = _("Compilations")
 
 
@@ -881,6 +855,7 @@ class tags(totaldiritem):
 
     def __init__(self, songdbid, songdbids, filters):
         self.songdbid = songdbid
+        self.id = "tags"
         self.songdbids = songdbids
         self.filters = filters
         self.name = _("Tags")
@@ -914,6 +889,7 @@ class ratings(totaldiritem):
 
     def __init__(self, songdbid, songdbids, filters):
         self.songdbid = songdbid
+        self.id = "ratings"
         self.songdbids = songdbids
         self.filters = filters
         self.name = _("Ratings")
@@ -941,6 +917,7 @@ class playlists(diritem):
 
     def __init__(self, songdbid):
         self.songdbid = songdbid
+        self.id = "playlists"
         self.name = _("Playlists")
         self.nrplaylists = None
 
@@ -972,6 +949,7 @@ class filesystemdir(diritem):
 
     def __init__(self, songdbid, basedir, dir):
         self.songdbid = songdbid
+        self.id = "filesystemdir"
         self.basedir = basedir
         self.dir = dir
 
@@ -1042,6 +1020,7 @@ class basedir(totaldiritem):
             self.songdbid = None
             self.type = "virtual"
             self.basedir = None
+        self.id = "basedir"
         self.filters = filters # .added(tagfilter(19, "a"))
         self.maxnr = 100
         self.nrartists = None
@@ -1070,7 +1049,7 @@ class basedir(totaldiritem):
         self.virtdirs.append(topplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
-        self.virtdirs.append(randomsonglist(self.songdbid, self.maxnr, filters=self.filters))
+        self.virtdirs.append(randomsongs(self.songdbid, self.maxnr, filters=self.filters))
         #if not self.filters:
         #    self.virtdirs.append(playlists(self.songdbid))
         if len(self.songdbids) > 1:
@@ -1129,7 +1108,6 @@ class basedir(totaldiritem):
              description = _("%d databases (%%d)") % (len(self.songdbids))
          return _mergefilters([[self.name, description, "", ""]], self.filters)
 
-
 class index(basedir):
 
     def __init__(self, songdbids, name, description, filters):
@@ -1150,12 +1128,13 @@ class index(basedir):
     def getinfo(self):
         return _mergefilters([[self.name, self.description, "", ""]], self.filters[:-1])
 
+
 class tag(index):
     def __init__(self, songdbid, id, name, nfilters):
-        self.id = id
         if nfilters is not None:
             nfilters = nfilters.added(tagfilter(id, name))
         else:
             nfilters = filters((tagfilter(id, name),))
         index.__init__(self, [songdbid], _("Tag:"), name, nfilters)
+        self.id = id
 
