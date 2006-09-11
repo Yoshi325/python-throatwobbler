@@ -116,6 +116,7 @@ class filelist(slist.slist):
     def addtagselection(self, tag):
         if self.isdirselected():
             songs = self.getselected().getcontentsrecursive()
+            hub.notify(events.statusbar_showmessage(_("Tagging %d song(s) with tag '%s'...") % (len(songs), tag)))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
@@ -124,6 +125,7 @@ class filelist(slist.slist):
     def removetagselection(self, tag):
         if self.isdirselected():
             songs = self.getselected().getcontentsrecursive()
+            hub.notify(events.statusbar_showmessage(_("Removing tag '%s' from %d song(s)...") % (tag, len(songs))))
         elif self.issongselected():
             songs = [self.getselected()]
         for song in songs:
@@ -139,8 +141,10 @@ class filelist(slist.slist):
                 # distribute songs over songdbs
                 # Note that we have to ensure that only dbitem.song (and not item.song) instances
                 # are sent to the db
+                songs = self.getselected().getcontentsrecursive()
+                hub.notify(events.statusbar_showmessage(_("Rescanning %d song(s)...") % len(songs)))
                 dsongs = {}
-                for song in self.getselected().getcontentsrecursive():
+                for song in songs:
                     dsongs.setdefault(song.songdbid, []).append(song.song)
                 for songdbid, songs in dsongs.items():
                     if songs:

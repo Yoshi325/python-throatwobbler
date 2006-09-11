@@ -395,6 +395,17 @@ class statusbar_update(event):
         return "%s(%s, %s)" % (self.__class__.__name__, self.pos, self.content)
 
 
+class statusbar_showmessage(event):
+    """ show a message (which automatically disappears after some time in the statusbar"""
+
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return "%r(%r)" % (self.__class__.__name__, self.content)
+
+
+
 class requestinput(event):
     def __init__(self, title, prompt, handler):
         self.title = title

@@ -18,6 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import config
+import hub, events
 import help
 import window
 import events
@@ -47,11 +48,17 @@ class statusbar(window.window):
         # self.content[1]: player info
         # self.content[2]: global info
         self.content = [[], [], []]
+
+        # message overriding contents
+        self.message = None
+        # for identification purposes, we only generate this once
+        self.removemessageevent = events.statusbar_showmessage(None)
         window.window.__init__(self, screen,
                                1, width, line, 0,
                                config.colors.statusbar,
                                None)
-        self.channel.subscribe(events.statusbar_update, self.updatestatusbar)
+        self.channel.subscribe(events.statusbar_update, self.statusbar_update)
+        self.channel.subscribe(events.statusbar_showmessage, self.statusbar_showmessage)
 
         # hack to export some properties of the statusbar singleton into
         # the module namespace
@@ -73,8 +80,15 @@ class statusbar(window.window):
 
     # event handler
 
-    def updatestatusbar(self, event):
+    def statusbar_update(self, event):
         self.content[event.pos] = event.content
+        self.update()
+
+    def statusbar_showmessage(self, event):
+        self.message = event.message
+        if self.message:
+            # make message disappear after a certain time
+            hub.notify(events.sendeventin(self.removemessageevent, 2, replace=1))
         self.update()
 
     # update method
@@ -84,7 +98,10 @@ class statusbar(window.window):
         self.move(0,0)
         self.clrtoeol()
 
-        for element in self.content[0]+separator+self.content[1]+separator+self.content[2]:
-            if element==terminate[0]:
-                break
-            self.addstr(encoding.encode(element[0]), element[1])
+        if self.message:
+            self.addstr(encoding.encode(self.message), config.colors.statusbar.key)
+        else:
+            for element in self.content[0]+separator+self.content[1]+separator+self.content[2]:
+                if element==terminate[0]:
+                    break
+                self.addstr(encoding.encode(element[0]), element[1])
