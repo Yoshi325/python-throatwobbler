@@ -23,107 +23,6 @@ import config, metadata
 import events, hub, requests
 import helper
 
-# # We import the _genrandomchoice function used in the songdb module.
-# # Maybe we should instead put it in a separate module
-# from services.songdb import _genrandomchoice
-
-# helper function for usage in getinfo methods, which merges information about
-# filters in third and forth columns of lines
-def _mergefilters(lines, filters):
-    # filter out filters which are to be shown
-    filters = [filter for filter in filters if filter.name]
-    if filters:
-        for nr, filter in enumerate(filters[:4]):
-            if len(lines) > nr:
-                lines[nr][2:3] = [_("Filter:"), filter.name]
-            else:
-                lines.append(["", "", _("Filter:"), filter.name])
-    return lines
-
-
-class item(object):
-    """ base class for various items presentend in the database and
-    playlist windows."""
-
-    def __init__(self, songdbid, id):
-        """ each item has to be bound to a specific database
-        identified by songdbid """
-        self.songdbid = songdbid
-        self.id = id
-
-    def getid(self):
-        """ return unique id of item in context """
-        raise NotImplementedError("has to be implemented by sub classes")
-
-    def getname(self):
-        """ short name used for item in lists """
-        raise NotImplementedError("has to be implemented by sub classes")
-
-    def getinfo(self):
-        """ 4x4 array containing rows and columns used for display of item
-        in iteminfowin"""
-        return [["", "", "", ""]]
-
-    def getinfolong(self):
-        """ nx4 array containing rows and columns used for display of item
-        in iteminfowin2"""
-        return self.getinfo()
-
-class diritem(item):
-
-    """ item containing other items """
-
-    def getname(self):
-        return "[%s]/" % self.name
-
-    def getid(self):
-        return self.name
-
-    def getcontents(self):
-        """ return items contained in self """
-        pass
-
-    def getcontentsrecursive(self):
-        """ return items contained in self including subdirs (in arbitrary order)"""
-        result = []
-        for aitem in self.getcontents():
-            if isinstance(aitem, diritem):
-                result.extend(aitem.getcontentsrecursive())
-            else:
-                result.append(aitem)
-
-        return result
-
-    def getcontentsrecursivesorted(self):
-        """ return items contained in self including subdirs (sorted)"""
-        result = []
-        for aitem in self.getcontents():
-            if isinstance(aitem, diritem):
-                result.extend(aitem.getcontentsrecursivesorted())
-            else:
-                result.append(aitem)
-
-        return result
-
-    def getcontentsrecursiverandom(self):
-        """ return random list of items contained in self including subdirs """
-        # this should be implemented by subclasses
-        return []
-
-    def getheader(self, item):
-        """ return header (used for title bar in filelistwin) of item in self.
-
-        Note that item can be None!
-        """
-        if item and item.artist and item.album:
-            s = "%s - %s" % (item.artist, item.album)
-        else:
-            s = self.name
-        return s + self.filters.getname()
-
-    def getinfo(self):
-        return _mergefilters([[self.name, "", "", ""]], self.filters)
-
 #
 # filters
 #
@@ -294,6 +193,104 @@ class filters(tuple):
             result.extend(filter.SQLargs())
         return result
 
+# helper function for usage in getinfo methods, which merges information about
+# filters in third and forth columns of lines
+def _mergefilters(lines, filters):
+    # filter out filters which are to be shown
+    filters = [filter for filter in filters if filter.name]
+    if filters:
+        for nr, filter in enumerate(filters[:4]):
+            if len(lines) > nr:
+                lines[nr][2:3] = [_("Filter:"), filter.name]
+            else:
+                lines.append(["", "", _("Filter:"), filter.name])
+    return lines
+
+
+class item(object):
+    """ base class for various items presentend in the database and
+    playlist windows."""
+
+    def __init__(self, songdbid, id):
+        """ each item has to be bound to a specific database
+        identified by songdbid """
+        self.songdbid = songdbid
+        self.id = id
+
+    def getid(self):
+        """ return unique id of item in context """
+        raise NotImplementedError("has to be implemented by sub classes")
+
+    def getname(self):
+        """ short name used for item in lists """
+        raise NotImplementedError("has to be implemented by sub classes")
+
+    def getinfo(self):
+        """ 4x4 array containing rows and columns used for display of item
+        in iteminfowin"""
+        return [["", "", "", ""]]
+
+    def getinfolong(self):
+        """ nx4 array containing rows and columns used for display of item
+        in iteminfowin2"""
+        return self.getinfo()
+
+class diritem(item):
+
+    """ item containing other items """
+
+    def getname(self):
+        return "[%s]/" % self.name
+
+    def getid(self):
+        return self.name
+
+    def getcontents(self):
+        """ return items contained in self """
+        pass
+
+    def getcontentsrecursive(self):
+        """ return items contained in self including subdirs (in arbitrary order)"""
+        result = []
+        for aitem in self.getcontents():
+            if isinstance(aitem, diritem):
+                result.extend(aitem.getcontentsrecursive())
+            else:
+                result.append(aitem)
+
+        return result
+
+    def getcontentsrecursivesorted(self):
+        """ return items contained in self including subdirs (sorted)"""
+        result = []
+        for aitem in self.getcontents():
+            if isinstance(aitem, diritem):
+                result.extend(aitem.getcontentsrecursivesorted())
+            else:
+                result.append(aitem)
+
+        return result
+
+    def getcontentsrecursiverandom(self):
+        """ return random list of items contained in self including subdirs """
+        # this should be implemented by subclasses
+        return []
+
+    def getheader(self, item):
+        """ return header (used for title bar in filelistwin) of item in self.
+
+        Note that item can be None!
+        """
+        if item and item.artist and item.album:
+            s = "%s - %s" % (item.artist, item.album)
+        else:
+            s = self.name
+        return s + self.filters.getname()
+
+    def getinfo(self):
+        return _mergefilters([[self.name, "", "", ""]], self.filters)
+
+
 #
 # specialized classes
 #
@@ -306,6 +303,7 @@ def _formatnumbertotal(number, total):
         return "%d" % number
     else:
         return ""
+
 
 class song(item):
 
@@ -546,6 +544,7 @@ class song(item):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
         return self.date_played or self.date_lastplayed
+
 
 class artist(diritem):
 
