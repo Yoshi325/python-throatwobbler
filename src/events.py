@@ -379,7 +379,7 @@ class playbackinfochanged(event):
         return "%s(%s)" % (self.__class__.__name__, self.playbackinfo)
 
 
-class updatestatusbar(event):
+class statusbar_update(event):
     """ update status bar
 
     pos = 0: info for currently selected window

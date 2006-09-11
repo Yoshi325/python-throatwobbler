@@ -51,7 +51,7 @@ class statusbar(window.window):
                                1, width, line, 0,
                                config.colors.statusbar,
                                None)
-        self.channel.subscribe(events.updatestatusbar, self.updatestatusbar)
+        self.channel.subscribe(events.statusbar_update, self.updatestatusbar)
 
         # hack to export some properties of the statusbar singleton into
         # the module namespace
@@ -64,7 +64,7 @@ class statusbar(window.window):
 
     def resize(self, line, width):
         window.window.resize(self, 1, width, line, 0)
-        
+
         global separator
         if width<=80:
             separator = [(" ", self.colors.background)]
@@ -78,7 +78,7 @@ class statusbar(window.window):
         self.update()
 
     # update method
-    
+
     def update(self):
         window.window.update(self)
         self.move(0,0)

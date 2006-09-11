@@ -63,7 +63,7 @@ class playlistwin(window.window):
             sbar += statusbar.separator
 
         sbar += statusbar.generatedescription("playlistwindow", "activatefilelist")
-        hub.notify(events.updatestatusbar(0, sbar))
+        hub.notify(events.statusbar_update(0, sbar))
 
     def updatescrollbar(self):
         self.drawscrollbar(self.playlist.top, len(self.playlist))

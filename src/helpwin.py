@@ -46,7 +46,7 @@ class helpwin(messagewin.messagewin):
                                        config.helpwindow.autoclosetime)
 
         sbar = statusbar.generatedescription("general", "showhelp")
-        hub.notify(events.updatestatusbar(2, sbar))
+        hub.notify(events.statusbar_update(2, sbar))
 
     def showitems(self):
         y = self.iy

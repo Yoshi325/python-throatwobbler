@@ -393,7 +393,7 @@ class song(item):
                    _("#%d, %s ago") % (self.playcount, played)]
 
         else:
-            if self.rating:
+            if self.rating and 0:
                 l[3] += [_("Rating:"), "*"*self.rating]
             else:
                 l[3] += ["", ""]

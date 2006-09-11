@@ -129,7 +129,7 @@ class messagewin(window.window):
             sbar += statusbar.separator
             sbar += [(version.copyright, config.colors.statusbar.description)]
             sbar += statusbar.terminate
-            hub.notify(events.updatestatusbar(0, sbar))
+            hub.notify(events.statusbar_update(0, sbar))
 
     def update(self):
         window.window.update(self)

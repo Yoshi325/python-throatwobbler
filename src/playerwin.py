@@ -65,7 +65,7 @@ class playerwin(window.window):
             sbar = statusbar.generatedescription("general", "playerpause")
         else:
             sbar = statusbar.generatedescription("general", "playerstart")
-        hub.notify(events.updatestatusbar(1, sbar))
+        hub.notify(events.statusbar_update(1, sbar))
         
     def update(self):
         window.window.update(self)
