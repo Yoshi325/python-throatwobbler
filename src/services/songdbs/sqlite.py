@@ -1031,7 +1031,7 @@ class songautoregisterer(service.service):
         # now register songs...
         songs = []
         for path in songpaths:
-            song = self._registerorupdatesong(self, path, force)
+            song = self._registerorupdatesong(path, force)
             # remove song from list of songs to be checked (if present)
             oldsongs.discard(song)
         # ... and playlists
@@ -1077,8 +1077,6 @@ class songautoregisterer(service.service):
 
             log.debug("database %r: querying list of songs in database" % self.songdbid)
             oldsongs = set(hub.request(requests.getsongs(self.songdbid)))
-            #for song in oldsongs: self._notify(events.delsong(self.songdbid, song))
-            #return
 
             # scan for all songs and playlists in the filesystem
             log.debug("database %r: searching for new songs" % self.songdbid)
