@@ -270,15 +270,6 @@ class dbplaylistchanged(event):
         return "%s(%s)->%s" % (self.__class__.__name__, self.playlist, self.songdbid)
 
 
-class requestnextsong(event):
-    def __init__(self, playerid, previous=0):
-        self.playerid = playerid
-        self.previous = previous
-
-    def __str__(self):
-        return "%s(%s, %s)" % (self.__class__.__name__, self.playerid, self.previous)
-
-
 class playerevent(event):
     """ event for the player control """
 

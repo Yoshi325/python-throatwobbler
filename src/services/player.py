@@ -289,7 +289,7 @@ class genericplayer(service.service):
     def requestnextsong(self, manual=False, previous=False):
         """request next song from playlist and play it"""
         if self.playlistid is not None:
-            nextsong = hub.request(requests.requestnextsong(self.playlistid, previous))
+            nextsong = hub.request(requests.playlist_requestnextsong(self.playlistid, previous))
             self.playsong(nextsong, manual)
 
     def playsong(self, song, manual):

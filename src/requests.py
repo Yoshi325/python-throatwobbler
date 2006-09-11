@@ -225,7 +225,7 @@ class getsongdbmanagerstats(request):
 # other requests for playlist and player service
 #
 
-class requestnextsong(request):
+class playlist_requestnextsong(request):
     """ request a playlistitem from playlistid. Go back in playlist if previous is set """
     def __init__(self, playlistid, previous=0):
         self.playlistid = playlistid

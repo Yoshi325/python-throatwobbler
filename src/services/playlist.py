@@ -114,7 +114,7 @@ class playlist(service.service):
         self.channel.subscribe(events.playlistplaysong, self.playlistplaysong)
         self.channel.subscribe(events.songchanged, self.songchanged)
 
-        self.channel.supply(requests.requestnextsong, self.requestnextsong)
+        self.channel.supply(requests.playlist_requestnextsong, self.playlist_requestnextsong)
         self.channel.supply(requests.playlistgetcontents, self.playlistgetcontents)
 
         # try to load dump from prior crash, if existent
@@ -471,7 +471,7 @@ class playlist(service.service):
     # request handler
     #
 
-    def requestnextsong(self, request):
+    def playlist_requestnextsong(self, request):
         if request.playlistid != self.id:
             raise hub.DenyRequest
         if not request.previous:
