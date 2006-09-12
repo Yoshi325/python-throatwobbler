@@ -343,6 +343,13 @@ class song(item):
 
     __str__ = __repr__
 
+    def __getstate__(self):
+        return (self.songdbid, self.id, self.album_id, self.artist_id, self.album_artist_id, self.date_played)
+
+    def __setstate__(self, tuple):
+        self.songdbid, self.id, self.album_id, self.artist_id, self.album_artist_id, self.date_played = tuple
+        self.song_metadata = None
+
     def __getattr__(self, attr):
         # Python tries to call __setstate__ upon unpickling -- prevent this
         if attr=="__setstate__":
