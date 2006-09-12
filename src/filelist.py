@@ -217,8 +217,7 @@ class filelist(slist.slist):
             self.dirdown()
             # We might have skipped the album when there is only a single one of
             # the given artist.
-            if not isinstance(self.dir[-1], item.album):
-                if self.selectbyid(event.song.album_id):
-                    self.dirdown()
-                self.selectbyid(event.song.id)
+            if not isinstance(self.dir[-1], item.album) and self.selectbyid(event.song.album_id):
+                self.dirdown()
+            self.selectbyid(event.song.id)
         self.win.update()
