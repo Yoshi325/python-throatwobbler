@@ -1031,9 +1031,14 @@ class songautoregisterer(service.service):
         # now register songs...
         songs = []
         for path in songpaths:
-            song = self._registerorupdatesong(path, force)
-            # remove song from list of songs to be checked (if present)
-            oldsongs.discard(song)
+            try:
+                song = self._registerorupdatesong(path, force)
+                # remove song from list of songs to be checked (if present)
+                oldsongs.discard(song)
+            except:
+                # if the registering or update failed we do nothing and the song
+                # will be deleted from the database later on
+                pass
         # ... and playlists
         # XXX to be done
         playlists = [dbitem.playlist(path) for path in playlistpaths]

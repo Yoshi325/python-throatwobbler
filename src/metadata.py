@@ -113,6 +113,10 @@ def metadata_from_file(relpath, basedir,
 
     regularize_metadata(md, capitalize, stripleadingarticle, removeaccents)
 
+    if md.length is None:
+        log.warning("could not read length of song %r" % path)
+        raise RuntimeError("could not read length of song %s" % path)
+
     # automatically add tags
     if md.year:
         md.tags.append("D:%d" % (10*(md.year//10)))
