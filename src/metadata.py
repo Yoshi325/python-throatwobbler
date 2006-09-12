@@ -44,6 +44,7 @@ class song_metadata:
     year = None
     comment = None
     lyrics = None
+    bpm = None
     tracknumber = None
     trackcount = None
     disknumber = None
@@ -317,6 +318,8 @@ def read_mp3_mutagen_metadata(md, path):
                 md.tracknumber, md.trackcount = _splitnumbertotal(frame.text[0])
             elif frame.FrameID == "TPOS":
                 md.disknumber, md.diskcount = _splitnumbertotal(frame.text[0])
+            elif frame.FrameID == "TBPM":
+                md.bpm = int(+frame)
             #elif frame.FrameID == "TCMP":
             #   self.compilation = True
             elif frame.FrameID == "TDRC":

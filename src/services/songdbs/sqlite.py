@@ -76,6 +76,7 @@ CREATE TABLE songs (
   year                  INTEGER,
   comment               TEXT,
   lyrics                TEXT,
+  bpm                   INTEGER,
   length                INTEGER,
   tracknumber           INTEGER,
   trackcount            INTEGER,
@@ -111,7 +112,7 @@ CREATE INDEX taggings_song_id ON taggings(song_id);
 CREATE INDEX taggings_tag_id ON taggings(tag_id);
 """
 
-songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics",
+songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics", "bpm",
                        "length", "tracknumber", "trackcount", "disknumber", "diskcount",
                        "compilation", "bitrate", "is_vbr", "samplerate", 
                        "replaygain_track_gain", "replaygain_track_peak",
