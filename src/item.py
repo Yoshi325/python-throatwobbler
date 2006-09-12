@@ -351,9 +351,6 @@ class song(item):
         self.song_metadata = None
 
     def __getattr__(self, attr):
-        # Python tries to call __setstate__ upon unpickling -- prevent this
-        if attr=="__setstate__":
-            raise AttributeError
         if not self.song_metadata:
             self.song_metadata = hub.request(requests.getsong_metadata(self.songdbid, self.id))
         # return metadata if we have been able to fetch it, otherwise return None
