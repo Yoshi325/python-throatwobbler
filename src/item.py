@@ -86,6 +86,14 @@ class artistfilter(hiddenfilter):
         return [self.artist_id, self.artist_id]
 
 
+class noartistfilter(hiddenfilter):
+    def __init__(self):
+        hiddenfilter.__init__(self, "artist_id", None)
+
+    def SQL_WHERE_string(self):
+        return "songs.artist_id IS NULL"
+
+
 class albumfilter(hiddenfilter):
     def __init__(self, album_id):
         self.album_id = album_id
@@ -96,6 +104,7 @@ class albumfilter(hiddenfilter):
 
     def SQL_args(self):
         return [self.album_id]
+
 
 class playedsongsfilter(hiddenfilter):
     def __init__(self):
@@ -743,10 +752,25 @@ class songs(totaldiritem):
     def getinfo(self):
         if self.artist is not None:
             l = [[_("Artist:"), self.artist, "", ""],
-                    [_("Songs"), "", "", ""]]
+                    [self.name, "", "", ""]]
         else:
-            l = [[_("Songs"), "", "", ""]]
+            l = [[self.name, "", "", ""]]
         return _mergefilters(l, self.filters)
+
+
+class noartist(songs):
+
+    """ list of songs without artist information """
+
+    def __init__(self, songdbid, filters):
+        self.songdbid = songdbid
+        self.id = "noartist"
+        self.name = _("No artist")
+        self.filters = filters.added(noartistfilter())
+        self.nrsongs = None
+
+    def getinfo(self):
+        return _mergefilters([[self.name, "", "", ""]], self.filters)
 
 
 class randomsongs(totaldiritem):
@@ -1074,6 +1098,7 @@ class basedir(totaldiritem):
 
     def _initvirtdirs(self):
         self.virtdirs = []
+        self.virtdirs.append(noartist(self.songdbid, filters=self.filters))
         self.virtdirs.append(compilations(self.songdbid, filters=self.filters))
         if self.type == "local" and self.rootdir:
             self.virtdirs.append(filesystemdir(self.songdbid, self.basedir, self.basedir))
