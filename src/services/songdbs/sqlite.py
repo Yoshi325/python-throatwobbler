@@ -1106,4 +1106,7 @@ class songautoregisterer(service.service):
 
     def autoregisterer_queryregistersong(self, request):
         if self.songdbid == request.songdbid:
-            return self._registerorupdatesong(request.path, force=True)
+            try:
+                return self._registerorupdatesong(request.path, force=True)
+            except:
+                return None
