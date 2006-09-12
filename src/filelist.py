@@ -212,7 +212,8 @@ class filelist(slist.slist):
         self.dir = [self.basedir]
         self.readdir()
         # either we are able to locate the artist or we should look under compilations
-        if self.selectbyid(event.song.artist_id) or self.selectbyid("compilations"):
+        if ( (event.song.artist_id and (self.selectbyid(event.song.artist_id) or self.selectbyid("compilations"))) or
+             self.selectbyid("noartist") ):
             self.dirdown()
             # We might have skipped the album when there is only a single one of
             # the given artist.
