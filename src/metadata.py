@@ -66,7 +66,8 @@ class song_metadata:
     dates_played = []
     # the following two items are redundant but stored for efficieny reasons
     date_lastplayed = None
-    playcount = 0
+    playcount = 0                 # times fully played
+    abortcount = 0                # times aborted early
 
     def __init__(self):
         self.tags = []

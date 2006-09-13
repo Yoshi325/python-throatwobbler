@@ -95,6 +95,7 @@ CREATE TABLE songs (
   date_updated          TIMESTAMP,
   date_lastplayed       TIMESTAMP,
   playcount             INTEGER,
+  abortcount            INTEGER,
   rating                INTEGER
 );
 
@@ -118,7 +119,7 @@ songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics", "bp
                        "replaygain_track_gain", "replaygain_track_peak",
                        "replaygain_album_gain", "replaygain_album_peak", 
                        "size", "compilation", "date_added", "date_updated", "date_lastplayed",
-                       "playcount", "rating"]
+                       "playcount", "abortcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
 songcolumns_all = songcolumns_woindex + songcolumns_indices
