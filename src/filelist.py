@@ -150,25 +150,26 @@ class filelist(slist.slist):
         return True
 
     def rescanselection(self):
-        if self.isdirselected():
+        if ( isinstance(self.getselected(), item.basedir) or
+             ( isinstance(self.getselected(), item.filesystemdir) and self.getselected().isbasedir()) ):
             # instead of rescanning of a whole filesystem we start the autoregisterer
-            if ( isinstance(self.getselected(), item.basedir) or
-                 ( isinstance(self.getselected(), item.filesystemdir) and self.getselected().isbasedir()) ):
-                hub.notify(events.autoregistersongs(self.getselected().songdbid))
-            else:
+            self.win.sendmessage(_("Scanning for songs in database '%s'...") % self.self.getselected().songdbid)
+            hub.notify(events.autoregistersongs(self.getselected().songdbid))
+        else:
+            if self.isdirselected():
                 # distribute songs over songdbs
                 # Note that we have to ensure that only dbitem.song (and not item.song) instances
                 # are sent to the db
                 songs = self.getselected().getcontentsrecursive()
-                self.win.sendmessage(_("Rescanning %d song(s)...") % len(songs))
-                dsongs = {}
-                for song in songs:
-                    dsongs.setdefault(song.songdbid, []).append(song.song)
-                for songdbid, songs in dsongs.items():
-                    if songs:
-                        hub.notify(events.rescansongs(songdbid, songs))
-        else:
-            self.getselected().rescan()
+            else:
+                songs = [self.getselected()]
+            self.win.sendmessage(_("Rescanning %d song(s)...") % len(songs))
+            dsongs = {}
+            for song in songs:
+                dsongs.setdefault(song.songdbid, []).append(song)
+            for songdbid, songs in dsongs.items():
+                if songs:
+                    hub.notify(events.rescansongs(songdbid, songs))
 
     # event handler
 

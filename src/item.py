@@ -564,11 +564,6 @@ class song(item):
             self.tags = tags
             self._updatesong_metadata()
 
-    def rescan(self):
-        """rescan id3 information for song, keeping playing statistic, rating, etc."""
-        # XXX check whether song has been deleted
-        hub.notify(events.rescansong(self.songdbid, self.song_metadata))
-
     def getplayingtime(self):
         """ return time at which this particular song instance has been played or the
         last playing time, if no such time has been specified at instance creation time """
