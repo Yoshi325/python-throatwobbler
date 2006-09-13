@@ -153,7 +153,7 @@ class filelist(slist.slist):
         if ( isinstance(self.getselected(), item.basedir) or
              ( isinstance(self.getselected(), item.filesystemdir) and self.getselected().isbasedir()) ):
             # instead of rescanning of a whole filesystem we start the autoregisterer
-            self.win.sendmessage(_("Scanning for songs in database '%s'...") % self.self.getselected().songdbid)
+            self.win.sendmessage(_("Scanning for songs in database '%s'...") % self.getselected().songdbid)
             hub.notify(events.autoregistersongs(self.getselected().songdbid))
         else:
             if self.isdirselected():
