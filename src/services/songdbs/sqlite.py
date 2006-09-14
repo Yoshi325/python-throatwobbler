@@ -660,8 +660,8 @@ class songdb(service.service):
         args = filters and filters.SQL_args() or []
         select = """SELECT DISTINCT artists.id AS artist_id, artists.name AS artist_name
                     FROM artists 
-                    JOIN songs    ON (songs.artist_id = artists.id)
-                    JOIN albums   ON (album_id = albums.id)
+                    JOIN songs         ON (songs.artist_id = artists.id)
+                    LEFT JOIN albums   ON (album_id = albums.id)
                     %s
                     %s
                     ORDER BY artists.name COLLATE NOCASE""" % (joinstring, wherestring)
