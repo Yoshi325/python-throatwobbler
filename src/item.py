@@ -495,6 +495,7 @@ class song(item):
             l.append([_("Rating:"), "-", "", ""])
 
         l.append([_("Times played:"), str(self.playcount), "", ""])
+        l.append([_("Times skipped:"), str(self.skipcount), "", ""])
 
         for played in self.dates_played[-1:-6:-1]:
             last = int((time.time()-played)/60)

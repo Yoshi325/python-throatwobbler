@@ -95,7 +95,7 @@ CREATE TABLE songs (
   date_updated          TIMESTAMP,
   date_lastplayed       TIMESTAMP,
   playcount             INTEGER,
-  abortcount            INTEGER,
+  skipcount             INTEGER,
   rating                INTEGER
 );
 
@@ -119,7 +119,7 @@ songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics", "bp
                        "replaygain_track_gain", "replaygain_track_peak",
                        "replaygain_album_gain", "replaygain_album_peak", 
                        "size", "compilation", "date_added", "date_updated", "date_lastplayed",
-                       "playcount", "abortcount", "rating"]
+                       "playcount", "skipcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
 songcolumns_all = songcolumns_woindex + songcolumns_indices
@@ -172,7 +172,8 @@ class songdb(service.service):
         self.channel.subscribe(events.addsong, self.addsong)
         self.channel.subscribe(events.updatesong, self.updatesong)
         self.channel.subscribe(events.delsong, self.delsong)
-        self.channel.subscribe(events.playsong, self.playsong)
+        self.channel.subscribe(events.song_played, self.song_played)
+        self.channel.subscribe(events.song_skipped, self.song_skipped)
 
         self.channel.subscribe(events.updateplaylist, self.updateplaylist)
         self.channel.subscribe(events.delplaylist, self.delplaylist)
@@ -489,7 +490,7 @@ class songdb(service.service):
                 hub.notify(events.tagschanged(self.id))
         hub.notify(events.songchanged(self.id, song))
 
-    def _playsong(self, song, date_played):
+    def _song_played(self, song, date_played):
         """register playing of song"""
         log.debug("playing song: %r" % song)
         if not isinstance(song, item.song):
@@ -502,6 +503,23 @@ class songdb(service.service):
             song.playcount += 1
             song.date_lastplayed = date_played
             song.dates_played.append(date_played)
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
+        hub.notify(events.songchanged(self.id, song))
+
+    def _song_skipped(self, song):
+        """register skipping of song"""
+        log.debug("skipping song: %r" % song)
+        if not isinstance(song, item.song):
+            log.error("_updatesong: song has to be an item.song instance, not a %r instance" % song.__class__)
+            return
+        self._txn_begin()
+        try:
+            self.cur.execute("UPDATE songs SET skipcount = skipcount+1 WHERE id = ?", [song.id])
+            song.skipcount += 1
         except:
             self._txn_abort()
             raise
@@ -775,10 +793,17 @@ class songdb(service.service):
                 log.debug_traceback()
                 pass
 
-    def playsong(self, event):
+    def song_played(self, event):
         if event.songdbid == self.id:
             try:
-                self._playsong(event.song, event.date_played)
+                self._song_played(event.song, event.date_played)
+            except KeyError:
+                pass
+
+    def song_skipped(self, event):
+        if event.songdbid == self.id:
+            try:
+                self._song_skipped(event.song)
             except KeyError:
                 pass
 

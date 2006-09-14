@@ -246,7 +246,7 @@ class genericplayer(service.service):
             if ( self.playbackinfo.playlistitem and not self.playbackinfo.playlistitem.playingregistered and
                  self.playbackinfo.song and self.playbackinfo.time > 0.8*self.playbackinfo.song.length ):
                 song = self.playbackinfo.song
-                hub.notify(events.playsong(song.songdbid, song, time.time()-self.playbackinfo.time))
+                hub.notify(events.song_played(song.songdbid, song, time.time()-self.playbackinfo.time))
                 self.playbackinfo.playlistitem.playingregistered = True
             self.play()
 
@@ -415,6 +415,12 @@ class genericplayer(service.service):
     def playernext(self, event):
         """immediately play next song"""
         if event.playerid == self.id:
+            # mark playing of song as skipped if it belongs to a playlist
+            if self.playbackinfo.playlistitem and self.playbackinfo.song and not self.playbackinfo.playlistitem.playingregistered:
+                song = self.playbackinfo.song
+                hub.notify(events.song_skipped(song.songdbid, song))
+                # we also prevent this song from being registered as played
+                self.playbackinfo.playlistitem.playingregistered = True
             self.requestnextsong(manual=1)
 
     def playerprevious(self, event):
