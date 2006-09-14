@@ -197,7 +197,11 @@ class songdbmanager(service.service):
                     # if the song has been deleted in the meantime, we proceed to the next one
                     if song.song_metadata is None:
                         continue
-                rating = song.rating or 3
+                if song.rating:
+                    rating = song.rating
+                else:
+                    # punish skipped songs if they have not been rated
+                    rating = max(1, 3 + max(0, 0.5*(song.playcount - song.skipcount)))
                 if song.date_lastplayed:
                     # Simple heuristic algorithm to consider song ratings
                     # for random selection. Certainly not optimal!
