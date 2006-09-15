@@ -244,7 +244,7 @@ class genericplayer(service.service):
     def work(self):
         if self.isplaying():
             if ( self.playbackinfo.playlistitem and not self.playbackinfo.playlistitem.playingregistered and
-                 self.playbackinfo.song and self.playbackinfo.time > 0.8*self.playbackinfo.song.length ):
+                 self.playbackinfo.song and (self.playbackinfo.song.length < 10 or self.playbackinfo.time > 0.8*self.playbackinfo.song.length) ):
                 song = self.playbackinfo.song
                 hub.notify(events.song_played(song.songdbid, song, time.time()-self.playbackinfo.time))
                 self.playbackinfo.playlistitem.playingregistered = True
@@ -448,7 +448,7 @@ class genericplayer(service.service):
     def playerplaysong(self, event):
         """play event.song next"""
         if event.playerid == self.id:
-            self.playsong(event.song, manual=1)
+            self.playsong(event.playlistitemorsong, manual=1)
 
     def playerratecurrentsong(self, event):
         """play event.song next"""
