@@ -171,7 +171,7 @@ class filelistwin(window.window):
                 if self.searchstring:
                     self.items.selectbyregexp(self.searchstring, includeselected=False)
             elif key in self.keybindings["rescan"]:
-                self.items.rescanselection()
+                self.items.rescanselection(force=True)
                 self.items.selectrelative(+1)
             elif ord("a")<=key-1024<=ord("z") or ord("A")<=key-1024<=ord("Z") :
                 self.items.selectbyletter(chr(key-1024))

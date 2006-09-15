@@ -82,6 +82,37 @@ class song_metadata:
     def __setitem__(self, key, value):
         return setattr(self, key, value)
 
+    def update(self, other):
+        " merge filesystem metadata from other into self "
+        assert other.url == self.url, RuntimeError("song urls changed")
+        self.title = other.title
+        self.album = other.album
+        self.artist = other.artist
+        self.album_artist = other.album_artist
+        # keep user tags
+        usertags = [tag for tag in self.tags if tag[:2] == "U:"]
+        self.tags = other.tags + usertags
+        self.year = other.year
+        self.comment = other.comment
+        self.lyrics = other.lyrics
+        self.bpm = other.bpm
+        self.tracknumber = other.tracknumber
+        self.trackcount = other.trackcount
+        self.disknumber = other.disknumber
+        self.diskcount = other.diskcount
+        self.compilation = other.compilation
+        self.length = other.length
+        self.size = other.size
+        self.bitrate = other.bitrate
+        self.is_vbr = other.is_vbr
+        self.samplerate = other.samplerate
+        self.length = other.length
+        self.replaygain_track_gain = other.replaygain_track_gain
+        self.replaygain_track_peak = other.replaygain_track_peak
+        self.replaygain_album_gain = other.replaygain_album_gain
+        self.replaygain_album_peak = other.replaygain_album_peak
+        self.date_updated = other.date_updated
+
 #
 # factory function for song metadata
 #

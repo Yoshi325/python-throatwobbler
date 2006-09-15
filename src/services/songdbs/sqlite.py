@@ -967,8 +967,7 @@ class songautoregisterer(service.service):
         self.supportedextensions = metadata.getextensions()
 
         self.channel.subscribe(events.autoregistersongs, self.autoregistersongs)
-        self.channel.subscribe(events.rescansongs, self.rescansongs)
-        self.channel.subscribe(events.rescansongs, self.rescansongs)
+        self.channel.subscribe(events.autoregisterer_rescansongs, self.autoregisterer_rescansongs)
         self.channel.supply(requests.autoregisterer_queryregistersong, self.autoregisterer_queryregistersong)
 
     def _notify(self, event):
@@ -1012,9 +1011,7 @@ class songautoregisterer(service.service):
                                                                self.tracknrandtitlere,
                                                                self.tagcapitalize, self.tagstripleadingarticle, 
                                                                self.tagremoveaccents)
-                assert newsong_metadata.url == song_metadata.url, RuntimeError("song urls changed")
-                # update metadata in song
-                song.song_metadata = newsong_metadata
+                song.song_metadata.update(newsong_metadata)
                 self._notify(events.updatesong(self.songdbid, song))
             else:
                 log.debug("registerer: not scanning unchanged song '%r'" % song_url)
@@ -1079,24 +1076,32 @@ class songautoregisterer(service.service):
         time.sleep(2)
         service.service.run(self)
 
-    def rescansong(self, song):
-        # XXX to be done
-        # to take load of the database thread, we also enable the songautoregisterer
-        # to rescan songs
+    def rescansong(self, song, force):
+        if song.songdbid != self.songdbid:
+            log.debug("Trying to rescan song in wrong database")
+            return
+        if song.song_metadata is None:
+            song.song_metadata = self._request(requests.getsong_metadata(self.songdbid, song.id))
+            if song.song_metadata is None:
+                log.debug("Song not found in database")
+                return
+        if not song.url.startswith("file://"):
+            log.debug("Can only rescan local files")
+            return
+        relpath = song.url[7:]
+        path = os.path.join(self.basedir, relpath)
         try:
-            song.scanfile(self.basedir,
-                          self.tracknrandtitlere,
-                          self.tagcapitalize, self.tagstripleadingarticle, self.tagremoveaccents)
-            self._notify(events.updatesong(self.songdbid, song))
-        except IOError:
+            if force or song_metadata.date_updated < os.stat(path).st_mtime:
+                newsong_metadata = metadata.metadata_from_file(relpath, self.basedir,
+                                                               self.tracknrandtitlere,
+                                                               self.tagcapitalize, self.tagstripleadingarticle, 
+                                                               self.tagremoveaccents)
+                song.song_metadata.update(newsong_metadata)
+                self._notify(events.updatesong(self.songdbid, song))
+        except (IOError, OSError):
+            log.debug_traceback()
+            # if anything goes wrong, we delete the song from the database
             self._notify(events.delsong(self.songdbid, song))
-
-    def rescanplaylist(self, playlist):
-        try:
-            newplaylist = dbitem.playlist(playlist.path)
-            self._notify(events.updateplaylist(self.songdbid, newplaylist))
-        except IOError:
-            self._notify(events.delplaylist(self.songdbid, playlist))
 
     #
     # event handler
@@ -1124,11 +1129,11 @@ class songautoregisterer(service.service):
 
             log.info(_("database %r: finished scanning for songs in %r") % (self.songdbid, self.basedir))
 
-    def rescansongs(self, event):
+    def autoregisterer_rescansongs(self, event):
         if self.songdbid == event.songdbid:
             log.info(_("database %r: rescanning %d songs") % (self.songdbid, len(event.songs)))
             for song in event.songs:
-                self.rescansong(song)
+                self.rescansong(song, event.force)
             log.info(_("database %r: finished rescanning %d songs") % (self.songdbid, len(event.songs)))
 
     def autoregisterer_queryregistersong(self, request):

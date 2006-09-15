@@ -202,19 +202,24 @@ class autoregistersongs(dbevent):
     """
     def __init__(self, songdbid, force=False):
         self.songdbid = songdbid
-	self.force = force
+        self.force = force
 
     def __str__(self):
         return "%s(%s)->%s" % (self.__class__.__name__, self.force, self.songdbid)
 
 
-class rescansongs(dbevent):
-    def __init__(self, songdbid, songs):
+class autoregisterer_rescansongs(dbevent):
+    """ rescan songs in given database 
+
+    If force is set, the m_time of songs is ignored and they are always rescanned
+    """
+    def __init__(self, songdbid, songs, force=False):
         self.songdbid = songdbid
         self.songs = songs
+        self.force = force
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.songs, self.songdbid)
+        return "%s(%s, %s)->%s" % (self.__class__.__name__, self.songs, self.force, self.songdbid)
 
 
 class clearstats(dbevent):

@@ -149,7 +149,7 @@ class filelist(slist.slist):
             song.removetag(tag)
         return True
 
-    def rescanselection(self):
+    def rescanselection(self, force):
         if ( isinstance(self.getselected(), item.basedir) or
              ( isinstance(self.getselected(), item.filesystemdir) and self.getselected().isbasedir()) ):
             # instead of rescanning of a whole filesystem we start the autoregisterer
@@ -169,7 +169,7 @@ class filelist(slist.slist):
                 dsongs.setdefault(song.songdbid, []).append(song)
             for songdbid, songs in dsongs.items():
                 if songs:
-                    hub.notify(events.rescansongs(songdbid, songs))
+                    hub.notify(events.autoregisterer_rescansongs(songdbid, songs, force))
 
     # event handler
 

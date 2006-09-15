@@ -114,7 +114,7 @@ class playlistwin(window.window):
             elif key in self.keybindings["shuffle"]:
                 hub.notify(events.playlistshuffle())
             elif key in self.keybindings["rescan"]:
-                self.playlist.rescanselection()
+                self.playlist.rescanselection(True)
             elif ord("0")<=key<=ord("5"):
                 self.playlist.rateselection(key-ord("1")+1)
             elif key in self.keybindings["filelistjumptoselectedsong"]:

@@ -102,7 +102,7 @@ class addsong(dbrequestsingle):
 
 class getsong_metadata(dbrequestsingle):
     """fetch song metadata from database songdbid corresponding to song_id""" 
-    def __init__(self, songdbid, song_id=None, song_url=None):
+    def __init__(self, songdbid, song_id):
         self.songdbid = songdbid
         self.song_id = song_id
 
