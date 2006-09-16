@@ -31,7 +31,6 @@ import events, hub, requests
 import errors
 import log
 import metadata
-import dbitem
 import item
 import service
 import encoding

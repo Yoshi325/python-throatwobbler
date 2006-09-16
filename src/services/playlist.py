@@ -24,7 +24,7 @@ import pickle
 
 import config
 import events, hub, requests
-import dbitem, item
+import item
 import log
 import service
 import encoding

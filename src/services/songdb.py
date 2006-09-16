@@ -20,7 +20,8 @@
 import copy, gc, math, random, service, time
 import config
 import events, hub, requests
-import dbitem, item, log
+import item
+import log
 
 # helper function for the random selection of songs
 
@@ -303,21 +304,7 @@ class songdbmanager(service.service):
             log.error("songdbmanager: invalid songdbid '%s' for database request" % request.songdbid)
             return
 
-        result = self.songdbhub.request(request)
-        # wrap all dbitm.song instances in result in a item.song instance
-        if isinstance(result, dbitem.song):
-            return result
-        else:
-            try:
-                newresult = []
-                for aitem in result:
-                    if isinstance(aitem, dbitem.song):
-                        newresult.append(item.song(request.songdbid, aitem))
-                    else:
-                        newresult.append(aitem)
-                return newresult
-            except:
-                return result
+        return self.songdbhub.request(request)
 
     def dbrequestsongs(self, request):
         # make a copy of the original request, because we will subsequently modify it
