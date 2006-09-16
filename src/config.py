@@ -501,7 +501,7 @@ class statswindow(configsection):
 
 
 class iteminfolongwindow(configsection):
-    autoclosetime = configfloat("10")
+    autoclosetime = configfloat("30")
 
 
 class lyricswindow(configsection):
