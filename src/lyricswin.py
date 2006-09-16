@@ -53,7 +53,7 @@ class lyricswin(messagewin.messagewin):
             song = event.item.song
         else:
              self.settitle(_("Lyrics"))
-             self.lyrics = _("No lyrics")
+             self.lyrics = _("No song selected")
              return
         self.settitle("%s - %s - %s" % (song.artist, song.album, song.title))
         if song.lyrics:
