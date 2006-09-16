@@ -322,7 +322,7 @@ def _formatnumbertotal(number, total):
     elif number:
         return "%d" % number
     else:
-        return ""
+        return "-"
 
 
 class song(item):
@@ -440,9 +440,18 @@ class song(item):
         # if we are unable to fetch the title, the song has been deleted in the meantime
         if self.title is None:
             return l
-        directory, filename = os.path.split(self.url)
-        l.append([_("Path:"), directory, "", ""])
-        l.append([_("File name:"), filename, "", ""])
+        l.append([_("Title:"), self.title, "", ""])
+        l.append([_("Album:"), self.album or "-", "", ""])
+        l.append([_("Artist:"), self.artist or "-", "", ""])
+
+        if self.year:
+            year = str(self.year)
+        else:
+            year = "-"
+        l.append([_("Time:"), "%d:%02d" % divmod(self.length, 60), _("Year:"), year])
+        l.append([_("Track No:"), _formatnumbertotal(self.tracknumber, self.trackcount), 
+                  _("Disk No:"), _formatnumbertotal(self.disknumber, self.diskcount)])
+
         if self.size:
             if self.size > 1024*1024:
                 sizestring = "%.1f MB" % (self.size / 1024.0 / 1024)
@@ -452,7 +461,6 @@ class song(item):
                 sizestring = "%d B" % self.size
         else:
             sizestring = ""
-        l.append([_("Size:"), sizestring, "", ""])
         typestring = self.type.upper()
         if self.bitrate is not None:
             typestring = "%s %dkbps" % (typestring, self.bitrate/1000)
@@ -461,23 +469,7 @@ class song(item):
             if self.samplerate:
                 typestring = "%s (%.1f kHz)" % (typestring, self.samplerate/1000.)
 
-        l.append([_("File type:"), typestring, "", ""])
-        l.append([_("Title:"), self.title, "", ""])
-        if self.album:
-            l.append([_("Album:"),  self.album, "", ""])
-        if self.artist:
-            l.append([_("Artist:"), self.artist, "", ""])
-        if self.year:
-            l.append([_("Year:"), str(self.year), "", ""])
-        else:
-            l.append([_("Year:"), "", "", ""])
-
-        l.append([_("Track No:"), _formatnumbertotal(self.tracknumber, self.trackcount), 
-                  "", ""])
-        l.append([_("Disk No:"), _formatnumbertotal(self.disknumber, self.diskcount), 
-                  "", ""])
-        l.append([_("Tags:"), u" | ".join(self.tags), "", ""])
-        l.append([_("Time:"), "%d:%02d" % divmod(self.length, 60), "", ""])
+        l.append([_("File type:"), typestring, _("Size:"), sizestring])
         replaygain = ""
         if self.replaygain_track_gain is not None and self.replaygain_track_peak is not None:
             replaygain = replaygain + "%s: %+f dB (peak: %f) " % (_("track"),
@@ -487,15 +479,12 @@ class song(item):
             replaygain = replaygain + "%s: %+f dB (peak: %f)" % (_("album"),
                                                                  self.replaygain_album_gain,
                                                                  self.replaygain_album_peak)
-        l.append([_("Replaygain:"), replaygain, "", ""])
-
-        if self.rating:
-            l.append([_("Rating:"), "*"*self.rating, "", ""])
-        else:
-            l.append([_("Rating:"), "-", "", ""])
-
-        l.append([_("Times played:"), str(self.playcount), "", ""])
-        l.append([_("Times skipped:"), str(self.skipcount), "", ""])
+        l.append([_("Replaygain:"), replaygain or "-", _("Beats per minute:"), self.bpm and str(self.bpm) or "-"])
+        l.append([_("Tags:"), u" | ".join(self.tags), _("Rating:"), self.rating and ("*" * self.rating) or "-"])
+        l.append([_("Times played:"), str(self.playcount),_("Times skipped:"), str(self.skipcount)])
+        l.append([_("Comment:"), self.comment and str(self.comment) or "-", 
+                  _("Lyrics:"), self.lyrics and _("%d lines") % len(self.lyrics.split("\n")) or "-"])
+        l.append([_("URL:"), self.url, "", ""])
 
         for played in self.dates_played[-1:-6:-1]:
             last = int((time.time()-played)/60)

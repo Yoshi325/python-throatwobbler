@@ -179,7 +179,7 @@ class iteminfowinlong(messagewin.messagewin):
         channel.subscribe(events.selectionchanged, self.selectionchanged)
 
     def _outputlen(self, width):
-        return 20
+        return 16
 
     def showitems(self):
         # get lines to display
@@ -199,9 +199,9 @@ class iteminfowinlong(messagewin.messagewin):
             line = map(encoding.encode, line)
             wc1 = max(wc1, len(line[0]))
             wc3 = max(wc3, len(line[2]))
+            wc4 = max(wc3, len(line[3]))
         wc1 += colsep
         wc3 += colsep
-        wc4 = 0
         wc2 = self.iw-wc1-wc3-wc4-1
         self.clear()
         for lno in range(len(info)):
