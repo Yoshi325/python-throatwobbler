@@ -647,6 +647,7 @@ showhelp                  = ?
 showlog                   = !
 showstats                 = %
 showiteminfolong          = =
+showlyrics                = L
 toggleiteminfowindow      = ctrl-v
 volumeup                  = )
 volumedown                = (

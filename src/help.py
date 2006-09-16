@@ -57,6 +57,7 @@ descriptions = {
           "showlog":           (_("log"), _("show log messages")),
           "showstats":         (_("statistics"), _("show statistical information about database(s)")),
           "showiteminfolong":  (_("item info"), _("show information about selected item")),
+          "showlyrics":        (_("lyrics"), _("show lyrics of selected song")),
           "toggleiteminfowindow":  (_("toggle item info"), _("toggle information shown in item info window")),
           "togglelayout":      (_("toggle layout"), _("toggle layout")),
           "volumeup":          (_("volume up"), _("increase output volume")),

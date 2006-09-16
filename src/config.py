@@ -640,6 +640,7 @@ class keybindings(configsection):
         showlog = configkeys("!")
         showstats = configkeys("%")
         showiteminfolong = configkeys("=")
+        showlyrics = configkeys("L")
         toggleiteminfowindow = configkeys("ctrl-v")
         volumeup = configkeys(")")
         volumedown = configkeys("(")
