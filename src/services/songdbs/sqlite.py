@@ -1027,17 +1027,16 @@ class songautoregisterer(service.service):
         return song
 
     def registerdirtree(self, dir, oldsongs, force):
-        """ scan for songs and playlists in dir and its subdirectories, 
-        removing those scanned from the set oldsongs. If force is set, 
-        the m_time of a song is ignored and the song is always scanned.
+        """ scan for songs in dir and its subdirectories, removing those scanned from the set oldsongs. 
+
+        If force is set, the m_time of a song is ignored and the song is always scanned.
         """
         log.debug("registerer: entering %r"% dir)
         self.channel.process()
         if self.done: return
         songpaths = []
-        playlistpaths = []
 
-        # scan for paths of songs and playlists and recursively call registering of subdirectories
+        # scan for paths of songs  and recursively call registering of subdirectories
         for name in os.listdir(dir):
             path = os.path.join(dir, name)
             extension = os.path.splitext(path)[1].lower()
@@ -1049,8 +1048,6 @@ class songautoregisterer(service.service):
                         log.warning("songautoregisterer: could not enter dir %r: %r" % (path, e))
                 elif extension in self.supportedextensions:
                     songpaths.append(path)
-                elif extension == ".m3u":
-                    playlistpaths.append(path)
 
         # now register songs...
         songs = []
@@ -1063,12 +1060,6 @@ class songautoregisterer(service.service):
                 # if the registering or update failed we do nothing and the song
                 # will be deleted from the database later on
                 pass
-        # ... and playlists
-        # XXX to be done
-        playlists = [dbitem.playlist(path) for path in playlistpaths]
-        if playlists:
-            self._notify(events.registerplaylists(self.songdbid, playlists))
-
         log.debug("registerer: leaving %r"% dir)
 
     def run(self):
@@ -1109,25 +1100,19 @@ class songautoregisterer(service.service):
 
     def autoregistersongs(self, event):
         if self.songdbid == event.songdbid:
-            log.info(_("database %r: scanning for songs and playlists in %r") % (self.songdbid, 
-                                                                                 self.basedir))
-
-            log.debug("database %r: querying list of songs in database" % self.songdbid)
+            log.info(_("database %r: scanning for songs in %r") % (self.songdbid, self.basedir))
             oldsongs = set(hub.request(requests.getsongs(self.songdbid)))
 
-            # scan for all songs and playlists in the filesystem
+            # scan for all songs in the filesystem
             log.debug("database %r: searching for new songs" % self.songdbid)
             self.registerdirtree(self.basedir, oldsongs, event.force)
 
-            # remove songs which have not yet been scanned and thus are not
-            # accesible anymore
-            log.debug("database %r: removing stale songs" % self.songdbid)
+            # remove songs which have not yet been scanned and thus are not accesible anymore
+            log.info(_("database %r: removing stale songs") % self.songdbid)
             for song in oldsongs:
                 self._notify(events.delsong(self.songdbid, song))
 
-            # Note that we don't remove old playlists when they are no longer available on disk
-
-            log.info(_("database %r: finished scanning for songs in %r") % (self.songdbid, self.basedir))
+            log.info(_("database %r: rescan finished") % self.songdbid)
 
     def autoregisterer_rescansongs(self, event):
         if self.songdbid == event.songdbid:
