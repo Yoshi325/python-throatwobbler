@@ -28,9 +28,9 @@ class lyricswin(messagewin.messagewin):
 
     def __init__(self, screen, maxh, maxw, channel):
         messagewin.messagewin.__init__(self, screen, maxh, maxw, channel,
-                                       config.colors.iteminfolongwindow,
+                                       config.colors.lyricswindow,
                                        _("Lyrics"), [],
-                                       config.iteminfolongwindow.autoclosetime)
+                                       config.lyricswindow.autoclosetime)
         self.lyrics = _("No lyrics")
         channel.subscribe(events.selectionchanged, self.selectionchanged)
 
@@ -57,6 +57,6 @@ class lyricswin(messagewin.messagewin):
              return
         self.settitle("%s - %s - %s" % (song.artist, song.album, song.title))
         if song.lyrics:
-            self.lyrics = event.item.lyrics
+            self.lyrics = song.lyrics
         else:
             self.lyrics = _("No lyrics")
