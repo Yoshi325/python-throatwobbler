@@ -504,6 +504,10 @@ class iteminfolongwindow(configsection):
     autoclosetime = configfloat("10")
 
 
+class lyricswindow(configsection):
+    autoclosetime = configfloat("0")
+
+
 class inputwindow(configsection):
     type = configalternatives("popup", ["popup", "statusbar"])
 
@@ -564,6 +568,13 @@ class colors(configsection):
         content = configcolor("color white")
         background = configcolor("color white")
         description = configcolor("color brightcyan mono bold")
+        activeborder = configcolor("color brightgreen mono bold")
+        border = configcolor("color green")
+
+    class lyricswindow(configsection):
+        title = configcolor("color brightgreen mono bold")
+        content = configcolor("color white")
+        background = configcolor("color white")
         activeborder = configcolor("color brightgreen mono bold")
         border = configcolor("color green")
 
@@ -692,7 +703,7 @@ class keybindings(configsection):
 #
 
 sections = ['mixerwindow', 'helpwindow', 'filelistwindow', 'database', 'tag', 'iteminfowindow',
-            'logwindow', 'statswindow', 'iteminfolongwindow', 'mixer', 'colors', 'playerwindow', 'playlistwindow',
+            'logwindow', 'statswindow', 'iteminfolongwindow', 'lyricswindow', 'mixer', 'colors', 'playerwindow', 'playlistwindow',
             'general', 'inputwindow', 'network', 'player', 'keybindings']
 
 ##############################################################################
