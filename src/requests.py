@@ -91,15 +91,6 @@ class getdatabasestats(dbrequest):
     pass
 
 
-class addsong(dbrequestsingle):
-    def __init__(self, songdbid, song):
-        self.songdbid = songdbid
-        self.song = song
-
-    def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.song, self.songdbid)
-
-
 class getsong_metadata(dbrequestsingle):
     """fetch song metadata from database songdbid corresponding to song_id""" 
     def __init__(self, songdbid, song_id):
