@@ -1088,7 +1088,7 @@ class songautoregisterer(service.service):
         if not song.url.startswith("file://"):
             log.debug("Can only rescan local files")
             return
-        relpath = song.url[7:]
+        relpath = encoding.encode_path(song.url[7:])
         path = os.path.join(self.basedir, relpath)
         try:
             if force or song_metadata.date_updated < os.stat(path).st_mtime:
