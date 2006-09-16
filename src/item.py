@@ -451,6 +451,7 @@ class song(item):
         l.append([_("Time:"), "%d:%02d" % divmod(self.length, 60), _("Year:"), year])
         l.append([_("Track No:"), _formatnumbertotal(self.tracknumber, self.trackcount), 
                   _("Disk No:"), _formatnumbertotal(self.disknumber, self.diskcount)])
+        l.append([_("Tags:"), u" | ".join(self.tags), _("Rating:"), self.rating and ("*" * self.rating) or "-"])
 
         if self.size:
             if self.size > 1024*1024:
@@ -480,7 +481,6 @@ class song(item):
                                                                  self.replaygain_album_gain,
                                                                  self.replaygain_album_peak)
         l.append([_("Replaygain:"), replaygain or "-", _("Beats per minute:"), self.bpm and str(self.bpm) or "-"])
-        l.append([_("Tags:"), u" | ".join(self.tags), _("Rating:"), self.rating and ("*" * self.rating) or "-"])
         l.append([_("Times played:"), str(self.playcount),_("Times skipped:"), str(self.skipcount)])
         l.append([_("Comment:"), self.comment and str(self.comment) or "-", 
                   _("Lyrics:"), self.lyrics and _("%d lines") % len(self.lyrics.split("\n")) or "-"])
