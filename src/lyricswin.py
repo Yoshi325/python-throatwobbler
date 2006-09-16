@@ -42,7 +42,7 @@ class lyricswin(messagewin.messagewin):
 
     def showitems(self):
         self.clear()
-        for lno, line in enumerate(self.lyrics.split("\n")):
+        for lno, line in enumerate(self.lyrics.split("\n")[self.first:self.first+self.ih]):
             line = encoding.encode(line).center(self.iw)
             self.addnstr(self.iy+lno, self.ix, line, self.iw, self.colors.content)
 
