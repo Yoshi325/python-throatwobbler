@@ -198,8 +198,6 @@ class songdb(service.service):
         self.channel.supply(requests.getlastplayedsongs, self.getlastplayedsongs)
         self.channel.supply(requests.getplaylist, self.getplaylist)
         self.channel.supply(requests.getplaylists, self.getplaylists)
-        self.channel.supply(requests.getsongsinplaylist, self.getsongsinplaylist)
-        self.channel.supply(requests.getsongsinplaylists, self.getsongsinplaylists)
 
         self.autoregisterer = songautoregisterer(self.basedir, self.id, self.isbusy,
                                                  config.tracknrandtitlere,
@@ -743,25 +741,6 @@ class songdb(service.service):
         return []
         return self.playlists.values()
 
-    def _getsongsinplaylist(self, path):
-        playlist = self._getplaylist(path)
-        result = []
-        for path in playlist.songs:
-            try:
-                song = self._queryregistersong(path)
-                if song:
-                    result.append(song)
-            except IOError:
-                pass
-        return result
-
-    def _getsongsinplaylists(self):
-        playlists = self._getplaylists()
-        songs = []
-        for playlist in playlists:
-            songs.extend(self._getsongsinplaylist(playlist.path))
-        return songs
-
     def isbusy(self):
         """ check whether db is currently busy """
         return self.cur is not None or self.channel.queue.qsize()>0
@@ -934,16 +913,6 @@ class songdb(service.service):
         if self.id != request.songdbid:
             raise hub.DenyRequest
         return self._getplaylists()
-
-    def getsongsinplaylist(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._getsongsinplaylist(request.path)
-
-    def getsongsinplaylists(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._getsongsinplaylists()
 
 #
 # thread for automatic registering and rescanning of songs in database

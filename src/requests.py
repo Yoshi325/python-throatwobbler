@@ -67,7 +67,7 @@ class dbrequestsongs(dbrequest):
 
     def __repr__(self):
         return "%r(%r, %r, random=%r)->%r" % (self.__class__.__name__, self.sort, self.filters, self.random, self.songdbid)
-        
+
 
 class dbrequestlist(dbrequest):
     """ db request yielding a result list (not containing songs),
@@ -118,18 +118,6 @@ class getplaylist(dbrequestsingle):
     def __repr__(self):
         return "%r(%r)->%r" % (self.__class__.__name__, self.path, self.songdbid)
 
-
-class getsongsinplaylist(dbrequestsingle):
-    """ return all songs stored in playlist path """
-    def __init__(self, songdbid, path, random=False):
-        self.songdbid = songdbid
-        self.path = path 
-        self.random = random
-
-    def __repr__(self):
-        return "%r(%r,random=%r)->%r" % (self.__class__.__name__,
-                                         self.path, self.random, self.songdbid)
-
 #
 # database requests which yield a list of songs
 #
@@ -142,10 +130,9 @@ class getlastplayedsongs(dbrequestsongs):
     pass
 
 
-class getsongsinplaylists(dbrequestsongs):
-    """ return all songs stored in all playlists """
-    pass
-
+#
+# database requests which yield lists of other items
+#
 
 class getartists(dbrequestlist):
     pass
@@ -167,7 +154,7 @@ class getplaylists(dbrequestlist):
     pass
 
 #
-# database request yielding the numbe of items of a certain kind
+# database request yielding the number of items of a certain kind
 #
 
 class getnumberofsongs(dbrequest):
