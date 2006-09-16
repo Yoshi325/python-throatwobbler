@@ -312,8 +312,7 @@ def _splitnumbertotal(s):
 _mutagen_framemapping = { "TIT2": "title",
                           "TALB": "album",
                           "TPE1": "artist",
-                          "COMM": "comment",
-                          "USLT": "lyrics" }
+                          "COMM": "comment" }
 
 def read_mp3_mutagen_metadata(md, path):
 
@@ -359,6 +358,8 @@ def read_mp3_mutagen_metadata(md, path):
                     md.year = int(str(frame.text[0]))
                 except:
                     pass
+            elif frame.FrameID == "USLT":
+                md.lyrics = frame.text
             else:
                 name = _mutagen_framemapping.get(frame.FrameID, None)
                 if name:
