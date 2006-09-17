@@ -107,7 +107,6 @@ class playlist(service.service):
         self.channel.subscribe(events.playlistdeleteplayedsongs,
                                self.playlistdeleteplayedsongs)
         self.channel.subscribe(events.playlistreplay, self.playlistreplay)
-        self.channel.subscribe(events.playlistload, self.playlistload)
         self.channel.subscribe(events.playlistsave, self.playlistsave)
         self.channel.subscribe(events.playlistshuffle, self.playlistshuffle)
         self.channel.subscribe(events.playlisttoggleautoplaymode, self.playlisttoggleautoplaymode)
@@ -286,39 +285,10 @@ class playlist(service.service):
     # statusbar input handler
 
     def saveplaylisthandler(self, name, key):
-        name = os.path.join(config.general.playlistdir, name.strip())
-        if key==ord("\n") and name!="":
-            if name[-4:]!=".m3u":
-                name = name + ".m3u"
-            try:
-                file = open(name, "w")
-                for item in self.items:
-                    file.write("%s\n" % item.song.path)
-                file.close()
-                playlist = dbitem.playlist(name)
-                hub.notify(events.registerplaylists(self.songdbid, [playlist]))
-            except (IOError, OSError):
-                pass
-
-    def loadplaylisthandler(self, name, key):
-        if key == ord("\n"):
-            if name[-4:] != ".m3u":
-                name = name + ".m3u"
-            try:
-                path = os.path.join(config.general.playlistdir, name)
-                file = open(path, "r")
-                self._clear()
-                for line in file.xreadlines():
-                    if not line.startswith("#"):
-                        song = hub.request(requests.queryregistersong(self.songdbid,
-                                                                      line.strip()))
-                        if song:
-                            self.append(playlistitem(song))
-                file.close()
-            except (IOError, OSError):
-                pass
-            self._updateplaystarttimes()
-            self.notifyplaylistchanged()
+        name = name.strip()
+        if key == ord("\n") and name != "" and self.items:
+            songs = [item.song for item in self.items if item.song.songdbid == self.songdbid ]
+            hub.notify(events.add_playlist(self.songdbid, name, songs))
 
     def _locatesong(self, id):
         """ locate position of item in playlist by id """
@@ -428,11 +398,6 @@ class playlist(service.service):
         hub.notify(events.requestinput(_("Save playlist"),
                                        _("Name:"),
                                        self.saveplaylisthandler))
-
-    def playlistload(self, event):
-        hub.notify(events.requestinput(_("Load playlist"),
-                                       _("Name:"),
-                                       self.loadplaylisthandler))
 
     def playlistshuffle(self, event):
         random.shuffle(self.items)

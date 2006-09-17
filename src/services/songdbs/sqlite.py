@@ -70,7 +70,7 @@ CREATE TABLE playlists (
 );
 
 CREATE TABLE playlistcontents (
-  playlist_id    INTEGER CONSTRAINT fk_playlist_id  REFERENCES playlists(id)
+  playlist_id    INTEGER CONSTRAINT fk_playlist_id  REFERENCES playlists(id),
   song_id        INTEGER CONSTRAINT fk_song_id      REFERENCES songs(id),
   position       INTEGER
 );
@@ -112,6 +112,7 @@ CREATE TABLE songs (
 CREATE INDEX album_id ON albums(name);
 CREATE INDEX artist_id ON artists(name);
 CREATE INDEX tag_id ON tags(name);
+CREATE INDEX playlist_id ON playlists(name);
 
 CREATE INDEX url_song ON songs(url);
 CREATE INDEX album_id_song ON songs(album_id);
@@ -121,6 +122,9 @@ CREATE INDEX compilation_song ON songs(compilation);
 
 CREATE INDEX taggings_song_id ON taggings(song_id);
 CREATE INDEX taggings_tag_id ON taggings(tag_id);
+
+CREATE INDEX playlistcontents_song_id ON playlistcontents(song_id);
+CREATE INDEX playlistcontents_playlist_id ON playlistcontents(playlist_id);
 """
 
 songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics", "bpm",
@@ -206,7 +210,6 @@ class songdb(service.service):
         self.channel.supply(requests.gettags, self.gettags)
         self.channel.supply(requests.getratings, self.getratings)
         self.channel.supply(requests.getlastplayedsongs, self.getlastplayedsongs)
-        self.channel.supply(requests.getplaylist, self.getplaylist)
         self.channel.supply(requests.getplaylists, self.getplaylists)
 
         self.autoregisterer = songautoregisterer(self.basedir, self.id, self.isbusy,
@@ -534,29 +537,25 @@ class songdb(service.service):
             self._txn_commit()
         hub.notify(events.songchanged(self.id, song))
 
-    def _add_playlist(self, playlist):
-        # also try to register songs in playlist and delete song, if
-        # this fails
-        paths = []
-        for path in playlist.songs:
-            try:
-                if self._queryregistersong(path) is not None:
-                    paths.append(path)
-            except (IOError, OSError):
-                pass
-        playlist.songs = paths
+    def _add_playlist(self, name, songs):
+        log.debug("adding playlist %r" % name)
+        if not songs:
+            log.error("_add_playlist: cannot add empty playlist")
 
-        # a resulting, non-empty playlist can be written in the database
-        if playlist.songs:
-            self._txn_begin()
-            try:
-                self.playlists.put(playlist.path, playlist, txn=self.cur)
-                hub.notify(events.dbplaylistchanged(self.id, playlist))
-            except:
-                self._txn_abort()
-                raise
-            else:
-                self._txn_commit()
+        self._txn_begin()
+        try:
+            self.cur.execute("INSERT INTO playlists (name) VALUES (?)", [name])
+            self.cur.execute("SELECT id FROM playlists WHERE name = ?", [name])
+            r = self.cur.fetchone()
+            playlist_id = r["id"]
+            for position, song in enumerate(songs):
+                self.cur.execute("INSERT INTO playlistcontents (playlist_id, song_id, position) VALUES (?, ?, ?)",
+                                 [playlist_id, song.id, position + 1])
+        except:
+            self._txn_abort()
+            raise
+        else:
+            self._txn_commit()
 
     def _delete_playlist(self, playlist):
         """delete playlist from database"""
@@ -655,7 +654,7 @@ class songdb(service.service):
                     %s
                     %s
                     """ % (joinstring, wherestring, orderstring)
-        # log.debug(select)
+        log.debug(select)
         return  [item.song(self.id, row["song_id"], row["album_id"], row["artist_id"], row["album_artist_id"])
                  for row in self.con.execute(select, args)]
 
@@ -743,13 +742,21 @@ class songdb(service.service):
                            row["album_artist_id"], row["date_played"])
                  for row in self.con.execute(select, args)]
 
-    def _getplaylist(self, path):
-        """returns playlist entry with given path"""
-        return self.playlists.get(path)
-
-    def _getplaylists(self):
-        return []
-        return self.playlists.values()
+    def _getplaylists(self, filters=None):
+        joinstring = filters and filters.SQL_JOIN_string() or ""
+        wherestring = filters and filters.SQL_WHERE_string() or ""
+        args = filters and filters.SQL_args() or []
+        select ="""SELECT DISTINCT playlists.id AS playlist_id, playlists.name AS playlist_name
+                   FROM playlists
+                   JOIN playlistcontents ON (playlistcontents.playlist_id = playlists.id)
+                   JOIN songs ON (songs.id = playlistcontents.song_id)
+                   %s
+                   %s
+                   ORDER BY playlists.name COLLATE NOCASE""" % (joinstring, wherestring)
+        # JOIN taggings ON (taggings.tag_id = tags.id)
+        # log.debug(select)
+        return [item.playlist(self.id, row["playlist_id"], row["playlist_name"], filters)
+                for row in self.con.execute(select, args)]
 
     def isbusy(self):
         """ check whether db is currently busy """
@@ -905,6 +912,11 @@ class songdb(service.service):
             raise hub.DenyRequest
         return self._gettags(request.filters)
 
+    def getplaylists(self, request):
+        if self.id != request.songdbid:
+            raise hub.DenyRequest
+        return self._getplaylists(request.filters)
+
     def getratings(self, request):
         if self.id != request.songdbid:
             raise hub.DenyRequest
@@ -915,15 +927,6 @@ class songdb(service.service):
             raise hub.DenyRequest
         return self._getlastplayedsongs(request.sort, request.filters)
 
-    def getplaylist(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._getplaylist(request.path)
-
-    def getplaylists(self, request):
-        if self.id != request.songdbid:
-            raise hub.DenyRequest
-        return self._getplaylists()
 
 #
 # thread for automatic registering and rescanning of songs in database

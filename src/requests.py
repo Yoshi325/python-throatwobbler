@@ -110,14 +110,6 @@ class gettag_id(dbrequestsingle):
         return "%r(%r)->%r" % (self.__class__.__name__, self.tag_name, self.songdbid)
 
 
-class getplaylist(dbrequestsingle):
-    def __init__(self, songdbid, path):
-        self.songdbid = songdbid
-        self.path = path
-
-    def __repr__(self):
-        return "%r(%r)->%r" % (self.__class__.__name__, self.path, self.songdbid)
-
 #
 # database requests which yield a list of songs
 #

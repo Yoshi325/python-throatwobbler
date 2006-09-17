@@ -322,8 +322,6 @@ class mainscreen:
             hub.notify(events.activatefilelist())
         elif key in self.keybindings["playlistreplay"]:
             hub.notify(events.playlistreplay())
-        elif key in self.keybindings["playlistload"]:
-            hub.notify(events.playlistload())
         elif key in self.keybindings["playlistsave"]:
             hub.notify(events.playlistsave())
         elif key in self.keybindings["playlisttoggleautoplaymode"]:

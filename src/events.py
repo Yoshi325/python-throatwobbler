@@ -475,10 +475,6 @@ class playlistmovesongdown(playlistevent):
         return "%s(%s)" % (self.__class__.__name__, self.id)
 
 
-class playlistload(playlistevent):
-    pass
-
-
 class playlistsave(playlistevent):
     pass
 

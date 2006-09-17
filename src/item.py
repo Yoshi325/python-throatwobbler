@@ -106,6 +106,21 @@ class albumfilter(hiddenfilter):
         return [self.album_id]
 
 
+class playlistfilter(hiddenfilter):
+    def __init__(self, playlist_id):
+        self.playlist_id = playlist_id
+        hiddenfilter.__init__(self, "playlist_id", playlist_id)
+
+    def SQL_JOIN_string(self):
+        return "JOIN playlistcontents ON playlistcontents.song_id = songs.id"
+
+    def SQL_WHERE_string(self):
+        return "playlistcontents.playlist_id = ?"
+
+    def SQL_args(self):
+        return [self.playlist_id]
+
+
 class playedsongsfilter(hiddenfilter):
     def __init__(self):
         hiddenfilter.__init__(self, None, None)
@@ -139,9 +154,6 @@ class tagfilter(filter):
     def __repr__(self):
         return "tag%s=%s" % (self.inverted and "!" or "", self.tag_id)
 
-    def SQL_JOIN_string(self):
-        return ""
-
     def SQL_WHERE_string(self):
         return ( "songs.id %sIN (SELECT taggings.song_id FROM taggings WHERE taggings.tag_id = %d)" % 
                  (self.inverted and "NOT " or "", self.tag_id) )
@@ -158,9 +170,6 @@ class ratingfilter(filter):
             name = "%s=%s" % (_("Rating"), _("Not rated"))
         self.rating = rating
         filter.__init__(self, name, indexname="rating", indexid=rating)
-
-    def SQL_JOIN_string(self):
-        return ""
 
     def SQL_WHERE_string(self):
         if self.rating:
@@ -660,24 +669,27 @@ class playlist(diritem):
 
     """ songs in a playlist in the corresponding database """
 
-    def __init__(self, songdbid, id, path, name, songs):
+    def __init__(self, songdbid, id, name, nfilters):
         self.songdbid = songdbid
         self.id = id
-        self.path = path
         self.name = name
-        self.songs = songs
+        if nfilters is not None:
+            self.filters = nfilters.added(playlistfilter(id))
+        else:
+            self.filters = filters((playlistfilter(id),))
 
-    def getid(self):
-        return self.path
+    class _orderclass:
+        def SQL_string(self):
+            return "ORDER BY playlistcontents.position"
+    order = _orderclass()
 
     def getcontents(self):
-        return hub.request(requests.getsongsinplaylist(self.songdbid, self.path))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters, sort=self.order))
 
-    def getcontentsrecursive(self):
-        return hub.request(requests.getsongsinplaylist(self.songdbid, self.path))
+    getcontentsrecursive = getcontents
 
     def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongsinplaylist(self.songdbid, self.path, random=True))
+        return hub.request(requests.getsongs(self.songdbid, filters=self.filters, random=True))
 
     def getheader(self, item):
         if item and item.artist and item.album:
@@ -961,10 +973,11 @@ class playlists(diritem):
 
     """ all playlists in the corresponding database """
 
-    def __init__(self, songdbid):
+    def __init__(self, songdbid, filters):
         self.songdbid = songdbid
         self.id = "playlists"
         self.name = _("Playlists")
+        self.filters = filters
         self.nrplaylists = None
 
     def getname(self):
@@ -976,12 +989,6 @@ class playlists(diritem):
         playlists = hub.request(requests.getplaylists(self.songdbid))
         self.nrplaylists = len(playlists)
         return playlists
-
-    def getcontentsrecursive(self):
-        return hub.request(requests.getsongsinplaylists(self.songdbid))
-
-    def getcontentsrecursiverandom(self):
-        return hub.request(requests.getsongsinplaylists(self.songdbid, random=True))
 
     def getheader(self, item):
         if self.nrplaylists is None:
@@ -1105,8 +1112,8 @@ class basedir(totaldiritem):
         self.virtdirs.append(lastplayedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(lastaddedsongs(self.songdbid, filters=self.filters))
         self.virtdirs.append(randomsongs(self.songdbid, self.maxnr, filters=self.filters))
-        #if not self.filters:
-        #    self.virtdirs.append(playlists(self.songdbid))
+        # if not self.filters:
+        self.virtdirs.append(playlists(self.songdbid, filters=self.filters))
         if len(self.songdbids) > 1:
             self.virtdirs.extend([basedir([songdbid], self.filters) for songdbid in self.songdbids])
 
