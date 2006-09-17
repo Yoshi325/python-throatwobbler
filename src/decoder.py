@@ -246,7 +246,7 @@ class decodedsong:
         # Use the total time given by the decoder library and not the one
         # stored in the database. The former one turns out to be more precise
         # for some VBR songs.
-        self.ttime = self.decodedfile.ttime()
+        self.ttime = max(self.decodedfile.ttime(), song.length)
 
         # sometimes the mad library seems to report a wrong sample rate,
         # so use the one stored in the database
