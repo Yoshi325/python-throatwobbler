@@ -1,6 +1,7 @@
 - FLAC: finish decoder when not using it any more
 
 - check rating of currently playing song
+- check pytonectl
 
 
 TOCHECK:
