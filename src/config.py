@@ -375,7 +375,6 @@ class general(configsection):
     playerinfofile = configpath("~/.pytone/playerinfo")
     dumpfile = configpath("~/.pytone/pytone.dump")
     debugfile = configpath("")
-    playlistdir = configpath("/mnt/mp3/playlists")
     randominsertlength = configfloat("3600")
     colorsupport = configalternatives("auto", ["auto", "on", "off"])
     layout = configalternatives("twocolumn", ["onecolumn", "twocolumn"])
