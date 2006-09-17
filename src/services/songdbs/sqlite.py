@@ -64,6 +64,17 @@ CREATE TABLE playstats (
   date_played    TIMESTAMP
 );
 
+CREATE TABLE playlists (
+  id             INTEGER CONSTRAINT pk_playlist_id PRIMARY KEY AUTOINCREMENT,
+  name           TEXT UNIQUE
+);
+
+CREATE TABLE playlistcontents (
+  playlist_id    INTEGER CONSTRAINT fk_playlist_id  REFERENCES playlists(id)
+  song_id        INTEGER CONSTRAINT fk_song_id      REFERENCES songs(id),
+  position       INTEGER
+);
+
 CREATE TABLE songs (
   id                    INTEGER CONSTRAINT pk_song_id PRIMARY KEY AUTOINCREMENT,
   url                   TEXT UNIQUE,
