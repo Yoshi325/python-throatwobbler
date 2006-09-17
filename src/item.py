@@ -678,6 +678,9 @@ class playlist(diritem):
         else:
             self.filters = filters((playlistfilter(id),))
 
+    def getname(self):
+        return "%s/" % self.name
+
     class _orderclass:
         def SQL_string(self):
             return "ORDER BY playlistcontents.position"
