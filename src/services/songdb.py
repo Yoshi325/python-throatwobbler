@@ -257,10 +257,10 @@ class songdbmanager(service.service):
         """ update/clear requestcache when database event sent """
         if isinstance(event, (events.checkpointdb, events.autoregistersongs)):
             return
-        if isinstance(event, events.updatesong):
+        if isinstance(event, events.update_song):
             oldsong_metadata = self.songdbhub.request(requests.getsong_metadata(event.songdbid, event.song.id))
             newsong_metadata = event.song.song_metadata
-            # The following is an optimization for an updatesong event which occurs rather often
+            # The following is an optimization for an update_song event which occurs rather often
             # Not very pretty, but for the moment enough
             if ( oldsong_metadata.album == newsong_metadata.album and
                  oldsong_metadata.artist == newsong_metadata.artist and

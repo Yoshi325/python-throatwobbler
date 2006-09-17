@@ -108,7 +108,8 @@ class sendeventin(event):
 class checkpointdb(dbevent):
     """flush memory pool, write checkpoint record to log and flush flog of songdbid"""
 
-class addsong(dbevent):
+
+class add_song(dbevent):
     """ add song to database """
 
     def __init__(self, songdbid, song):
@@ -119,7 +120,7 @@ class addsong(dbevent):
         return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
 
 
-class updatesong(dbevent):
+class update_song(dbevent):
     """ update song in database """
 
     def __init__(self, songdbid, song):
@@ -153,9 +154,8 @@ class song_skipped(dbevent):
         return "%s(%s, %s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
 
 
-class delsong(dbevent):
+class delete_song(dbevent):
     """ delete song from database """
-
     def __init__(self, songdbid, song):
         self.songdbid = songdbid
         self.song = song
@@ -164,35 +164,40 @@ class delsong(dbevent):
         return "%s(%s)->%s" % (self.__class__.__name__, self.song, self.songdbid)
 
 
-class updateplaylist(dbevent):
+class add_playlist(dbevent):
+    """ add playlist to database """
+    def __init__(self, songdbid, name, songs):
+        self.songdbid = songdbid
+        self.name = name
+        self.songs = songs
+
+    def __str__(self):
+        return "%s(%s)->%s" % (self.__class__.__name__, self.name, self.songs, self.songdbid)
+
+
+class update_playlist(dbevent):
     """ update playlist in database """
 
-    def __init__(self, songdbid, playlist):
+    def __init__(self, songdbid, name, songs):
         self.songdbid = songdbid
-        self.playlist = playlist
+        self.name = name
+        self.songs = songs
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.playlist, self.songdbid)
+        return "%s(%s)->%s" % (self.__class__.__name__, self.name, self.songs, self.songdbid)
 
 
-class delplaylist(dbevent):
+class delete_playlist(dbevent):
     """ delete playlist from database """
 
-    def __init__(self, songdbid, playlist):
+    def __init__(self, songdbid, name):
         self.songdbid = songdbid
-        self.playlist = playlist
+        self.name = name
 
     def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.playlist, self.songdbid)
+        return "%s(%s)->%s" % (self.__class__.__name__, self.name, self.songdbid)
 
 
-class registerplaylists(dbevent):
-    def __init__(self, songdbid, playlists):
-        self.songdbid = songdbid
-        self.playlists = playlists
-
-    def __str__(self):
-        return "%s(%s)->%s" % (self.__class__.__name__, self.playlists, self.songdbid)
 
 
 class autoregistersongs(dbevent):

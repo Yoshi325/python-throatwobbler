@@ -179,16 +179,15 @@ class songdb(service.service):
         self.cur = None
 
         # we need to be informed about database changes
-        self.channel.subscribe(events.addsong, self.addsong)
-        self.channel.subscribe(events.updatesong, self.updatesong)
-        self.channel.subscribe(events.delsong, self.delsong)
+        self.channel.subscribe(events.add_song, self.add_song)
+        self.channel.subscribe(events.update_song, self.update_song)
+        self.channel.subscribe(events.delete_song, self.delete_song)
         self.channel.subscribe(events.song_played, self.song_played)
         self.channel.subscribe(events.song_skipped, self.song_skipped)
 
-        self.channel.subscribe(events.updateplaylist, self.updateplaylist)
-        self.channel.subscribe(events.delplaylist, self.delplaylist)
-
-        self.channel.subscribe(events.registerplaylists, self.registerplaylists)
+        self.channel.subscribe(events.add_playlist, self.add_playlist)
+        self.channel.subscribe(events.update_playlist, self.update_playlist)
+        self.channel.subscribe(events.delete_playlist, self.delete_playlist)
 
         self.channel.subscribe(events.clearstats, self.clearstats)
 
@@ -295,12 +294,12 @@ class songdb(service.service):
         else:
             return False
 
-    def _addsong(self, song):
+    def _add_song(self, song):
         """add song metadata to database"""
         log.debug("adding song: %r" % song)
 
         if not isinstance(song, metadata.song_metadata):
-            log.error("addsong: song has to be a meta.song instance, not a %r instance" % 
+            log.error("add_song: song has to be a meta.song instance, not a %r instance" % 
                       song.__class__)
             return
 
@@ -363,11 +362,11 @@ class songdb(service.service):
             #for r in cur.execute("SELECT id, title FROM songs"):
             #    log.info("S: %s %s" % (r["id"], r["title"]))
 
-    def _delsong(self, song):
+    def _delete_song(self, song):
         """delete song from database"""
         log.debug("delete song: %r" % song)
         if not isinstance(song, item.song):
-            log.error("_delsong: song has to be a item.song instance, not a %r instance" % song.__class__)
+            log.error("_delete_song: song has to be a item.song instance, not a %r instance" % song.__class__)
 
         self._txn_begin()
         try:
@@ -411,15 +410,15 @@ class songdb(service.service):
     _song_update = ( "INSERT OR REPLACE INTO songs (id, %s) VALUES (?, %s)" % 
                      (",".join(songcolumns_all), ",".join(["?"] * len(songcolumns_all))) )
 
-    def _updatesong(self, song):
+    def _update_song(self, song):
         """updates entry of song"""
         log.debug("updating song %r" % song)
         if not isinstance(song, item.song):
-            log.error("_updatesong: song has to be a item.song instance, not a %r instance" %
+            log.error("_update_song: song has to be a item.song instance, not a %r instance" %
                       newsong.__class__)
             return
         if not song.song_metadata:
-            log.error("_updatesong: song doesn't contain song metadata")
+            log.error("_update_song: song doesn't contain song metadata")
             return
         oldsong = self._getsong_metadata(song.id)
 
@@ -502,7 +501,7 @@ class songdb(service.service):
         """register playing of song"""
         log.debug("playing song: %r" % song)
         if not isinstance(song, item.song):
-            log.error("_updatesong: song has to be an item.song instance, not a %r instance" % song.__class__)
+            log.error("_update_song: song has to be an item.song instance, not a %r instance" % song.__class__)
             return
         self._txn_begin()
         try:
@@ -522,7 +521,7 @@ class songdb(service.service):
         """register skipping of song"""
         log.debug("skipping song: %r" % song)
         if not isinstance(song, item.song):
-            log.error("_updatesong: song has to be an item.song instance, not a %r instance" % song.__class__)
+            log.error("_update_song: song has to be an item.song instance, not a %r instance" % song.__class__)
             return
         self._txn_begin()
         try:
@@ -535,7 +534,7 @@ class songdb(service.service):
             self._txn_commit()
         hub.notify(events.songchanged(self.id, song))
 
-    def _registerplaylist(self, playlist):
+    def _add_playlist(self, playlist):
         # also try to register songs in playlist and delete song, if
         # this fails
         paths = []
@@ -559,7 +558,7 @@ class songdb(service.service):
             else:
                 self._txn_commit()
 
-    def _delplaylist(self, playlist):
+    def _delete_playlist(self, playlist):
         """delete playlist from database"""
         if not self.playlists.has_key(playlist.id):
             raise KeyError
@@ -575,7 +574,7 @@ class songdb(service.service):
         else:
             self._txn_commit()
 
-    _updateplaylist = _registerplaylist
+    _update_playlist = _add_playlist
 
     # read-only methods for accesing the database
 
@@ -758,26 +757,26 @@ class songdb(service.service):
 
     # event handlers
 
-    def addsong(self, event):
+    def add_song(self, event):
         if event.songdbid == self.id:
             try:
-                self._addsong(event.song)
+                self._add_song(event.song)
             except KeyError:
                 log.debug_traceback()
                 pass
 
-    def updatesong(self, event):
+    def update_song(self, event):
         if event.songdbid == self.id:
             try:
-                self._updatesong(event.song)
+                self._update_song(event.song)
             except:
                 log.debug_traceback()
                 pass
 
-    def delsong(self, event):
+    def delete_song(self, event):
         if event.songdbid == self.id:
             try:
-                self._delsong(event.song)
+                self._delete_song(event.song)
             except:
                 log.debug_traceback()
                 pass
@@ -796,23 +795,24 @@ class songdb(service.service):
             except KeyError:
                 pass
 
-    def registerplaylists(self, event):
+    def add_playlist(self, event):
         if event.songdbid == self.id:
-            for playlist in event.playlists:
-                try: self._registerplaylist(playlist)
-                except (IOError, OSError): pass
+            try: 
+                self._add_playlist(event.name, event.songs)
+            except:
+                pass
 
-    def delplaylist(self, event):
+    def delete_playlist(self, event):
         if event.songdbid == self.id:
             try:
-                self._delplaylist(event.playlist)
+                self._delete_playlist(event.name)
             except KeyError:
                 pass
 
-    def updateplaylist(self, event):
+    def update_playlist(self, event):
         if event.songdbid == self.id:
             try:
-                self._updateplaylist(event.playlist)
+                self._update_playlist(event.name, event.songs)
             except KeyError:
                 pass
 
@@ -991,7 +991,7 @@ class songautoregisterer(service.service):
                                                                self.tagcapitalize, self.tagstripleadingarticle, 
                                                                self.tagremoveaccents)
                 song.song_metadata.update(newsong_metadata)
-                self._notify(events.updatesong(self.songdbid, song))
+                self._notify(events.update_song(self.songdbid, song))
             else:
                 log.debug("registerer: not scanning unchanged song '%r'" % song_url)
         else:
@@ -1000,7 +1000,7 @@ class songautoregisterer(service.service):
                                                            self.tracknrandtitlere,
                                                            self.tagcapitalize, self.tagstripleadingarticle, 
                                                            self.tagremoveaccents)
-            self._notify(events.addsong(self.songdbid, newsong_metadata))
+            self._notify(events.add_song(self.songdbid, newsong_metadata))
             # fetch new song from database
             song = self._request(requests.getsongs(self.songdbid, filters=urlfilter))[0]
         return song
@@ -1067,11 +1067,11 @@ class songautoregisterer(service.service):
                                                                self.tagcapitalize, self.tagstripleadingarticle, 
                                                                self.tagremoveaccents)
                 song.song_metadata.update(newsong_metadata)
-                self._notify(events.updatesong(self.songdbid, song))
+                self._notify(events.update_song(self.songdbid, song))
         except (IOError, OSError):
             log.debug_traceback()
             # if anything goes wrong, we delete the song from the database
-            self._notify(events.delsong(self.songdbid, song))
+            self._notify(events.delete_song(self.songdbid, song))
 
     #
     # event handler
@@ -1089,7 +1089,7 @@ class songautoregisterer(service.service):
             # remove songs which have not yet been scanned and thus are not accesible anymore
             log.info(_("database %r: removing stale songs") % self.songdbid)
             for song in oldsongs:
-                self._notify(events.delsong(self.songdbid, song))
+                self._notify(events.delete_song(self.songdbid, song))
 
             log.info(_("database %r: rescan finished") % self.songdbid)
 

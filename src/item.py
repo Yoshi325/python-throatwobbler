@@ -370,7 +370,7 @@ class song(item):
 
     def _updatesong_metadata(self):
         """ notify database of song changes """
-        hub.notify(events.updatesong(self.songdbid, self))
+        hub.notify(events.update_song(self.songdbid, self))
 
     def getid(self):
         return self.id
