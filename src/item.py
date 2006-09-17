@@ -491,7 +491,7 @@ class song(item):
                                                                  self.replaygain_album_peak)
         l.append([_("Replaygain:"), replaygain or "-", _("Beats per minute:"), self.bpm and str(self.bpm) or "-"])
         l.append([_("Times played:"), str(self.playcount),_("Times skipped:"), str(self.skipcount)])
-        l.append([_("Comment:"), self.comment and str(self.comment) or "-", 
+        l.append([_("Comment:"), self.comment and self.comment or "-", 
                   _("Lyrics:"), self.lyrics and _("%d lines") % len(self.lyrics.split("\n")) or "-"])
         l.append([_("URL:"), self.url, "", ""])
 
