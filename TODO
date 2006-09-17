@@ -1,5 +1,8 @@
 - FLAC: finish decoder when not using it any more
 
+- check rating of currently playing song
+
+
 TOCHECK:
 - what happens to mpg123 when pytone crashes
 - song is not registered as currently being played, when its playback
