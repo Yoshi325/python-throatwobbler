@@ -986,7 +986,7 @@ class playlists(diritem):
         return "[%s (%d)]/" % (_("Playlists"), self.nrplaylists)
 
     def getcontents(self):
-        playlists = hub.request(requests.getplaylists(self.songdbid))
+        playlists = hub.request(requests.getplaylists(self.songdbid, filters=self.filters))
         self.nrplaylists = len(playlists)
         return playlists
 
