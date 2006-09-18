@@ -3,6 +3,9 @@
 - check rating of currently playing song
 - check pytonectl
 
+- No more options:
+  playlistdir, playlistload, dbenvdir
+
 
 TOCHECK:
 - what happens to mpg123 when pytone crashes
