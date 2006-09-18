@@ -386,7 +386,7 @@ class database(configsection):
     requestcachesize = configint("50000")
     class __template__(configsection):
         type = configalternatives("local", ["local", "remote"])
-        dbfile = configpath("~/.pytone/mp3.db")
+        dbfile = configpath("~/.pytone/main.db")
         cachesize = configint("1000")
         musicbasedir = configpath("")
         tracknrandtitlere = configre(r"^\[?(\d+)\]? ?[- ] ?(.*)\.(mp3|ogg)$")
