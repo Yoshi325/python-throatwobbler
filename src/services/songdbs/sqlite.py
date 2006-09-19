@@ -144,7 +144,7 @@ songcolumns_all = songcolumns_w_indices + songcolumns_lists
 # we could also use pysqlites adapter mechanism
 
 def _strings_to_string(ss):
-     return u"".join(["%08x%s" % (len(s), s) for s in ss])
+     return u"".join([u"%08x%s" % (len(s), s) for s in ss])
 
 def _string_to_strings(s):
      i = 0
@@ -676,7 +676,7 @@ class songdb(service.service):
                 md.dates_played = dates_played
                 return md
             else:
-                log.debug("Song '%r' not found in database" % args[0])
+                log.debug("Song '%d' not found in database" % song_id)
                 return None
         except:
             log.debug_traceback()
