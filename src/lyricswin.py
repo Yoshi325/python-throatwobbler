@@ -36,13 +36,13 @@ class lyricswin(messagewin.messagewin):
 
     def _outputlen(self, width):
         if self.lyrics:
-            return len(self.lyrics.split("\n"))
+            return len(self.lyrics[0][2].split("\n"))
         else:
             return 1
 
     def showitems(self):
         self.clear()
-        for lno, line in enumerate(self.lyrics.split("\n")[self.first:self.first+self.ih]):
+        for lno, line in enumerate(self.lyrics[0][2].split("\n")[self.first:self.first+self.ih]):
             line = encoding.encode(line).center(self.iw)
             self.addnstr(self.iy+lno, self.ix, line, self.iw, self.colors.content)
 

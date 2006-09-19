@@ -84,7 +84,7 @@ CREATE TABLE songs (
   artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
   album_artist_id       INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
   year                  INTEGER,
-  comment               TEXT,
+  comments              TEXT,
   lyrics                TEXT,
   bpm                   INTEGER,
   length                INTEGER,
@@ -127,16 +127,51 @@ CREATE INDEX playlistcontents_song_id ON playlistcontents(song_id);
 CREATE INDEX playlistcontents_playlist_id ON playlistcontents(playlist_id);
 """
 
-songcolumns_woindex = ["url", "type", "title",  "year", "comment", "lyrics", "bpm",
-                       "length", "tracknumber", "trackcount", "disknumber", "diskcount",
-                       "compilation", "bitrate", "is_vbr", "samplerate", 
-                       "replaygain_track_gain", "replaygain_track_peak",
-                       "replaygain_album_gain", "replaygain_album_peak", 
-                       "size", "compilation", "date_added", "date_updated", "date_lastplayed",
-                       "playcount", "skipcount", "rating"]
+songcolumns_plain = ["url", "type", "title",  "year", "bpm",
+                     "length", "tracknumber", "trackcount", "disknumber", "diskcount",
+                     "compilation", "bitrate", "is_vbr", "samplerate", 
+                     "replaygain_track_gain", "replaygain_track_peak",
+                     "replaygain_album_gain", "replaygain_album_peak", 
+                     "size", "compilation", "date_added", "date_updated", "date_lastplayed",
+                     "playcount", "skipcount", "rating"]
 
 songcolumns_indices = ["album_id", "artist_id", "album_artist_id"]
-songcolumns_all = songcolumns_woindex + songcolumns_indices
+songcolumns_w_indices = songcolumns_plain + songcolumns_indices
+songcolumns_lists = ["comments", "lyrics"]
+songcolumns_all = songcolumns_w_indices + songcolumns_lists
+
+# encode and decode tuples of strings (for comments and lyrics fields)
+# we could also use pysqlites adapter mechanism
+
+def _strings_to_string(ss):
+     return u"".join(["%08x%s" % (len(s), s) for s in ss])
+
+def _string_to_strings(s):
+     i = 0
+     ss = []
+     while i<len(s):
+         l = int(s[i:i+8], base=16)
+         ss.append(s[i+8:i+8+l])
+         i += 8+l
+     return tuple(ss)
+
+def _list_of_3tuples_to_list(tuples):
+    r = []
+    for t in tuples:
+        r.extend(t)
+    return r
+
+def _list_to_list_of_3tuples(l):
+    r = []
+    for i in range(len(l)/3):
+        r.append(tuple(l[3*i:3*(i+1)]))
+    return r
+
+def _encode_comment_lyrics(l):
+   return _strings_to_string(_list_of_3tuples_to_list(l))
+
+def _decode_comment_lyrics(s):
+   return _list_to_list_of_3tuples(_string_to_strings(s))
 
 #
 # statistical information about songdb
@@ -297,6 +332,9 @@ class songdb(service.service):
         else:
             return False
 
+    _song_insert = "INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns_all),
+                                                           ",".join(["?"] * len(songcolumns_all)))
+
     def _add_song(self, song):
         """add song metadata to database"""
         log.debug("adding song: %r" % song)
@@ -327,10 +365,13 @@ class songdb(service.service):
                 song.album_id = None
                 newalbum = False
 
+            # encode the comments and lyrics lists
+            comments = _encode_comment_lyrics(song.comments)
+            lyrics = _encode_comment_lyrics(song.lyrics)
+
             # register song
-            self.cur.execute("INSERT INTO songs (%s) VALUES (%s)" % (",".join(songcolumns_all),
-                                                                     ",".join(["?"] * len(songcolumns_all))),
-                             [getattr(song, columnname) for columnname in songcolumns_all])
+            self.cur.execute(self._song_insert,
+                             [getattr(song, columnname) for columnname in songcolumns_w_indices] + [comments, lyrics])
 
             self.cur.execute("SELECT id FROM songs WHERE url = ?", (song.url,))
             r = self.cur.fetchone()
@@ -457,8 +498,13 @@ class songdb(service.service):
                                                                    [song.album_artist_id, song.album])
                 changedalbums |= newalbum
 
+            # encode the comments and lyrics lists
+            comments = _strings_to_string(song.comments)
+            lyrics = _strings_to_string(song.lyrics)
+
             # update songs table
-            self.cur.execute(self._song_update, [song.id]+[getattr(song, columnname) for columnname in songcolumns_all])
+            self.cur.execute(self._song_update, 
+                            [song.id]+[getattr(song, columnname) for columnname in songcolumns_w_indices] + [comments, lyrics])
 
             # delete old artists, album_artists and albums if necessary
             # we have to do this after the songs table has been updated, otherwise we
@@ -619,12 +665,14 @@ class songdb(service.service):
 
                 # generate and populate metadata
                 md = metadata.song_metadata()
-                for field in songcolumns_woindex:
+                for field in songcolumns_plain:
                     md[field] = r[field]
                 md.album = r["album"]
                 md.artist = r["artist"]
                 md.album_artist = album_artist
                 md.tags = tags
+                md.comments = _decode_comment_lyrics(r["comments"])
+                md.lyrics = _decode_comment_lyrics(r["lyrics"])
                 md.dates_played = dates_played
                 return md
             else:
@@ -654,13 +702,12 @@ class songdb(service.service):
                     %s
                     %s
                     """ % (joinstring, wherestring, orderstring)
-        log.debug(select)
+        # log.debug(select)
         return  [item.song(self.id, row["song_id"], row["album_id"], row["artist_id"], row["album_artist_id"])
                  for row in self.con.execute(select, args)]
 
     def _getartists(self, filters=None):
         """return artists filtered according to filters"""
-        log.debug(filters.getname())
         joinstring = filters and filters.SQL_JOIN_string() or ""
         wherestring = filters and filters.SQL_WHERE_string() or ""
         args = filters and filters.SQL_args() or []
@@ -671,7 +718,7 @@ class songdb(service.service):
                     %s
                     %s
                     ORDER BY artists.name COLLATE NOCASE""" % (joinstring, wherestring)
-        log.debug(select)
+        # log.debug(select)
         return [item.artist(self.id, row["artist_id"], row["artist_name"], filters)
                 for row in self.con.execute(select, args)]
 
@@ -693,7 +740,7 @@ class songdb(service.service):
                    %s
                    ORDER BY albums.name COLLATE NOCASE""" % (artist_id_column, joinstring, wherestring)
 
-        log.debug(select)
+        # log.debug(select)
         return [item.album(self.id, row["album_id"], row["artist_name"], row["album_name"], filters)
                 for row in self.con.execute(select, args)]
 
@@ -709,7 +756,6 @@ class songdb(service.service):
                    %s
                    %s
                    ORDER BY tags.name COLLATE NOCASE""" % (joinstring, wherestring)
-        # JOIN taggings ON (taggings.tag_id = tags.id)
         # log.debug(select)
         return [item.tag(self.id, row["tag_id"], row["tag_name"], filters)
                 for row in self.con.execute(select, args)]

@@ -42,8 +42,8 @@ class song_metadata:
     album_artist = None
     tags = None
     year = None
-    comment = None
-    lyrics = None
+    comments = []       # list of tuples (language, description, text)
+    lyrics = []         # list of tuples (language, description, text)
     bpm = None
     tracknumber = None
     trackcount = None
@@ -93,7 +93,7 @@ class song_metadata:
         usertags = [tag for tag in self.tags if tag[:2] == "U:"]
         self.tags = other.tags + usertags
         self.year = other.year
-        self.comment = other.comment
+        self.comments = other.comments
         self.lyrics = other.lyrics
         self.bpm = other.bpm
         self.tracknumber = other.tracknumber
@@ -311,8 +311,7 @@ def _splitnumbertotal(s):
 
 _mutagen_framemapping = { "TIT2": "title",
                           "TALB": "album",
-                          "TPE1": "artist",
-                          "COMM": "comment" }
+                          "TPE1": "artist" }
 
 def read_mp3_mutagen_metadata(md, path):
 
@@ -323,6 +322,8 @@ def read_mp3_mutagen_metadata(md, path):
     md.length = mp3.info.length
     md.samplerate = mp3.info.sample_rate
     md.bitrate = mp3.info.bitrate
+    md.comments = []
+    md.lyrics = []
 
     if mp3.tags:
         for frame in mp3.tags.values():
@@ -359,7 +360,9 @@ def read_mp3_mutagen_metadata(md, path):
                 except:
                     pass
             elif frame.FrameID == "USLT":
-                md.lyrics = frame.text
+                md.lyrics.append((frame.lang, frame.desc, frame.text))
+            elif frame.FrameID == "COMM":
+                md.comments.append((frame.lang, frame.desc, " / ".join(frame.text)))
             else:
                 name = _mutagen_framemapping.get(frame.FrameID, None)
                 if name:
