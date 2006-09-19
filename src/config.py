@@ -18,7 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 import ConfigParser, copy, curses, sys, getopt, exceptions, os.path, types, re, types
-import log, version
+import log, encoding, version
 
 
 class ConfigError(Exception):
@@ -849,7 +849,7 @@ def gendefault():
 
 def usage():
     print "PyTone %s" % version.version
-    print "Copyright %s" % version.copyright
+    print "Copyright %s" % encoding.encode(version.copyright)
     print "usage: pytone.py [options]"
     print "-h, --help: show this help"
     print "-c, --config <filename>: read config from filename"
