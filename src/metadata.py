@@ -387,18 +387,12 @@ def read_mp3_eyeD3_metadata(md, path):
 
     if mp3info:
         self.title = mp3info.getTitle()
-        self.title = MP3Info._strip_zero(self.title)
-
         self.album = mp3info.getAlbum()
-        self.album = MP3Info._strip_zero(self.album)
-
         self.artist = mp3info.getArtist()
-        self.artist = MP3Info._strip_zero(self.artist)
-
-        self.year = mp3info.getYear()
-        if self.year:
-            self.year = int(self.year)
-
+        try:
+            self.year = int(mp3info.getYear())
+        except:
+            pass
         try:
             self.genre = mp3info.getGenre()
             if self.genre:
@@ -423,6 +417,9 @@ def read_mp3_eyeD3_metadata(md, path):
                     pass
             if length:
                 self.length = length
+        self.lyrics = u"".join(mp3info.getLyrics())
+        self.comments = u"".join(mp3info.getComments())
+        self.bpm = mp3info.getBPM()
 
         for rva2frame in mp3info.frames["RVA2"]:
             # since eyeD3 currently doesn't support RVA2 frames, we have to decode
@@ -454,7 +451,7 @@ try:
     import mutagen.mp3
     import mutagen.id3
     import MP3Info
-    
+
     # copied from quodlibet
     class ID3hack(mutagen.id3.ID3):
         "Override 'correct' behavior with desired behavior"
