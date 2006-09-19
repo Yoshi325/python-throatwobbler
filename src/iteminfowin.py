@@ -195,6 +195,7 @@ class iteminfowinlong(messagewin.messagewin):
         # calculate width of columns
         wc1 = 0
         wc3 = 0
+        wc4 = 0
         for line in info:
             line = map(encoding.encode, line)
             wc1 = max(wc1, len(line[0]))
