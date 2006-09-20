@@ -140,35 +140,17 @@ songcolumns_w_indices = songcolumns_plain + songcolumns_indices
 songcolumns_lists = ["comments", "lyrics"]
 songcolumns_all = songcolumns_w_indices + songcolumns_lists
 
-# encode and decode tuples of strings (for comments and lyrics fields)
-# we could also use pysqlites adapter mechanism
+# secure unpickler which does not accept any instances and uses unicode
 
-def _strings_to_string(ss):
-     return u"".join([u"%08x%s" % (len(s), s) for s in ss])
+import cPickle, cStringIO
 
-def _string_to_strings(s):
-     i = 0
-     ss = []
-     while i<len(s):
-         l = int(s[i:i+8], base=16)
-         ss.append(s[i+8:i+8+l])
-         i += 8+l
-     return tuple(ss)
+def loads(s):
+    unpickler = cPickle.Unpickler(cStringIO.StringIO(str(s)))
+    unpickler.find_global = None
+    return unpickler.load()
 
-def _list_of_3tuples_to_list(tuples):
-    r = []
-    for t in tuples:
-        r.extend(t)
-    return r
-
-def _list_to_list_of_3tuples(l):
-    r = []
-    for i in range(len(l)/3):
-        r.append(tuple(l[3*i:3*(i+1)]))
-    return r
-
-def _encode_comment_lyrics(l):
-   return _strings_to_string(_list_of_3tuples_to_list(l))
+def dumps(obj):
+    return unicode(cPickle.dumps(obj, 0))
 
 def _decode_comment_lyrics(s):
    return _list_to_list_of_3tuples(_string_to_strings(s))
@@ -365,9 +347,9 @@ class songdb(service.service):
                 song.album_id = None
                 newalbum = False
 
-            # encode the comments and lyrics lists
-            comments = _encode_comment_lyrics(song.comments)
-            lyrics = _encode_comment_lyrics(song.lyrics)
+            # pickle the comments and lyrics lists
+            comments = dumps(song.comments)
+            lyrics = dumps(song.lyrics)
 
             # register song
             self.cur.execute(self._song_insert,
@@ -671,8 +653,8 @@ class songdb(service.service):
                 md.artist = r["artist"]
                 md.album_artist = album_artist
                 md.tags = tags
-                md.comments = _decode_comment_lyrics(r["comments"])
-                md.lyrics = _decode_comment_lyrics(r["lyrics"])
+                md.comments = loads(r["comments"])
+                md.lyrics = loads(r["lyrics"])
                 md.dates_played = dates_played
                 return md
             else:
