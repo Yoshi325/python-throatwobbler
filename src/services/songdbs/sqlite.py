@@ -481,8 +481,8 @@ class songdb(service.service):
                 changedalbums |= newalbum
 
             # encode the comments and lyrics lists
-            comments = _strings_to_string(song.comments)
-            lyrics = _strings_to_string(song.lyrics)
+            comments = dumps(song.comments)
+            lyrics = dumps(song.lyrics)
 
             # update songs table
             self.cur.execute(self._song_update, 
