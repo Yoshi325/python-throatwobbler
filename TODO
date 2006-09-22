@@ -5,6 +5,8 @@
 - No more options:
   playlistdir, playlistload, dbenvdir
 
+- allow tagging of no artists dir
+
 
 TOCHECK:
 - what happens to mpg123 when pytone crashes
