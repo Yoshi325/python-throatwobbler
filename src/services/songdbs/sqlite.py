@@ -84,8 +84,8 @@ CREATE TABLE songs (
   artist_id             INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
   album_artist_id       INTEGER CONSTRAINT fk_song_artist_id REFERENCES artists(id),
   year                  INTEGER,
-  comments              TEXT,
-  lyrics                TEXT,
+  comments              BLOB,
+  lyrics                BLOB,
   bpm                   INTEGER,
   length                INTEGER,
   tracknumber           INTEGER,
@@ -94,7 +94,7 @@ CREATE TABLE songs (
   diskcount             INTEGER,
   compilation           BOOL,
   bitrate               INTEGER,
-  is_vbr                BOOT,
+  is_vbr                BOOL,
   samplerate            INTEGER,
   replaygain_track_gain FLOAT,
   replaygain_track_peak FLOAT,
@@ -140,20 +140,18 @@ songcolumns_w_indices = songcolumns_plain + songcolumns_indices
 songcolumns_lists = ["comments", "lyrics"]
 songcolumns_all = songcolumns_w_indices + songcolumns_lists
 
-# secure unpickler which does not accept any instances and uses unicode
+# secure unpickler which does not accept any instances
 
 import cPickle, cStringIO
 
 def loads(s):
-    unpickler = cPickle.Unpickler(cStringIO.StringIO(str(s)))
+    log.debug(s.__class__.__name__)
+    unpickler = cPickle.Unpickler(cStringIO.StringIO(s))
     unpickler.find_global = None
     return unpickler.load()
 
 def dumps(obj):
-    return unicode(cPickle.dumps(obj, 0))
-
-def _decode_comment_lyrics(s):
-   return _list_to_list_of_3tuples(_string_to_strings(s))
+    return buffer(cPickle.dumps(obj))
 
 #
 # statistical information about songdb
