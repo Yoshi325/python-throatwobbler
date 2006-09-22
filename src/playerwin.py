@@ -106,13 +106,16 @@ class playerwin(window.window):
             self.update()
 
             # update player info file, if configured
-            if self.playerinfofd and self.song:
+            if self.playerinfofd:
                 try:
                     self.playerinfofd.seek(0)
-                    info = "%s - %s (%s/%s)\n"  % ( self.song.artist,
-                                                    self.song.title,
-                                                    formattime(self.time),
-                                                    formattime(self.song.length))
+                    if self.song:
+                        info = "%s - %s (%s/%s)\n"  % ( self.song.artist,
+                                                        self.song.title,
+                                                        formattime(self.time),
+                                                        formattime(self.song.length))
+                    else:
+                        info = _("Not playing") + "\n"
                     info = encoding.encode(info)
                     self.playerinfofd.write(info)
                     self.playerinfofd.truncate(len(info))
