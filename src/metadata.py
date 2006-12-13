@@ -55,7 +55,6 @@ class song_metadata:
     bitrate = None
     is_vbr = None
     samplerate = None
-    length = None
     rating = None
     replaygain_track_gain = None
     replaygain_track_peak = None
@@ -106,7 +105,6 @@ class song_metadata:
         self.bitrate = other.bitrate
         self.is_vbr = other.is_vbr
         self.samplerate = other.samplerate
-        self.length = other.length
         self.replaygain_track_gain = other.replaygain_track_gain
         self.replaygain_track_peak = other.replaygain_track_peak
         self.replaygain_album_gain = other.replaygain_album_gain
@@ -280,7 +278,7 @@ def read_vorbis_metadata(md, path):
     self.year = int(id3get('DATE', [""])[0])
     self.genre  = id3get('GENRE', [""])[0]
     self.tracknr = id3get('TRACKNUMBER', [""])[0]
-    self.length = vf.time_total(0)
+    self.length = int(vf.time_total(0))
 
     # example format according to vorbisgain documentation
     # REPLAYGAIN_TRACK_GAIN=-7.03 dB
