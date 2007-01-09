@@ -145,7 +145,6 @@ songcolumns_all = songcolumns_w_indices + songcolumns_lists
 import cPickle, cStringIO
 
 def loads(s):
-    log.debug(s.__class__.__name__)
     unpickler = cPickle.Unpickler(cStringIO.StringIO(s))
     unpickler.find_global = None
     return unpickler.load()
@@ -1012,7 +1011,7 @@ class songautoregisterer(service.service):
         if songs:
             # there is exactly one resulting song
             song = songs[0]
-            song_metadata = self._request(requests.getsong_metadata(self.songdbid, song.id))
+            song.song_metadata = self._request(requests.getsong_metadata(self.songdbid, song.id))
             if force or song_metadata.date_updated < os.stat(path).st_mtime:
                 # the song has changed since the last update
                 newsong_metadata = metadata.metadata_from_file(relpath, self.basedir,
@@ -1021,6 +1020,7 @@ class songautoregisterer(service.service):
                                                                self.tagremoveaccents)
                 song.song_metadata.update(newsong_metadata)
                 self._notify(events.update_song(self.songdbid, song))
+                log.debug("registerer: song '%r' rescanned" % song_url)
             else:
                 log.debug("registerer: not scanning unchanged song '%r'" % song_url)
         else:
