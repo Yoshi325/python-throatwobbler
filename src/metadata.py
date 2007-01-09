@@ -380,29 +380,31 @@ def read_mp3_eyeD3_metadata(md, path):
 
     # we definitely want the length of the MP3 file, even if no ID3 tag is present,
     # so extract this info before anything goes wrong
-    self.length = mp3file.getPlayTime()
+    md.length = mp3file.getPlayTime()
 
-    self.is_vbr, bitrate = mp3file.getBitRate()
-    self.bitrate = bitrate * 1000
-    self.samplerate = mp3file.getSampleFreq()
+    md.is_vbr, bitrate = mp3file.getBitRate()
+    md.bitrate = bitrate * 1000
+    md.samplerate = mp3file.getSampleFreq()
+    md.comments = []
+    md.lyrics = []
 
     if mp3info:
-        self.title = mp3info.getTitle()
-        self.album = mp3info.getAlbum()
-        self.artist = mp3info.getArtist()
+        md.title = mp3info.getTitle()
+        md.album = mp3info.getAlbum()
+        md.artist = mp3info.getArtist()
         try:
-            self.year = int(mp3info.getYear())
+            md.year = int(mp3info.getYear())
         except:
             pass
         try:
-            self.genre = mp3info.getGenre()
-            if self.genre:
-                self.genre = self.genre.getName()
+            genre = mp3info.getGenre()
         except eyeD3.tag.GenreException, e:
-            self.genre = e.msg.split(':')[1].strip()
+            genre = e.msg.split(':')[1].strip()
+        if genre:
+            md.tags.append("G:%s" % genre)
 
-        self.tracknumber, self.trackcount = mp3info.getTrackNum()
-        self.disknumber, self.diskcount = mp3info.getDiscNum()
+        md.tracknumber, md.trackcount = mp3info.getTrackNum()
+        md.disknumber, md.diskcount = mp3info.getDiscNum()
 
         # if the playtime is also in the ID3 tag information, we
         # try to read it from there
@@ -417,10 +419,10 @@ def read_mp3_eyeD3_metadata(md, path):
                 except:
                     pass
             if length:
-                self.length = length
-        self.lyrics = u"".join(mp3info.getLyrics())
-        self.comments = u"".join(mp3info.getComments())
-        self.bpm = mp3info.getBPM()
+                md.length = length
+        md.lyrics = u"".join(mp3info.getLyrics())
+        md.comments = u"".join(mp3info.getComments())
+        md.bpm = mp3info.getBPM()
 
         for rva2frame in mp3info.frames["RVA2"]:
             # since eyeD3 currently doesn't support RVA2 frames, we have to decode
@@ -445,8 +447,8 @@ def read_mp3_eyeD3_metadata(md, path):
                 else:
                     # for everything else, we assume it's track gain
                     basename = "replaygain_track_"
-                setattr(self, basename+"gain", gain)
-                setattr(self, basename+"peak", peak)
+                md[basename+"gain"] = gain
+                md[basename+"peak"] = peak
 
 try:
     import mutagen.mp3
