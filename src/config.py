@@ -902,7 +902,7 @@ def checkoptions():
     for databasename in database.getsubsections():
         songdb = database[databasename]
 
-        if songdb == "local" and songdb.musicbasedir == "":
+        if songdb.type == "local" and songdb.musicbasedir == "":
             print ( "Please set musicbasedir in the [database.%s] section of the config file pytonerc\n"
                     "to the location of your MP3/Ogg Vorbis files." % databasename )
             sys.exit(2)
