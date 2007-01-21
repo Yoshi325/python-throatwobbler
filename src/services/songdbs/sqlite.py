@@ -1012,7 +1012,7 @@ class songautoregisterer(service.service):
             # there is exactly one resulting song
             song = songs[0]
             song.song_metadata = self._request(requests.getsong_metadata(self.songdbid, song.id))
-            if force or song_metadata.date_updated < os.stat(path).st_mtime:
+            if force or song.song_metadata.date_updated < os.stat(path).st_mtime:
                 # the song has changed since the last update
                 newsong_metadata = metadata.metadata_from_file(relpath, self.basedir,
                                                                self.tracknrandtitlere,
@@ -1044,7 +1044,7 @@ class songautoregisterer(service.service):
         if self.done: return
         songpaths = []
 
-        # scan for paths of songs  and recursively call registering of subdirectories
+        # scan for paths of songs and recursively call registering of subdirectories
         for name in os.listdir(dir):
             path = os.path.join(dir, name)
             extension = os.path.splitext(path)[1].lower()
@@ -1108,19 +1108,20 @@ class songautoregisterer(service.service):
 
     def autoregistersongs(self, event):
         if self.songdbid == event.songdbid:
-            log.info(_("database %r: scanning for songs in %r") % (self.songdbid, self.basedir))
             oldsongs = set(hub.request(requests.getsongs(self.songdbid)))
+            log.info(_("database %r: scanning for songs in %r (currently %d songs registered)") % (self.songdbid, self.basedir, len(oldsongs)))
 
             # scan for all songs in the filesystem
             log.debug("database %r: searching for new songs" % self.songdbid)
             self.registerdirtree(self.basedir, oldsongs, event.force)
 
             # remove songs which have not yet been scanned and thus are not accesible anymore
-            log.info(_("database %r: removing stale songs") % self.songdbid)
+            log.info(_("database %r: removing %d stale songs") % (self.songdbid, len(oldsongs)))
             for song in oldsongs:
                 self._notify(events.delete_song(self.songdbid, song))
 
-            log.info(_("database %r: rescan finished") % self.songdbid)
+            nrsongs = hub.request(requests.getnumberofsongs(self.songdbid))
+            log.info(_("database %r: rescan finished (%d songs registered)") % (self.songdbid, nrsongs))
 
     def autoregisterer_rescansongs(self, event):
         if self.songdbid == event.songdbid:
