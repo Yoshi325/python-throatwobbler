@@ -2,6 +2,7 @@
 
 - check pytonectl
 - check David Bowie Let's Dance
+- make removeaccents work again: howto use unicode.translate
 
 - No more options:
   playlistdir, playlistload, dbenvdir
