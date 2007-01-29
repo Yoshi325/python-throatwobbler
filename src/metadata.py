@@ -202,6 +202,8 @@ def read_path_metadata(md, relpath, tracknrandtitlere):
     if "Compilations" in relpath:
         md.compilation = True
 
+# accent_trans = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
+#                                'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
 
 def regularize_metadata(md, capitalize, stripleadingarticle, removeaccents):
     if md.title:
@@ -224,12 +226,12 @@ def regularize_metadata(md, capitalize, stripleadingarticle, removeaccents):
         if md.artist.startswith("The ") and len(md.artist)>4:
             md.artist = md.artist[4:]
 
-    #if removeaccents:
-    #    translationtable = string.maketrans('ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛáàäâéèëêíìïîóòöôúùüû',
-    #                                        'AAAAEEEEIIIIOOOOUUUUaaaaeeeeiiiioooouuuu')
-    #    artist = string.translate(artist, translationtable)
-    #    album = string.translate(album, translationtable)
-    #    title = string.translate(title, translationtable)
+    # XXX disabled because I don't know how to get translate working
+    # with unicode strings (except for encoding them first)
+    if removeaccents and 0:
+        md.artist = md.artist.translate(accent_trans)
+        md.album = md.album.translate(accent_trans)
+        md.title = md.title.translate(accent_trans)
 
     if md.album_artist is None:
         if md.compilation: 
